@@ -33,8 +33,14 @@ $title = 'Consultantations Schedule';
                 <?php $form = ActiveForm::begin(['id' => 'appointmentForm']); ?>
 
                 <?= $form->field($model, 'patient_id')->hiddenInput(['value' => 1])->label(false) ?>
-                <?= $form->field($model, 'date')->textInput(['type' => 'date']) ?>
-                <?= $form->field($model, 'time')->textInput(['type' => 'time']) ?>
+                <div class="row">
+                    <div class="col-md-6">
+                        <?= $form->field($model, 'date')->textInput(['readonly' => true]) ?>
+                    </div>
+                    <div class="col-md-6">
+                        <?= $form->field($model, 'time')->textInput(['readonly' => true]) ?>
+                    </div>
+                </div>
                 <?= $form->field($model, 'symptoms_brief')->textarea(['rows' => 6]) ?>
 
 
@@ -55,10 +61,17 @@ $script = <<<JS
     var calendarEl = document.getElementById('calendar');
     var lastClickTime = 0;
     var doubleClickThreshold = 300; // milliseconds
-
+    
     var calendar = new FullCalendar.Calendar(calendarEl, {
-        initialView: 'timeGridDay', // Day view - Default View
-         headerToolbar: {
+        initialView: 'timeGridWeek', // Day view - Default View
+        validRange: function() {
+            let nowDate = new Date(); // Get current date
+            return {
+                start: nowDate,
+                end: new Date(nowDate.getFullYear(), nowDate.getMonth() + 3, nowDate.getDate())
+            };
+        },
+        headerToolbar: {
             left: 'prev,next today',
             center: 'title',
             right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek' // Toggle buttons
