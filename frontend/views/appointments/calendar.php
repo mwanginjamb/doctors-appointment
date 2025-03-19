@@ -65,7 +65,8 @@ $script = <<<JS
         },
         events: '/api/appointments', // Load existing appointments
         selectable: true,
-        editable: false,
+        editable: true,
+        eventDurationEditable: true,
         height: 600,
         dateClick: function(info) {
             var now = new Date().getTime();
@@ -80,9 +81,28 @@ $script = <<<JS
                 $('#appointmentModal').modal('show');
             }
             lastClickTime = now;
-        }
+        },
+
+         // Handle event drag-and-drop
+        eventDrop: function(info) {
+            updateEvent(info.event);
+        },
+        
+        // Handle event resizing
+        eventResize: function(info) {
+            updateEvent(info.event);
+        },
+
+
     });
     calendar.render();
+
+    // Update event helper function
+
+    function updateEvent(event) {
+        console.table(event);
+        exit;
+    }
 
     // Handle form submission
     $('#appointmentForm').on('submit', function(e) {
