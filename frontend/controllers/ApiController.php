@@ -43,7 +43,7 @@ class ApiController extends Controller
             $startTime = strtotime($data['date'] . ' ' . $data['time']);
             $endTime = $startTime + env('DURATION', 30 * 60);
 
-            //Define Doctots working hours
+            //Define Doctors working hours
             $workingStart = strtotime($data['date'] . ' 09:00:00');
             $workingEnd = strtotime($data['date'] . ' 17:00:00');
 
@@ -76,5 +76,49 @@ class ApiController extends Controller
             }
         }
         throw new BadRequestHttpException('Invalid Request.');
+    }
+
+    public function actionUpdateVisit()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $request = Yii::$app->request;
+        if ($request->isPost) {
+            $data = json_decode($request->getRawBody(), true);
+            $model = Appointments::findOne($data['id']);
+            if ($model) {
+                $model->date = $data['date'];
+                $model->time = $data['time'];
+
+
+                $startTime = strtotime($data['date'] . ' ' . $data['time']);
+                $endTime = $startTime + env('DURATION', 30 * 60);
+
+                //Define Doctors working hours
+                $workingStart = strtotime($data['date'] . ' 09:00:00');
+                $workingEnd = strtotime($data['date'] . ' 17:00:00');
+
+
+                // Check if the appointment is within working hours.
+                if ($startTime < $workingStart || $endTime > $workingEnd) {
+                    return ['status' => 'error', 'message' => "Appointment time is outside of doctor's working hours."];
+                }
+
+                // Check for conflicting appointments on the same day.
+                $conflict = $model::find()
+                    ->where(['date' => $data['date']])
+                    ->andWhere(['between', 'time', date('H:i:s', $startTime), date('H:i:s', $endTime)])
+                    ->andWhere(['consultant_id' => 1])
+                    ->exists();
+                if ($conflict) {
+                    return ['status' => 'error', 'message' => "Doctor is not available at this time."];
+                }
+
+
+
+                if ($model->save()) {
+                    return ['status' => 'success', 'message' => 'Appointment updated'];
+                }
+            }
+        }
     }
 }

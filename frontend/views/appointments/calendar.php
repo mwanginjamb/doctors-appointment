@@ -71,7 +71,7 @@ $script = <<<JS
         dateClick: function(info) {
             var now = new Date().getTime();
             // On double-click, open modal with the selected date/time.
-            if (now - lastClickTime < doubleClickThreshold) {
+           // if (now - lastClickTime < doubleClickThreshold) {
                 // Get Date and time
                  var selectedDate = info.date.toISOString().split('T')[0];
                  var selectedTime = info.date.toTimeString().split(' ')[0];
@@ -79,8 +79,8 @@ $script = <<<JS
                 $('#appointments-date').val(selectedDate); // YYYY-MM-DD
                 $('#appointments-time').val(selectedTime); // HH:MM:SS
                 $('#appointmentModal').modal('show');
-            }
-            lastClickTime = now;
+           // }
+          //  lastClickTime = now;
         },
 
          // Handle event drag-and-drop
@@ -99,9 +99,27 @@ $script = <<<JS
 
     // Update event helper function
 
-    function updateEvent(event) {
-        console.table(event);
-        exit;
+   function updateEvent(event) {
+        var eventData = {
+            id: event.id,
+            date: event.start.toISOString().split('T')[0], // YYYY-MM-DD
+            time: event.start.toTimeString().split(' ')[0] // HH:MM:SS
+        };
+
+        $.ajax({
+            url: '/api/update-visit',
+            type: 'POST',
+            data: JSON.stringify(eventData),
+            contentType: 'application/json',
+            success: function(response) {
+                alert(response.message);
+            },
+            error: function(xhr) {
+                console.log(xhr);
+                alert('Error updating appointment: ' + xhr.responseText);
+                location.reload(); // Reload calendar if update fails
+            }
+        });
     }
 
     // Handle form submission
