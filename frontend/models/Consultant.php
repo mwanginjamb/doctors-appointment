@@ -3,8 +3,6 @@
 namespace app\models;
 
 use Yii;
-use yii\behaviors\BlameableBehavior;
-use yii\behaviors\TimestampBehavior;
 
 /**
  * This is the model class for table "consultant".
@@ -23,6 +21,9 @@ use yii\behaviors\TimestampBehavior;
  * @property int|null $created_by
  * @property int|null $updated_by
  * @property int|null $consultant_id
+ * @property int|null $appointment_session_duration
+ * @property string|null $working_start_time
+ * @property string|null $working_end_time
  */
 class Consultant extends \yii\db\ActiveRecord
 {
@@ -36,27 +37,22 @@ class Consultant extends \yii\db\ActiveRecord
         return 'consultant';
     }
 
-    public function behaviors()
-    {
-        return [
-            TimestampBehavior::class,
-            BlameableBehavior::class
-        ];
-    }
-
     /**
      * {@inheritdoc}
      */
     public function rules()
     {
         return [
-            [['names', 'license_number', 'speciality', 'sub_speciality', 'kmpdc_registration_number', 'user_id', 'facility', 'physical_address', 'created_at', 'updated_at', 'created_by', 'updated_by', 'consultant_id'], 'default', 'value' => null],
+            [['names', 'license_number', 'speciality', 'sub_speciality', 'kmpdc_registration_number', 'user_id', 'facility', 'physical_address', 'created_at', 'updated_at', 'created_by', 'updated_by', 'consultant_id', 'appointment_session_duration', 'working_start_time', 'working_end_time'], 'default', 'value' => null],
             [['speciality', 'sub_speciality', 'physical_address'], 'string'],
-            [['user_id', 'created_at', 'updated_at', 'created_by', 'updated_by', 'consultant_id'], 'integer'],
+            [['user_id', 'created_at', 'updated_at', 'created_by', 'updated_by', 'consultant_id', 'appointment_session_duration'], 'integer'],
+            [['working_start_time', 'working_end_time'], 'safe'],
             [['names'], 'string', 'max' => 150],
             [['license_number'], 'string', 'max' => 100],
             [['kmpdc_registration_number'], 'string', 'max' => 255],
             [['facility'], 'string', 'max' => 250],
+            [['names', 'license_number', 'speciality', 'physical_address'], 'required'],
+            [['license_type'], 'string']
         ];
     }
 
@@ -80,6 +76,9 @@ class Consultant extends \yii\db\ActiveRecord
             'created_by' => Yii::t('app', 'Created By'),
             'updated_by' => Yii::t('app', 'Updated By'),
             'consultant_id' => Yii::t('app', 'Consultant ID'),
+            'appointment_session_duration' => Yii::t('app', 'Appointment Session Duration'),
+            'working_start_time' => Yii::t('app', 'Working Start Time'),
+            'working_end_time' => Yii::t('app', 'Working End Time'),
         ];
     }
 

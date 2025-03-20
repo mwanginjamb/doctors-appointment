@@ -2,6 +2,7 @@
 
 namespace frontend\controllers;
 
+use app\models\SearchForm;
 use frontend\models\ResendVerificationEmailForm;
 use frontend\models\VerifyEmailForm;
 use Yii;
@@ -75,7 +76,17 @@ class SiteController extends Controller
      */
     public function actionIndex()
     {
-        return $this->render('index');
+        $model = new SearchForm();
+        $request = Yii::$app->request;
+        $results = [];
+        if ($request->isPost) {
+            $results = $model->findConsultants($request->post(), $model->formName());
+        }
+
+        return $this->render('index', [
+            'model' => $model,
+            'results' => $results
+        ]);
     }
 
     /**

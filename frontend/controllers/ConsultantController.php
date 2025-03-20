@@ -2,11 +2,12 @@
 
 namespace frontend\controllers;
 
-use app\models\Consultant;
-use app\models\ConsultantSearch;
 use yii\web\Controller;
-use yii\web\NotFoundHttpException;
+use app\models\Consultant;
 use yii\filters\VerbFilter;
+use yii\filters\AccessControl;
+use app\models\ConsultantSearch;
+use yii\web\NotFoundHttpException;
 
 /**
  * ConsultantController implements the CRUD actions for Consultant model.
@@ -22,11 +23,34 @@ class ConsultantController extends Controller
             parent::behaviors(),
             [
                 'verbs' => [
-                    'class' => VerbFilter::className(),
+                    'class' => VerbFilter::class,
                     'actions' => [
                         'delete' => ['POST'],
                     ],
                 ],
+                'access' => [
+                    'class' => AccessControl::class,
+                    'only' => [
+                        'index',
+                        'create',
+                        'update',
+                        'delete',
+                        'view',
+                        'verify'
+                    ],
+                    'rules' => [
+                        [ // unauthenticated users
+                            'actions' => ['signup'],
+                            'allow' => true,
+                            'roles' => ['?'],
+                        ],
+                        [ // logged in users
+                            'actions' => ['index', 'create', 'update', 'delete', 'view'],
+                            'allow' => true,
+                            'roles' => ['@'],
+                        ],
+                    ],
+                ]
             ]
         );
     }
