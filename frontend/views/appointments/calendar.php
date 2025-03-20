@@ -7,14 +7,19 @@ use yii\bootstrap5\ActiveForm;
 /**
  * @var yii\web\View $this
  */
-$title = 'Consultantations Schedule';
+$title = 'Consultantations Schedule for ' . ucwords($consultant->names);
 
 
 
-
+$this->title = $title;
 
 ?>
-
+<div class="container mt-4">
+    <div class="calendar-header text-center py-3">
+        <h1 class="fw-bold display-5 text-primary"><?= ucwords($consultant->names) ?> Appointment Calendar</h1>
+        <p class="lead text-muted">Please click on any available time slot to enter your appointment.</p>
+    </div>
+</div>
 <div class="container">
     <div id="calendar"></div>
 </div>
@@ -32,7 +37,8 @@ $title = 'Consultantations Schedule';
 
                 <?php $form = ActiveForm::begin(['id' => 'appointmentForm']); ?>
 
-                <?= $form->field($model, 'patient_id')->hiddenInput(['value' => 1])->label(false) ?>
+                <?= $form->field($model, 'patient_id')->hiddenInput(['value' => Yii::$app->user->id])->label(false) ?>
+                <?= $form->field($model, 'consultant_id')->hiddenInput(['value' => $consultant->id ?? null])->label(false) ?>
                 <div class="row">
                     <div class="col-md-6">
                         <?= $form->field($model, 'date')->textInput(['readonly' => true]) ?>
@@ -142,7 +148,8 @@ $script = <<<JS
             date: $('#appointments-date').val(),
             time: $('#appointments-time').val(),
             brief: $('#appointments-symptoms_brief').val(),
-            patient_name: $('#appointments-patient_id').val()
+            patient_name: $('#appointments-patient_id').val(),
+            consultant: $('#appointments-consultant_id').val(),
         };
 
         $.ajax({

@@ -60,7 +60,7 @@ $this->title = 'Find a Doctor';
                                             <td><?= $res->names ?></td>
                                             <td><?= $res->speciality ?></td>
                                             <td><?= $res->physical_address ?></td>
-                                            <td><?= Html::a('Book Appointment', Url::toRoute(['appointments/create', 'cid' => $res->id])) ?>
+                                            <td><?= Html::a('Book Appointment', Url::toRoute(['appointments/calendar', 'cid' => $res->id])) ?>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>

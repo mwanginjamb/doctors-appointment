@@ -4,6 +4,7 @@ namespace frontend\controllers;
 
 use app\models\Appointments;
 use app\models\AppointmentsSearch;
+use app\models\Consultant;
 use yii\web\Controller;
 use yii\web\NotFoundHttpException;
 use yii\filters\VerbFilter;
@@ -116,11 +117,13 @@ class AppointmentsController extends Controller
         return $this->redirect(['index']);
     }
 
-    public function actionCalendar()
+    public function actionCalendar($cid)
     {
         $model = new Appointments();
+        $consultant = Consultant::findOne($cid);
         return $this->render('calendar', [
-            'model' => $model
+            'model' => $model,
+            'consultant' => $consultant
         ]);
     }
 

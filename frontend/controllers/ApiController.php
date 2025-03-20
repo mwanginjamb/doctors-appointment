@@ -14,7 +14,8 @@ class ApiController extends Controller
     public function actionAppointments()
     {
         Yii::$app->response->format = Response::FORMAT_JSON;
-        $appointments = Appointments::find()->all();
+        $appointments = Appointments::find()->where(['consultant_id' => Yii::$app->user->identity->id])->
+            orWhere(['created_by' => Yii::$app->user->identity->id, 'patient_id' => Yii::$app->user->identity->id])->all();
         $events = [];
 
         foreach ($appointments as $app) {
@@ -54,19 +55,20 @@ class ApiController extends Controller
 
             // Check for conflicting appointments on the same day.
             $conflict = $model::find()
+                ->select('patient_id')
                 ->where(['date' => $data['date']])
                 ->andWhere(['between', 'time', date('H:i:s', $startTime), date('H:i:s', $endTime)])
-                ->andWhere(['consultant_id' => 1])
-                ->exists();
+                ->andWhere(['consultant_id' => $data['consultant']])
+                ->one();
             if ($conflict) {
-                return ['status' => 'error', 'message' => "Doctor is not available at this time."];
+                return ['status' => 'error', 'message' => "Doctor is not available at this time  - " . $conflict->patient_id];
             }
 
             // Populate the appointment model.
             $model->date = $data['date'];
             $model->time = $data['time'];
-            $model->patient_id = 3;
-            $model->consultant_id = 1;
+            $model->patient_id = $data['patient_name'];
+            $model->consultant_id = $data['consultant'];
             $model->symptoms_brief = $data['brief'];
 
             if ($model->save()) {
