@@ -15,7 +15,8 @@ class AppAsset extends AssetBundle
         'css/site.css',
     ];
     public $js = [
-        '//cdnjs.cloudflare.com/ajax/libs/fullcalendar/6.1.15/index.global.js'
+        '//cdnjs.cloudflare.com/ajax/libs/fullcalendar/6.1.15/index.global.js',
+        'Js/custom.js',
     ];
     public $depends = [
         'yii\web\YiiAsset',

@@ -37,39 +37,40 @@ $this->title = 'Find a Doctor';
                 </div>
 
                 <!-- results -->
-                <div class="row my-3">
-                    <div class="card">
-                        <div class="card-header">
-                            <h3 class="card-title">
-                                Search Results
-                            </h3>
-                        </div>
-                        <div class="card-body">
-                            <table class="table table-bordered">
-                                <thead>
-                                    <tr>
-                                        <th>Name</th>
-                                        <th>Speciality</th>
-                                        <th>Physical Address</th>
-                                        <td>Action</td>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach ($results as $res): ?>
+                <?php if (!empty($results)): ?>
+                    <div class="row my-3">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">
+                                    Search Results
+                                </h3>
+                            </div>
+                            <div class="card-body">
+                                <table class="table table-bordered">
+                                    <thead>
                                         <tr>
-                                            <td><?= $res->names ?></td>
-                                            <td><?= $res->speciality ?></td>
-                                            <td><?= $res->physical_address ?></td>
-                                            <td><?= Html::a('Book Appointment', Url::toRoute(['appointments/calendar', 'cid' => $res->id])) ?>
-                                            </td>
+                                            <th>Name</th>
+                                            <th>Speciality</th>
+                                            <th>Physical Address</th>
+                                            <td>Action</td>
                                         </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        <?php foreach ($results as $res): ?>
+                                            <tr>
+                                                <td><?= $res->names ?></td>
+                                                <td><?= $res->speciality ?></td>
+                                                <td><?= $res->physical_address ?></td>
+                                                <td><?= Html::a('Book Appointment', Url::toRoute(['appointments/calendar', 'cid' => $res->id])) ?>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
-                </div>
-
+                <?php endif ?>
                 <!-- Results -->
             </div>
         </div>

@@ -73,7 +73,7 @@ $script = <<<JS
         validRange: function() {
             let nowDate = new Date(); // Get current date
             return {
-                start: nowDate,
+                start: new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate() - 5),
                 end: new Date(nowDate.getFullYear(), nowDate.getMonth() + 3, nowDate.getDate())
             };
         },
@@ -82,7 +82,7 @@ $script = <<<JS
             center: 'title',
             right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek' // Toggle buttons
         },
-        events: '/api/appointments', // Load existing appointments
+        events: fetchCalendarEvents, // Load existing appointments
         selectable: true,
         editable: true,
         eventDurationEditable: true,

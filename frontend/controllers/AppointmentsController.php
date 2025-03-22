@@ -2,12 +2,13 @@
 
 namespace frontend\controllers;
 
-use app\models\Appointments;
-use app\models\AppointmentsSearch;
-use app\models\Consultant;
 use yii\web\Controller;
-use yii\web\NotFoundHttpException;
+use app\models\Consultant;
 use yii\filters\VerbFilter;
+use app\models\Appointments;
+use yii\filters\AccessControl;
+use app\models\AppointmentsSearch;
+use yii\web\NotFoundHttpException;
 
 /**
  * AppointmentsController implements the CRUD actions for Appointments model.
@@ -23,11 +24,34 @@ class AppointmentsController extends Controller
             parent::behaviors(),
             [
                 'verbs' => [
-                    'class' => VerbFilter::className(),
+                    'class' => VerbFilter::class,
                     'actions' => [
                         'delete' => ['POST'],
                     ],
                 ],
+                'access' => [
+                    'class' => AccessControl::class,
+                    'only' => [
+                        'index',
+                        'create',
+                        'update',
+                        'delete',
+                        'view',
+                        'calendar'
+                    ],
+                    'rules' => [
+                        [ // unauthenticated users
+                            'actions' => ['signup'],
+                            'allow' => true,
+                            'roles' => ['?'],
+                        ],
+                        [ // logged in users
+                            'actions' => ['index', 'create', 'update', 'delete', 'view', 'calendar'],
+                            'allow' => true,
+                            'roles' => ['@'],
+                        ],
+                    ],
+                ]
             ]
         );
     }
