@@ -18,6 +18,8 @@ use yii\web\IdentityInterface;
  * @property string $verification_token
  * @property string $email
  * @property string $auth_key
+ * @property string $auth_provider
+ * @property string $auth_client_id
  * @property integer $status
  * @property integer $created_at
  * @property integer $updated_at
@@ -36,6 +38,30 @@ class User extends ActiveRecord implements IdentityInterface
     public static function tableName()
     {
         return '{{%user}}';
+    }
+
+    // Find user by OAuth provider and client ID
+    public static function findByAuthClient($provider, $clientId)
+    {
+        return self::findOne(['auth_provider' => $provider, 'auth_client_id' => $clientId]);
+    }
+
+    // Create or update a user from OAuth data
+    public static function createOrUpdateFromOauth($provider, $clientId, $email, $name)
+    {
+        $user = self::findByAuthClient($provider, $clientId);
+
+        if (!$user) {
+            $user = new self();
+            $user->auth_provider = $provider;
+            $user->auth_client_id = $clientId;
+            $user->email = $email;
+            $user->username = $name;
+            $user->generateAuthKey(); // Generate a random auth key
+            $user->save(false);
+        }
+
+        return $user;
     }
 
     /**
@@ -110,7 +136,8 @@ class User extends ActiveRecord implements IdentityInterface
      * @param string $token verify email token
      * @return static|null
      */
-    public static function findByVerificationToken($token) {
+    public static function findByVerificationToken($token)
+    {
         return static::findOne([
             'verification_token' => $token,
             'status' => self::STATUS_INACTIVE

@@ -2,20 +2,23 @@
 
 namespace frontend\controllers;
 
-use app\models\SearchForm;
-use frontend\models\ResendVerificationEmailForm;
-use frontend\models\VerifyEmailForm;
 use Yii;
-use yii\base\InvalidArgumentException;
-use yii\web\BadRequestHttpException;
+use common\models\User;
 use yii\web\Controller;
+use app\models\SearchForm;
 use yii\filters\VerbFilter;
-use yii\filters\AccessControl;
 use common\models\LoginForm;
-use frontend\models\PasswordResetRequestForm;
-use frontend\models\ResetPasswordForm;
+use yii\authclient\AuthAction;
+use yii\filters\AccessControl;
 use frontend\models\SignupForm;
 use frontend\models\ContactForm;
+use yii\authclient\ClientInterface;
+use frontend\models\VerifyEmailForm;
+use yii\web\BadRequestHttpException;
+use frontend\models\ResetPasswordForm;
+use yii\base\InvalidArgumentException;
+use frontend\models\PasswordResetRequestForm;
+use frontend\models\ResendVerificationEmailForm;
 
 /**
  * Site controller
@@ -66,7 +69,39 @@ class SiteController extends Controller
                 'class' => \yii\captcha\CaptchaAction::class,
                 'fixedVerifyCode' => YII_ENV_TEST ? 'testme' : null,
             ],
+            'auth' => [
+                'class' => AuthAction::class,
+                'successCallback' => [$this, 'onAuthSuccess'],
+            ],
         ];
+    }
+
+
+
+    public function onAuthSuccess(ClientInterface $client)
+    {
+        $attributes = $client->getUserAttributes();
+        $email = $id = $name = null; //initialize values
+
+        // Identify the client
+        if ($client instanceof \yii\authclient\clients\Google) {
+            $email = $attributes['emails'][0]['value'] ?? null;
+            $id = $attributes['id'] ?? null;
+            $name = $attributes['displayName'] ?? null;
+        } elseif ($client instanceof \yii\authclient\clients\Live) {
+            $email = $attributes['mail'] ?? $attributes['userPrincipalName'] ?? null;
+            $id = $attributes['id'] ?? null;
+            $name = $attributes['displayName'] ?? null;
+        }
+
+        if (!$email) {
+            throw new \Exception('Failed to retrieve email from OAuth provider');
+        }
+
+        // Find or create user
+        $user = User::createOrUpdateFromOauth($client->getId(), $id, $email, $name);
+
+        Yii::$app->user->login($user);
     }
 
     /**
