@@ -10,6 +10,8 @@ use yii\filters\AccessControl;
 use app\models\AppointmentsSearch;
 use yii\web\NotFoundHttpException;
 
+use Yii;
+
 /**
  * AppointmentsController implements the CRUD actions for Appointments model.
  */
@@ -145,6 +147,9 @@ class AppointmentsController extends Controller
     {
         $model = new Appointments();
         $consultant = Consultant::findOne($cid);
+        $user = Yii::$app->user->id;
+        $booking_session = 'booking_session_' . $user;
+        Yii::$app->session->set($booking_session, $cid); // carries relevant consultant id
         return $this->render('calendar', [
             'model' => $model,
             'consultant' => $consultant

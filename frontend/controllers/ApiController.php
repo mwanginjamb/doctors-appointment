@@ -13,8 +13,11 @@ class ApiController extends Controller
 {
     public function actionAppointments()
     {
+        $booking_session = 'booking_session_' . Yii::$app->user->id;
+        $consultant_id = Yii::$app->session->get($booking_session);
+
         Yii::$app->response->format = Response::FORMAT_JSON;
-        $appointments = Appointments::find()->where(['consultant_id' => Yii::$app->user->identity->id])->
+        $appointments = Appointments::find()->where(['consultant_id' => $consultant_id])->
             orWhere(['created_by' => Yii::$app->user->identity->id, 'patient_id' => Yii::$app->user->identity->id])->all();
         $events = [];
 
