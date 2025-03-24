@@ -95,7 +95,11 @@ class SiteController extends Controller
         }
 
         if (!$email) {
-            throw new \Exception('Failed to retrieve email from OAuth provider');
+            Yii::$app->utility->printrr([
+                'client' => $client->getId(),
+                'attributes' => $attributes
+            ]);
+            // throw new \Exception('Failed to retrieve email from OAuth provider');
         }
 
         // Find or create user
