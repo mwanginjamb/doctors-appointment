@@ -6,7 +6,7 @@ use yii\helpers\Html;
 /** @var app\models\Appointments $model */
 
 $this->title = Yii::t('app', 'Update Appointments: {name}', [
-    'name' => $model->id,
+    'name' => '# ' . $model->id . ' for: ' . $model?->patient?->full_name,
 ]);
 $this->params['breadcrumbs'][] = ['label' => Yii::t('app', 'Appointments'), 'url' => ['index']];
 $this->params['breadcrumbs'][] = ['label' => $model->id, 'url' => ['view', 'id' => $model->id]];

@@ -20,6 +20,8 @@ class SignupForm extends Model
 
     public $phone_number;
 
+    public $role;
+
 
     /**
      * {@inheritdoc}
@@ -44,6 +46,9 @@ class SignupForm extends Model
 
             [['full_name', 'phone_number'], 'required'],
 
+            ['role', 'default', 'value' => 'client'],
+            ['role', 'in', 'range' => ['client', 'consultant'], 'message' => 'Please select a valid role'],
+
         ];
     }
 
@@ -67,6 +72,7 @@ class SignupForm extends Model
 
         $user->full_name = $this->full_name;
         $user->phone_number = $this->phone_number;
+        $user->role = $this->role;
 
         return $user->save() && $this->sendEmail($user);
     }

@@ -20,6 +20,7 @@ use yii\web\IdentityInterface;
  * @property string $auth_key
  * @property string $auth_provider
  * @property string $auth_client_id
+ * @property string $role
  * @property integer $status
  * @property integer $created_at
  * @property integer $updated_at
@@ -58,6 +59,7 @@ class User extends ActiveRecord implements IdentityInterface
             $user->email = $email;
             $user->username = $name;
             $user->generateAuthKey(); // Generate a random auth key
+            $user->role = 'client';
             $user->save(false);
         }
 

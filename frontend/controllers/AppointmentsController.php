@@ -67,6 +67,7 @@ class AppointmentsController extends Controller
     {
         $searchModel = new AppointmentsSearch();
         $dataProvider = $searchModel->search($this->request->queryParams);
+        $dataProvider->query->andWhere(['patient_id' => Yii::$app->user->id]);
 
         return $this->render('index', [
             'searchModel' => $searchModel,

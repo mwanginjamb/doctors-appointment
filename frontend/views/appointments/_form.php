@@ -1,7 +1,7 @@
 <?php
 
-use yii\helpers\Html;
-use yii\widgets\ActiveForm;
+use yii\bootstrap5\Html;
+use yii\bootstrap5\ActiveForm;
 
 /** @var yii\web\View $this */
 /** @var app\models\Appointments $model */
@@ -12,35 +12,48 @@ use yii\widgets\ActiveForm;
 
     <?php $form = ActiveForm::begin(); ?>
 
-    <?= $form->field($model, 'date')->textInput() ?>
+    <div class="row">
+        <div class="col-md-6">
+            <?= $form->field($model, 'date')->textInput(['readonly' => true, 'disabled' => true]) ?>
+        </div>
+        <div class="col-md-6">
+            <?= $form->field($model, 'time')->textInput(['readonly' => true, 'disabled' => true]) ?>
+        </div>
+    </div>
 
-    <?= $form->field($model, 'time')->textInput() ?>
+    <div class="row">
+        <div class="col-md-6">
+            <?= $form->field($model, 'service_id')->textInput() ?>
+        </div>
+        <div class="col-md-6">
+            <?= $form->field($model, 'provider_id')->textInput() ?>
+        </div>
+    </div>
 
-    <?= $form->field($model, 'patient_id')->textInput() ?>
+    <?php $form->field($model, 'patient_id')->textInput() ?>
+    <?php $form->field($model, 'speciality_id')->textInput() ?>
 
-    <?= $form->field($model, 'speciality_id')->textInput() ?>
 
-    <?= $form->field($model, 'service_id')->textInput() ?>
 
-    <?= $form->field($model, 'provider_id')->textInput() ?>
 
-    <?= $form->field($model, 'location')->textarea(['rows' => 6]) ?>
 
-    <?= $form->field($model, 'recurring_appointment')->textInput() ?>
+    <?php $form->field($model, 'location')->textarea(['rows' => 6]) ?>
 
-    <?= $form->field($model, 'walk_in_appointment')->textInput() ?>
+    <?= $form->field($model, 'recurring_appointment')->checkbox() ?>
+
+    <?= $form->field($model, 'walk_in_appointment')->checkbox() ?>
 
     <?= $form->field($model, 'symptoms_brief')->textarea(['rows' => 6]) ?>
 
-    <?= $form->field($model, 'created_at')->textInput() ?>
+    <?php $form->field($model, 'created_at')->textInput() ?>
 
-    <?= $form->field($model, 'updated_at')->textInput() ?>
+    <?php $form->field($model, 'updated_at')->textInput() ?>
 
-    <?= $form->field($model, 'created_by')->textInput() ?>
+    <?php $form->field($model, 'created_by')->textInput() ?>
 
-    <?= $form->field($model, 'updated_by')->textInput() ?>
+    <?php $form->field($model, 'updated_by')->textInput() ?>
 
-    <?= $form->field($model, 'consultant_id')->textInput() ?>
+    <?= $form->field($model, 'consultant_id')->textInput(['readonly' => true, 'disabled' => true]) ?>
 
     <div class="form-group">
         <?= Html::submitButton(Yii::t('app', 'Save'), ['class' => 'btn btn-success']) ?>

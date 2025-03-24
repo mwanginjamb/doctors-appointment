@@ -25,6 +25,7 @@ $this->params['breadcrumbs'][] = $this->title;
             <?= $form->field($model, 'phone_number') ?>
             <?= $form->field($model, 'password')->passwordInput() ?>
             <?= $form->field($model, 'confirmPassword')->passwordInput() ?>
+            <?= $form->field($model, 'role')->textInput(['readonly' => true]) ?>
 
             <div class="form-group">
                 <?= Html::submitButton('Signup', ['class' => 'btn btn-primary', 'name' => 'signup-button']) ?>

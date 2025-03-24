@@ -1,11 +1,11 @@
 <?php
 
-namespace app\queries;
+namespace frontend\queries;
 
 /**
- * This is the ActiveQuery class for [[\app\models\Appointments]].
+ * This is the ActiveQuery class for [[\frontend\models\Appointments]].
  *
- * @see \app\models\Appointments
+ * @see \frontend\models\Appointments
  */
 class AppointmentsQuery extends \yii\db\ActiveQuery
 {
@@ -16,7 +16,7 @@ class AppointmentsQuery extends \yii\db\ActiveQuery
 
     /**
      * {@inheritdoc}
-     * @return \app\models\Appointments[]|array
+     * @return \frontend\models\Appointments[]|array
      */
     public function all($db = null)
     {
@@ -25,7 +25,7 @@ class AppointmentsQuery extends \yii\db\ActiveQuery
 
     /**
      * {@inheritdoc}
-     * @return \app\models\Appointments|array|null
+     * @return \frontend\models\Appointments|array|null
      */
     public function one($db = null)
     {

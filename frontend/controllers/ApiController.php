@@ -62,9 +62,9 @@ class ApiController extends Controller
                 ->where(['date' => $data['date']])
                 ->andWhere(['between', 'time', date('H:i:s', $startTime), date('H:i:s', $endTime)])
                 ->andWhere(['consultant_id' => $data['consultant']])
-                ->one();
+                ->exists();
             if ($conflict) {
-                return ['status' => 'error', 'message' => "Doctor is not available at this time  - " . $conflict->patient_id];
+                return ['status' => 'error', 'message' => "Doctor " . $data['consultant'] . " is not available at this time  - " . $conflict];
             }
 
             // Populate the appointment model.

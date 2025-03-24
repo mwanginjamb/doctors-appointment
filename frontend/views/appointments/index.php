@@ -30,27 +30,35 @@ $this->params['breadcrumbs'][] = $this->title;
         'columns' => [
             ['class' => 'yii\grid\SerialColumn'],
 
-            'id',
-            'date',
-            'time',
-            'patient_id',
-            'speciality_id',
+            // 'id',
+            'date:date',
+            'time:time',
+            [
+                'attribute' => 'patient_id',
+                'value' => 'patient.full_name',
+                'label' => 'patient_id',
+            ],
+            // 'speciality_id',
             //'service_id',
             //'provider_id',
             //'location:ntext',
             //'recurring_appointment',
             //'walk_in_appointment',
-            //'symptoms_brief:ntext',
+            'symptoms_brief:ntext',
             //'created_at',
             //'updated_at',
             //'created_by',
             //'updated_by',
-            //'consultant_id',
+            [
+                'attribute' => 'consultant_id',
+                'value' => 'consultant.names',
+                'label' => 'consultant_id',
+            ],
             [
                 'class' => ActionColumn::className(),
                 'urlCreator' => function ($action, Appointments $model, $key, $index, $column) {
-                    return Url::toRoute([$action, 'id' => $model->id]);
-                 }
+                        return Url::toRoute([$action, 'id' => $model->id]);
+                    }
             ],
         ],
     ]); ?>

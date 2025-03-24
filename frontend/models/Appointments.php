@@ -1,7 +1,8 @@
 <?php
 
-namespace app\models;
+namespace frontend\models;
 
+use common\models\User;
 use Yii;
 use yii\behaviors\BlameableBehavior;
 use yii\behaviors\TimestampBehavior;
@@ -25,6 +26,8 @@ use yii\behaviors\TimestampBehavior;
  * @property int|null $created_by
  * @property int|null $updated_by
  * @property int|null $consultant_id
+ * @property int|null $reminder_5hrs_sent
+ * @property int|null $reminder_2hrs_sent
  */
 class Appointments extends \yii\db\ActiveRecord
 {
@@ -84,13 +87,23 @@ class Appointments extends \yii\db\ActiveRecord
         ];
     }
 
+    public function getConsultant()
+    {
+        return $this->hasOne(Consultant::class, ['id' => 'consultant_id']);
+    }
+
+    public function getPatient()
+    {
+        return $this->hasOne(User::class, ['id' => 'patient_id']);
+    }
+
     /**
      * {@inheritdoc}
-     * @return \app\queries\AppointmentsQuery the active query used by this AR class.
+     * @return \frontend\queries\AppointmentsQuery the active query used by this AR class.
      */
     public static function find()
     {
-        return new \app\queries\AppointmentsQuery(get_called_class());
+        return new \frontend\queries\AppointmentsQuery(get_called_class());
     }
 
 }
