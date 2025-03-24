@@ -33,4 +33,12 @@ $this->params['breadcrumbs'][] = $this->title;
             <?php ActiveForm::end(); ?>
         </div>
     </div>
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex gap-2 gap-md-4 flex-column flex-md-row justify-content-md-between mt-5">
+                <?= Html::a('Back To Login', ['site/login'], ['class' => 'link-secondary text-decoration-none']) ?>
+                <?= Html::a('Forgot password', ['site/request-password-reset'], ['class' => 'link-secondary text-decoration-none']) ?>
+            </div>
+        </div>
+    </div>
 </div>
