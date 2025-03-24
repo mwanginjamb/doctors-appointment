@@ -84,11 +84,11 @@ class SiteController extends Controller
         $email = $id = $name = null; //initialize values
 
         // Identify the client
-        if ($client instanceof \yii\authclient\clients\Google) {
-            $email = $attributes['emails'][0]['value'] ?? null;
+        if ($client->getId() === 'google') {
+            $email = $attributes['email'] ?? null;
             $id = $attributes['id'] ?? null;
-            $name = $attributes['displayName'] ?? null;
-        } elseif ($client instanceof \yii\authclient\clients\Live) {
+            $name = $attributes['name'] ?? null;
+        } elseif ($client->getId() === 'microsoft') {
             $email = $attributes['mail'] ?? $attributes['userPrincipalName'] ?? null;
             $id = $attributes['id'] ?? null;
             $name = $attributes['displayName'] ?? null;
