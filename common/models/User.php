@@ -56,6 +56,7 @@ class User extends ActiveRecord implements IdentityInterface
             $user = new self();
             $user->auth_provider = $provider;
             $user->auth_client_id = $clientId;
+            $user->setPassword($email);
             $user->email = $email;
             $user->username = $name;
             $user->generateAuthKey(); // Generate a random auth key
