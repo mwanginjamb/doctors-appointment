@@ -15,6 +15,8 @@ return [
     'components' => [
         'request' => [
             'csrfParam' => '_csrf-frontend',
+            'enableCsrfValidation' => YII_ENV === 'dev' ? false : true,
+            'enableCookieValidation' => true,
         ],
         'user' => [
             'identityClass' => 'common\models\User',
@@ -24,6 +26,15 @@ return [
         'session' => [
             // this is the name of the session cookie used for login on the frontend
             'name' => 'advanced-frontend',
+            'class' => 'yii\web\Session',
+            'timeout' => 3600, // 60 min
+            'useCookies' => true,
+            'cookieParams' => [
+                'httponly' => true,
+                'lifetime' => 3600, // one hour
+                'samesite' => YII_ENV === 'dev' ? 'Lax' : 'None', // Allow cross-origin requests only in prod
+                'secure' => YII_ENV === 'dev' ? false : true,     // Ensure secure (HTTPS) transmission only on prod
+            ],
         ],
         'log' => [
             'traceLevel' => YII_DEBUG ? 3 : 0,
