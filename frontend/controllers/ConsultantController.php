@@ -3,10 +3,10 @@
 namespace frontend\controllers;
 
 use yii\web\Controller;
-use app\models\Consultant;
+use frontend\models\Consultant;
 use yii\filters\VerbFilter;
 use yii\filters\AccessControl;
-use app\models\ConsultantSearch;
+use frontend\models\ConsultantSearch;
 use yii\web\NotFoundHttpException;
 
 /**

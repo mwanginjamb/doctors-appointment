@@ -1,6 +1,6 @@
 <?php
 
-use app\models\Consultant;
+use frontend\models\Consultant;
 use yii\helpers\Html;
 use yii\helpers\Url;
 use yii\grid\ActionColumn;

@@ -5,9 +5,9 @@ namespace frontend\controllers;
 use yii\web\Controller;
 use app\models\Consultant;
 use yii\filters\VerbFilter;
-use app\models\Appointments;
+use frontend\models\Appointments;
 use yii\filters\AccessControl;
-use app\models\AppointmentsSearch;
+use frontend\models\AppointmentsSearch;
 use yii\web\NotFoundHttpException;
 
 use Yii;
@@ -67,7 +67,12 @@ class AppointmentsController extends Controller
     {
         $searchModel = new AppointmentsSearch();
         $dataProvider = $searchModel->search($this->request->queryParams);
-        $dataProvider->query->andWhere(['patient_id' => Yii::$app->user->id]);
+        $role = Yii::$app->user->identity->role;
+        if ($role == 'consultant') {
+            $dataProvider->query->andWhere(['consultant_id' => Yii::$app->user->id]);
+        } {
+            $dataProvider->query->andWhere(['patient_id' => Yii::$app->user->id]);
+        }
 
         return $this->render('index', [
             'searchModel' => $searchModel,

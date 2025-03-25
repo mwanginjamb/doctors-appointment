@@ -1,13 +1,13 @@
 <?php
 
-use app\models\Appointments;
+use frontend\models\Appointments;
 use yii\helpers\Html;
 use yii\helpers\Url;
 use yii\grid\ActionColumn;
 use yii\grid\GridView;
 use yii\widgets\Pjax;
 /** @var yii\web\View $this */
-/** @var app\models\AppointmentsSearch $searchModel */
+/** @var frontend\models\AppointmentsSearch $searchModel */
 /** @var yii\data\ActiveDataProvider $dataProvider */
 
 $this->title = Yii::t('app', 'Appointments');

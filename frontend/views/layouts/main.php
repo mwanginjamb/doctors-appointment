@@ -39,7 +39,12 @@ AppAsset::register($this);
         $menuItems = [
             ['label' => 'Home', 'url' => ['/site/index']],
             ['label' => 'My Appointments', 'url' => ['/appointments/index']],
-            ['label' => 'Contact', 'url' => ['/site/contact']],
+            [
+                'label' => 'Consultant Practise',
+                'url' => ['/consultant/index'],
+                'visible' => !Yii::$app->user->isGuest && Yii::$app->user->identity->role == 'consultant',
+            ],
+            //['label' => 'Contact', 'url' => ['/site/contact']],
         ];
         if (Yii::$app->user->isGuest) {
             $menuItems[] = ['label' => 'Signup', 'url' => ['/site/signup']];
