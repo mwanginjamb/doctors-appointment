@@ -1,8 +1,9 @@
 <?php
-namespace app\models;
+namespace frontend\models;
 
-use yii\base\Model;
 use Yii;
+use yii\base\Model;
+use frontend\models\ConsultantSearch;
 
 
 class SearchForm extends Model

@@ -9,7 +9,7 @@ use yii\bootstrap5\ActiveForm;
  * @var yii\web\View $this
  */
 $role = Yii::$app->user->identity->role;
-$title = 'Appointments Calendar';
+$title = 'My Appointments Calendar - Read Only';
 if ($role == 'client') {
     $title = 'Consultantations Appointments for ' . ucwords(Yii::$app->user->identity->full_name);
 } else if ($role == 'consultant') {
@@ -33,40 +33,7 @@ $this->title = $title;
 </div>
 
 
-<!-- Modal for Booking -->
-<div class="modal fade" id="appointmentModal" tabindex="-1" aria-labelledby="modalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="modalLabel">Book Appointment</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
 
-                <?php $form = ActiveForm::begin(['id' => 'appointmentForm']); ?>
-
-                <?= $form->field($model, 'patient_id')->hiddenInput(['value' => Yii::$app->user->id])->label(false) ?>
-                <?= $form->field($model, 'consultant_id')->hiddenInput(['value' => $consultant->id ?? null])->label(false) ?>
-                <div class="row">
-                    <div class="col-md-6">
-                        <?= $form->field($model, 'date')->textInput(['readonly' => true]) ?>
-                    </div>
-                    <div class="col-md-6">
-                        <?= $form->field($model, 'time')->textInput(['readonly' => true]) ?>
-                    </div>
-                </div>
-                <?= $form->field($model, 'symptoms_brief')->textarea(['rows' => 6]) ?>
-
-
-                <div class="form-group">
-                    <?= Html::submitButton(Yii::t('app', 'Save'), ['class' => 'btn btn-success']) ?>
-                </div>
-
-                <?php ActiveForm::end(); ?>
-            </div>
-        </div>
-    </div>
-</div>
 
 
 <?php
@@ -74,55 +41,19 @@ $script = <<<JS
 
     var calendarEl = document.getElementById('calendar');
     var lastClickTime = 0;
-    var doubleClickThreshold = 300; // milliseconds
-    
+    var doubleClickThreshold = 300; // milliseconds    
     var calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'timeGridWeek', // Day view - Default View
-        validRange: function() {
-            let nowDate = new Date(); // Get current date
-            return {
-                start: new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate() - 5),
-                end: new Date(nowDate.getFullYear(), nowDate.getMonth() + 3, nowDate.getDate())
-            };
-        },
         headerToolbar: {
             left: 'prev,next today',
             center: 'title',
             right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek' // Toggle buttons
         },
         events: fetchCalendarEvents, // Load existing appointments
-        selectable: true,
-        editable: true,
+        //selectable: true,
+        editable: false,
         eventDurationEditable: true,
-        height: 600,
-        dateClick: function(info) {
-            var now = new Date().getTime();
-            // On double-click, open modal with the selected date/time.
-           // if (now - lastClickTime < doubleClickThreshold) {
-                // Get Date and time
-                 var selectedDate = info.date.toISOString().split('T')[0];
-                 var selectedTime = info.date.toTimeString().split(' ')[0];
-                // Show modal                
-                $('#appointments-date').val(selectedDate); // YYYY-MM-DD
-                $('#appointments-time').val(selectedTime); // HH:MM:SS
-                $('#appointmentModal')
-                .on('hidden.bs.modal', () => location.reload())
-                .modal('show');
-           // }
-          //  lastClickTime = now;
-        },
-
-         // Handle event drag-and-drop
-        eventDrop: function(info) {
-            updateEvent(info.event);
-        },
-        
-        // Handle event resizing
-        eventResize: function(info) {
-            updateEvent(info.event);
-        },
-
-
+        height: 800,
     });
     calendar.render();
 

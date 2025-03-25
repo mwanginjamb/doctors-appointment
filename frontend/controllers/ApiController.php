@@ -2,7 +2,7 @@
 
 namespace frontend\controllers;
 
-use app\models\Appointments;
+use frontend\models\Appointments;
 use Yii;
 use yii\web\BadRequestHttpException;
 use yii\web\Response;
@@ -15,10 +15,16 @@ class ApiController extends Controller
     {
         $booking_session = 'booking_session_' . Yii::$app->user->id;
         $consultant_id = Yii::$app->session->get($booking_session);
+        $role = Yii::$app->user->identity->role;
+
 
         Yii::$app->response->format = Response::FORMAT_JSON;
-        $appointments = Appointments::find()->where(['consultant_id' => $consultant_id])->
-            orWhere(['created_by' => Yii::$app->user->identity->id, 'patient_id' => Yii::$app->user->identity->id])->all();
+        if ($role == 'client') {
+            $appointments = Appointments::find()->where(['patient_id' => Yii::$app->user->identity->id])->all();
+        } else {
+            $appointments = Appointments::find()->where(['consultant_id' => Yii::$app->user->identity->id])->
+                orWhere(['created_by' => Yii::$app->user->identity->id])->all();
+        }
         $events = [];
 
         foreach ($appointments as $app) {

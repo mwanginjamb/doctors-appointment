@@ -5,7 +5,7 @@ namespace frontend\controllers;
 use Yii;
 use common\models\User;
 use yii\web\Controller;
-use app\models\SearchForm;
+use frontend\models\SearchForm;
 use yii\filters\VerbFilter;
 use common\models\LoginForm;
 use yii\authclient\AuthAction;

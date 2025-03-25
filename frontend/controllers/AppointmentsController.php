@@ -3,7 +3,7 @@
 namespace frontend\controllers;
 
 use yii\web\Controller;
-use app\models\Consultant;
+use frontend\models\Consultant;
 use yii\filters\VerbFilter;
 use frontend\models\Appointments;
 use yii\filters\AccessControl;
@@ -149,10 +149,10 @@ class AppointmentsController extends Controller
         return $this->redirect(['index']);
     }
 
-    public function actionCalendar($cid)
+    public function actionCalendar($cid = null)
     {
         $model = new Appointments();
-        $consultant = Consultant::findOne($cid);
+        $consultant = ($cid) ? Consultant::findOne($cid) : $cid;
         $user = Yii::$app->user->id;
         $booking_session = 'booking_session_' . $user;
         Yii::$app->session->set($booking_session, $cid); // carries relevant consultant id
@@ -160,6 +160,11 @@ class AppointmentsController extends Controller
             'model' => $model,
             'consultant' => $consultant
         ]);
+    }
+
+    public function actionMyCalendar()
+    {
+        return $this->render('my-calendar');
     }
 
     /**

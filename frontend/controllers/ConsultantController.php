@@ -116,6 +116,9 @@ class ConsultantController extends Controller
     public function actionUpdate($id)
     {
         $model = $this->findModel($id);
+        if ($model->user_id == NULL) {
+            $model->user_id = \Yii::$app->user->id;
+        }
 
         if ($this->request->isPost && $model->load($this->request->post()) && $model->save()) {
             return $this->redirect(['view', 'id' => $model->id]);

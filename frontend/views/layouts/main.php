@@ -38,7 +38,11 @@ AppAsset::register($this);
         ]);
         $menuItems = [
             ['label' => 'Home', 'url' => ['/site/index']],
-            ['label' => 'My Appointments', 'url' => ['/appointments/index']],
+            [
+                'label' => 'My Appointments',
+                'url' => ['/appointments/index'],
+                'visible' => !Yii::$app->user->isGuest,
+            ],
             [
                 'label' => 'Consultant Practise',
                 'url' => ['/consultant/index'],
