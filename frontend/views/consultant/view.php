@@ -43,6 +43,7 @@ $this->params['breadcrumbs'][] = $this->title;
             // 'created_by',
             // 'updated_by',
             // 'consultant_id',
+            'practice_type',
         ],
     ]) ?>
 

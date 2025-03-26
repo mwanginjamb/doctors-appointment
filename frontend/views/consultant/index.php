@@ -33,7 +33,7 @@ $this->params['breadcrumbs'][] = $this->title;
             'names',
             'license_number',
             'speciality:ntext',
-            'sub_speciality:ntext',
+            // 'sub_speciality:ntext',
             //'kmpdc_registration_number',
             //'user_id',
             //'facility',
@@ -43,6 +43,7 @@ $this->params['breadcrumbs'][] = $this->title;
             //'created_by',
             //'updated_by',
             //'consultant_id',
+            'practice_type',
             [
                 'class' => ActionColumn::className(),
                 'urlCreator' => function ($action, Consultant $model, $key, $index, $column) {

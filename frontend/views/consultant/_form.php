@@ -41,7 +41,8 @@ use yii\bootstrap5\ActiveForm;
             <?= $form->field($model, 'license_number')->textInput(['maxlength' => true]) ?>
         </div>
         <div class="col-md-6">
-            <?= $form->field($model, 'license_type')->textInput(['maxlength' => true]) ?>
+            <?= $form->field($model, 'practice_type')->textInput(['maxlength' => true]) ?>
+            <?php $form->field($model, 'license_type')->textInput(['maxlength' => true]) ?>
         </div>
     </div>
 

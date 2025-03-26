@@ -18,7 +18,7 @@ class ConsultantSearch extends Consultant
     {
         return [
             [['id', 'user_id', 'created_at', 'updated_at', 'created_by', 'updated_by', 'consultant_id'], 'integer'],
-            [['names', 'license_number', 'speciality', 'sub_speciality', 'kmpdc_registration_number', 'facility', 'physical_address'], 'safe'],
+            [['names', 'license_number', 'speciality', 'sub_speciality', 'kmpdc_registration_number', 'facility', 'physical_address', 'practice_type'], 'safe'],
         ];
     }
 
@@ -66,6 +66,7 @@ class ConsultantSearch extends Consultant
             'created_by' => $this->created_by,
             'updated_by' => $this->updated_by,
             'consultant_id' => $this->consultant_id,
+            'practice_type' => $this->practice_type,
         ]);
 
         $query->andFilterWhere(['like', 'names', $this->names])
@@ -74,7 +75,8 @@ class ConsultantSearch extends Consultant
             ->andFilterWhere(['like', 'sub_speciality', $this->sub_speciality])
             ->andFilterWhere(['like', 'kmpdc_registration_number', $this->kmpdc_registration_number])
             ->andFilterWhere(['like', 'facility', $this->facility])
-            ->andFilterWhere(['like', 'physical_address', $this->physical_address]);
+            ->andFilterWhere(['like', 'physical_address', $this->physical_address])
+            ->andFilterWhere(['like', 'practice_type', $this->practice_type]);
 
         return $dataProvider;
     }
