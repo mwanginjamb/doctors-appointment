@@ -68,11 +68,12 @@ class AppointmentsController extends Controller
         $searchModel = new AppointmentsSearch();
         $dataProvider = $searchModel->search($this->request->queryParams);
         $role = Yii::$app->user->identity->role;
-        if ($role == 'consultant') {
+        if ($role === 'consultant') {
             $dataProvider->query->andWhere(['consultant_id' => Yii::$app->user->id]);
-        } {
+        } else if ($role === 'client') {
             $dataProvider->query->andWhere(['patient_id' => Yii::$app->user->id]);
         }
+        //Yii::$app->utility->printrr($dataProvider->getModels());
 
         return $this->render('index', [
             'searchModel' => $searchModel,

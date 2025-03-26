@@ -19,7 +19,8 @@ $this->params['breadcrumbs'][] = $this->title;
 
     <div class="actions d-flex justify-content-between my-3">
         <?php Html::a(Yii::t('app', 'Create Appointments'), ['create'], ['class' => 'btn btn-lg btn-outline-success']) ?>
-        <?= Html::a(Yii::t('app', 'My Calendar'), ['appointments/my-calendar'], ['class' => 'btn btn-lg btn-outline-info']) ?>
+        <?= Html::a(Yii::t('app', '<i class="fa fas-calendar"></i> My Calendar'), ['appointments/my-calendar'], ['class' => 'btn btn-lg btn-outline-info']) ?>
+        <?= (Yii::$app->user->identity->role === 'consultant') ? Html::a(Yii::t('app', 'Edit Calendar Bookings'), ['appointments/calendar'], ['class' => 'btn btn-lg btn-outline-dark']) : '' ?>
 
     </div>
 

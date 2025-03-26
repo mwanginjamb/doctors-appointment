@@ -12,6 +12,9 @@ $role = Yii::$app->user->identity->role;
 $title = 'Appointments Calendar';
 if ($role == 'client') {
     $title = 'Consultantations Appointments for ' . ucwords(Yii::$app->user->identity->full_name);
+    $ConsultantSession = Yii::$app->session->get('booking_session_' . Yii::$app->user->id);
+    $consultant = Consultant::findOne(['id' => $ConsultantSession]);
+    // Yii::$app->utility->printrr($consultant);
 } else if ($role == 'consultant') {
     $consultant = Consultant::findOne(['user_id' => Yii::$app->user->id]);
     $title = 'Consultantations Schedule for ' . ucwords($consultant->names);
@@ -46,7 +49,7 @@ $this->title = $title;
                 <?php $form = ActiveForm::begin(['id' => 'appointmentForm']); ?>
 
                 <?= $form->field($model, 'patient_id')->hiddenInput(['value' => Yii::$app->user->id])->label(false) ?>
-                <?= $form->field($model, 'consultant_id')->hiddenInput(['value' => $consultant->id ?? null])->label(false) ?>
+                <?= $form->field($model, 'consultant_id')->hiddenInput(['value' => $consultant->user_id ?? null])->label(false) ?>
                 <div class="row">
                     <div class="col-md-6">
                         <?= $form->field($model, 'date')->textInput(['readonly' => true]) ?>
@@ -152,7 +155,7 @@ $script = <<<JS
     }
 
     // Handle form submission
-    $('#appointmentForm').on('submit', function(e) {
+    $('#appointmentForm').off('submit').on('submit', function(e) {
         e.preventDefault();
         let appointmentData = {
             date: $('#appointments-date').val(),
@@ -162,6 +165,9 @@ $script = <<<JS
             consultant: $('#appointments-consultant_id').val(),
         };
 
+        if(!appointmentData.consultant){
+            console.error(`consultant Needed ...`); return;
+        }
         $.ajax({
             url: '/api/visit',
             type: 'POST',
@@ -169,11 +175,14 @@ $script = <<<JS
             contentType: 'application/json',
             success: function(response) {
                 if(response.status === 'success'){
-                    alert('Appointment booked successfully!');
+                    alert(response.message);
+                    console.log(response);
                     $('#appointmentModal').modal('hide');
                     calendar.refetchEvents(); // Reload events from API
+                    return;
                 } else {
-                    alert(response.message || 'Error saving appointment.');
+                     console.log(response);
+                    alert(response.message || response.status + 'Error saving appointment.');
                 }
             },
             error: function() {

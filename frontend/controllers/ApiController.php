@@ -64,7 +64,7 @@ class ApiController extends Controller
 
             // Check for conflicting appointments on the same day.
             $conflict = $model::find()
-                ->select('patient_id')
+                ->select('patient_id', 'consultant_id')
                 ->where(['date' => $data['date']])
                 ->andWhere(['between', 'time', date('H:i:s', $startTime), date('H:i:s', $endTime)])
                 ->andWhere(['consultant_id' => $data['consultant']])
@@ -81,9 +81,9 @@ class ApiController extends Controller
             $model->symptoms_brief = $data['brief'];
 
             if ($model->save()) {
-                return ['status' => 'success'];
+                return ['status' => 'success', 'message' => 'Appointment #' . $model->id . ' booked successfully!'];
             } else {
-                return ['status' => 'error', 'errors' => $model->errors];
+                return ['status' => 'error', 'message' => 'Saving Error'];
             }
         }
         throw new BadRequestHttpException('Invalid Request.');
