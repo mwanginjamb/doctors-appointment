@@ -66,6 +66,7 @@ class ConsultantController extends Controller
     {
         $searchModel = new ConsultantSearch();
         $dataProvider = $searchModel->search($this->request->queryParams);
+        $dataProvider->query->andWhere(['user_id' => Yii::$app->user->id]);
 
         return $this->render('index', [
             'searchModel' => $searchModel,
