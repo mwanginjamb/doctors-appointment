@@ -25,6 +25,7 @@ use yii\web\IdentityInterface;
  * @property integer $created_at
  * @property integer $updated_at
  * @property string $password write-only password
+ * @property string $full_name password
  */
 class User extends ActiveRecord implements IdentityInterface
 {
@@ -59,8 +60,9 @@ class User extends ActiveRecord implements IdentityInterface
             $user->setPassword($email);
             $user->email = $email;
             $user->username = $name;
+            $user->full_name = $name;
             $user->generateAuthKey(); // Generate a random auth key
-            $user->role = 'client';
+            $user->role = 'client'; // Default role
             $user->save(false);
         }
 
