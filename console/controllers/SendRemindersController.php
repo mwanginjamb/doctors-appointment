@@ -18,7 +18,7 @@ class SendRemindersController extends Controller
     protected function send5hrReminders()
     {
         $appointments = Appointments::find()
-            ->where(['reminder_5hrs_sent' => 0])
+            ->where(['reminder_5hrs_sent' => NULL])
             ->andWhere('CONCAT(date, " ",time) > NOW()')
             ->andWhere('DATE_SUB(CONCAT(date, " ",time), INTERVAL 5 HOUR) <= NOW()')
             ->all();
@@ -36,7 +36,7 @@ class SendRemindersController extends Controller
     protected function send2hrReminders()
     {
         $appointments = Appointments::find()
-            ->where(['reminder_2hrs_sent' => 0])
+            ->where(['reminder_2hrs_sent' => NULL])
             ->andWhere('CONCAT(date, " ",time) > NOW()')
             ->andWhere('DATE_SUB(CONCAT(date, " ",time), INTERVAL 2 HOUR) <= NOW()')
             ->all();
