@@ -44,7 +44,7 @@ AppAsset::register($this);
                 'visible' => !Yii::$app->user->isGuest,
             ],
             [
-                'label' => 'Consultant Practise',
+                'label' => 'Consultant Practice',
                 'url' => ['/consultant/index'],
                 'visible' => !Yii::$app->user->isGuest && Yii::$app->user->identity->role == 'consultant',
             ],

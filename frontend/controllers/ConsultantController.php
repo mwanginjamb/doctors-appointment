@@ -9,6 +9,8 @@ use yii\filters\AccessControl;
 use frontend\models\ConsultantSearch;
 use yii\web\NotFoundHttpException;
 
+use Yii;
+
 /**
  * ConsultantController implements the CRUD actions for Consultant model.
  */
@@ -92,6 +94,7 @@ class ConsultantController extends Controller
     public function actionCreate()
     {
         $model = new Consultant();
+        $model->user_id = \Yii::$app->user->id;
 
         if ($this->request->isPost) {
             if ($model->load($this->request->post()) && $model->save()) {
@@ -101,6 +104,7 @@ class ConsultantController extends Controller
             $model->loadDefaultValues();
         }
 
+        Yii::$app->session->setFlash('info', 'Please correct the Names accordingly as you fill out this form.');
         return $this->render('create', [
             'model' => $model,
         ]);

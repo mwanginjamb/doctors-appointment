@@ -4,7 +4,7 @@ use yii\bootstrap5\Html;
 use yii\bootstrap5\ActiveForm;
 
 /** @var yii\web\View $this */
-/** @var app\models\Consultant $model */
+/** @var frontend\models\Consultant $model */
 /** @var yii\widgets\ActiveForm $form */
 ?>
 
@@ -14,7 +14,7 @@ use yii\bootstrap5\ActiveForm;
 
     <div class="row">
         <div class="col-md-6">
-            <?= $form->field($model, 'names')->textInput(['maxlength' => true]) ?>
+            <?= $form->field($model, 'names')->textInput(['maxlength' => true, 'autofocus' => true, 'placeholder' => 'Title Full Names', 'value' => 'Dr. ' . ucwords(Yii::$app->user->identity->full_name)]) ?>
         </div>
         <div class="col-md-6">
             <?= $form->field($model, 'facility')->textInput(['maxlength' => true]) ?>
