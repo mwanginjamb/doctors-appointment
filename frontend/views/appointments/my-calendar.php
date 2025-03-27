@@ -54,6 +54,17 @@ $script = <<<JS
         editable: false,
         eventDurationEditable: true,
         height: 800,
+        eventDidMount: function(info) {
+                $(info.el).tooltip({
+                title: info.event.extendedProps.description,
+                placement: "top",
+                trigger: "hover",
+                container: "body"
+            });
+        },
+        eventClick: function(info) {
+             window.open("/appointments/view?id=" + info.event.id, '_blank');
+        }
     });
     calendar.render();
 

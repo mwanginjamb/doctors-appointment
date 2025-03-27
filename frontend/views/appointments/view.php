@@ -29,22 +29,28 @@ $this->params['breadcrumbs'][] = $this->title;
     <?= DetailView::widget([
         'model' => $model,
         'attributes' => [
-            'id',
-            'date',
-            'time',
-            'patient_id',
-            'speciality_id',
-            'service_id',
-            'provider_id',
-            'location:ntext',
-            'recurring_appointment',
-            'walk_in_appointment',
+            //'id',
+            'date:date',
+            'time:time',
+            // 'patient_id',
+            // 'speciality_id',
+            // 'service_id',
+            // 'provider_id',
+            // 'location:ntext',
+            'recurring_appointment:boolean',
+            'walk_in_appointment:boolean',
             'symptoms_brief:ntext',
-            'created_at',
-            'updated_at',
-            'created_by',
-            'updated_by',
-            'consultant_id',
+            'created_at:datetime',
+            'updated_at:datetime',
+            // 'created_by',
+            //'updated_by',
+            [
+                'label' => 'Consultant',
+                'attribute' => 'consultant_id',
+                'value' => function ($model) {
+                return $model->consultant->names;
+            }
+            ],
         ],
     ]) ?>
 

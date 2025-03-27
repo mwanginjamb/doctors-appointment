@@ -35,7 +35,8 @@ class ApiController extends Controller
             $end = $app->date . 'T' . date('H:i:s', $endTimeStamp);
             $events[] = [
                 'id' => $app->id,
-                'title' => 'Patient Appointment',
+                'title' => $app->patient->full_name ?? 'Patient' . ' Appointment with ' . $app->consultant->names ?? 'Dr.',
+                'description' => ' Subject: ' . mb_substr($app->symptoms_brief, 0, 200),
                 'start' => $start,
                 'end' => $end
             ];

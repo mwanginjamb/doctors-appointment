@@ -2,7 +2,7 @@
 
 namespace frontend\models;
 
-use common\models\User;
+use frontend\models\User;
 use Yii;
 use yii\behaviors\BlameableBehavior;
 use yii\behaviors\TimestampBehavior;
@@ -89,7 +89,7 @@ class Appointments extends \yii\db\ActiveRecord
 
     public function getConsultant()
     {
-        return $this->hasOne(Consultant::class, ['id' => 'consultant_id']);
+        return $this->hasOne(Consultant::class, ['user_id' => 'consultant_id']);
     }
 
     public function getPatient()

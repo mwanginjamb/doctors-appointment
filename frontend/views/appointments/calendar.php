@@ -124,6 +124,17 @@ $script = <<<JS
         eventResize: function(info) {
             updateEvent(info.event);
         },
+        eventDidMount: function(info) {
+                $(info.el).tooltip({
+                title: info.event.extendedProps.description,
+                placement: "top",
+                trigger: "hover",
+                container: "body"
+            });
+        },
+        eventClick: function(info) {
+             window.open("/appointments/view?id=" + info.event.id, '_blank');
+        }
 
 
     });
