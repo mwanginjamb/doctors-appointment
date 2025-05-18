@@ -43,6 +43,12 @@ return [
                     'class' => \yii\log\FileTarget::class,
                     'levels' => ['error', 'warning'],
                 ],
+                [
+                    'class' => \yii\log\FileTarget::class,
+                    'levels' => ['info'],
+                    'categories' => ['jobs'],
+                    'logFile' => '@runtime/logs/jobs.log',
+                ]
             ],
         ],
         'errorHandler' => [

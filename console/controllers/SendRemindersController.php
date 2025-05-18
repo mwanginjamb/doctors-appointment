@@ -30,7 +30,8 @@ class SendRemindersController extends Controller
             ]));
         }
         $count = count($appointments);
-        $this->stdout("Successfully queued $count 5-hour reminders.\n", \yii\helpers\Console::FG_GREEN);
+        Yii::info("Successfully queued {$count} 5-hour reminders.", 'jobs');
+        $this->stdout("Successfully queued {$count} 5-hour reminders.\n", \yii\helpers\Console::FG_GREEN);
     }
 
     protected function send2hrReminders()
@@ -49,7 +50,8 @@ class SendRemindersController extends Controller
         }
 
         $count = count($appointments);
-        $this->stdout("Successfully queued $count 2-hour reminders.\n", \yii\helpers\Console::FG_GREEN);
+        Yii::info("Successfully queued {$count} 2-hour reminders.", 'jobs');
+        $this->stdout("Successfully queued {$count} 2-hour reminders.\n", \yii\helpers\Console::FG_GREEN);
     }
 
 
