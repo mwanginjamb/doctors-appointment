@@ -92,6 +92,11 @@ class SiteController extends Controller
             $email = $attributes['mail'] ?? $attributes['userPrincipalName'] ?? null;
             $id = $attributes['id'] ?? null;
             $name = $attributes['displayName'] ?? null;
+        } elseif ($client->getId() === 'linkedin') {
+            Yii::info('Linkedin attributes: ' . \yii\helpers\Json::encode($attributes), 'linkedin');
+            $email = $attributes['emailAddress'] ?? null;
+            $id = $attributes['id'] ?? null;
+            $name = $attributes['formattedName'] ?? null;
         }
 
         if (!$email) {

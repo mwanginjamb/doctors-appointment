@@ -23,10 +23,10 @@ return [
                     'clientId' => env('GOOGLE_CLIENT_ID'),
                     'clientSecret' => env('GOOGLE_CLIENT_SECRET'),
                 ],
-                'microsoft' => [
-                    'class' => 'yii\authclient\clients\Live',
-                    'clientId' => env('LIVE_CLIENT_ID'),
-                    'clientSecret' => env('LIVE_CLIENT_SECRET'),
+                'linkedin' => [
+                    'class' => 'yii\authclient\clients\LinkedIn',
+                    'clientId' => env('LINKEDIN_CLIENT_ID'),
+                    'clientSecret' => env('LINKEDIN_CLIENT_SECRET'),
                 ],
             ],
         ],

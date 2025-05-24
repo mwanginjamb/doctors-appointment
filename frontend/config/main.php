@@ -48,6 +48,12 @@ return [
                     'levels' => ['info'],
                     'categories' => ['jobs'],
                     'logFile' => '@runtime/logs/jobs.log',
+                ],
+                [
+                    'class' => \yii\log\FileTarget::class,
+                    'levels' => ['info'],
+                    'categories' => ['linkedin'],
+                    'logFile' => '@runtime/logs/linkedin.log',
                 ]
             ],
         ],
