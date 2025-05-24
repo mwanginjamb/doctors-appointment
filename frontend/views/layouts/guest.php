@@ -107,9 +107,9 @@ AppAsset::register($this);
         </div>
     </footer>
 
-    <?php $this->endBody() ?>
     <a href="https://www.linkedin.com/developers/apps/verification/979aa38d-01c6-454b-9f85-3d33729b951f
 "></a>
+    <?php $this->endBody() ?>
 </body>
 
 </html>
