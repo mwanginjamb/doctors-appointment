@@ -21,6 +21,15 @@ class NotificationService
      */
     public static function scheduleNotificationsForAppointment(Appointments $appointment)
     {
+        // Ensure default schedules exist for both users first
+        if ($appointment->patient_id) {
+            self::ensureDefaultSchedulesExist($appointment->patient_id);
+        }
+
+        if ($appointment->consultant_id) {
+            self::ensureDefaultSchedulesExist($appointment->consultant_id);
+        }
+
         // Get notification schedules for both patient and consultant
         $patientSchedules = NotificationSchedules::getActiveSchedulesForUser($appointment->patient_id);
         $consultantSchedules = NotificationSchedules::getActiveSchedulesForUser($appointment->consultant_id);
@@ -44,6 +53,72 @@ class NotificationService
         foreach ($allSchedules as $schedule) {
             self::createNotificationRecord($appointment, $schedule);
         }
+    }
+
+    /**
+     * Ensure user has default notification schedules
+     */
+    public static function ensureDefaultSchedulesExist($userId)
+    {
+        if (!$userId) {
+            return false;
+        }
+
+        // Check if user already has notification schedules
+        $hasSchedules = NotificationSchedules::find()
+            ->where(['user_id' => $userId])
+            ->exists();
+
+        if (!$hasSchedules) {
+            return self::createDefaultSchedulesForUser($userId);
+        }
+
+        return true;
+    }
+
+    /**
+     * Create default notification schedules for a user
+     */
+    public static function createDefaultSchedulesForUser($userId)
+    {
+        if (!(Yii::$app->params['autoCreateDefaultSchedules'] ?? true)) {
+            return false;
+        }
+
+        $defaultSchedules = Yii::$app->params['defaultNotificationSchedules'] ?? [
+            [
+                'notification_type' => NotificationSchedules::TYPE_EMAIL,
+                'minutes_before' => 300, // 5 hours
+                'is_active' => 1,
+                'notification_method' => NotificationSchedules::METHOD_BOTH,
+            ]
+        ];
+
+        $created = 0;
+        foreach ($defaultSchedules as $scheduleData) {
+            try {
+                $schedule = new NotificationSchedules();
+                $schedule->user_id = $userId;
+                $schedule->notification_type = $scheduleData['notification_type'];
+                $schedule->minutes_before = $scheduleData['minutes_before'];
+                $schedule->is_active = $scheduleData['is_active'];
+                $schedule->notification_method = $scheduleData['notification_method'];
+
+                if ($schedule->save()) {
+                    $created++;
+                    Yii::info("Created default {$schedule->notification_type} notification schedule " .
+                        "({$schedule->minutes_before} min) for user {$userId}");
+                } else {
+                    Yii::error("Failed to create default notification schedule for user {$userId}: " .
+                        json_encode($schedule->errors));
+                }
+            } catch (\Exception $e) {
+                Yii::error("Failed to create default notification schedule for user {$userId}: " .
+                    $e->getMessage());
+            }
+        }
+
+        return $created > 0;
     }
 
     /**
