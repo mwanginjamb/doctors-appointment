@@ -3,6 +3,7 @@
 namespace frontend\models;
 
 use frontend\models\User;
+use frontend\services\NotificationService;
 use Yii;
 use yii\behaviors\BlameableBehavior;
 use yii\behaviors\TimestampBehavior;
@@ -28,10 +29,16 @@ use yii\behaviors\TimestampBehavior;
  * @property int|null $consultant_id
  * @property int|null $reminder_5hrs_sent
  * @property int|null $reminder_2hrs_sent
+ * @property string|null $status (scheduled, completed, cancelled, no_show)
  */
 class Appointments extends \yii\db\ActiveRecord
 {
+    const STATUS_SCHEDULED = 'scheduled';
+    const STATUS_COMPLETED = 'completed';
+    const STATUS_CANCELLED = 'cancelled';
+    const STATUS_NO_SHOW = 'no_show';
 
+    private $_oldAttributes = [];
 
     /**
      * {@inheritdoc}
@@ -57,8 +64,11 @@ class Appointments extends \yii\db\ActiveRecord
         return [
             [['date', 'time', 'patient_id', 'speciality_id', 'service_id', 'provider_id', 'location', 'recurring_appointment', 'walk_in_appointment', 'symptoms_brief', 'created_at', 'updated_at', 'created_by', 'updated_by', 'consultant_id'], 'default', 'value' => null],
             [['date', 'time'], 'safe'],
-            [['patient_id', 'speciality_id', 'service_id', 'provider_id', 'recurring_appointment', 'walk_in_appointment', 'created_at', 'updated_at', 'created_by', 'updated_by', 'consultant_id'], 'integer'],
+            [['patient_id', 'speciality_id', 'service_id', 'provider_id', 'recurring_appointment', 'walk_in_appointment', 'created_at', 'updated_at', 'created_by', 'updated_by', 'consultant_id', 'reminder_5hrs_sent', 'reminder_2hrs_sent'], 'integer'],
             [['location', 'symptoms_brief'], 'string'],
+            [['status'], 'string', 'max' => 20],
+            [['status'], 'in', 'range' => [self::STATUS_SCHEDULED, self::STATUS_COMPLETED, self::STATUS_CANCELLED, self::STATUS_NO_SHOW]],
+            [['status'], 'default', 'value' => self::STATUS_SCHEDULED],
         ];
     }
 
@@ -84,7 +94,142 @@ class Appointments extends \yii\db\ActiveRecord
             'created_by' => Yii::t('app', 'Created By'),
             'updated_by' => Yii::t('app', 'Updated By'),
             'consultant_id' => Yii::t('app', 'Consultant ID'),
+            'status' => Yii::t('app', 'Status'),
         ];
+    }
+
+    /**
+     * Store old attributes before update
+     */
+    public function afterFind()
+    {
+        parent::afterFind();
+        $this->_oldAttributes = $this->attributes;
+    }
+
+    /**
+     * Handle notification scheduling after insert
+     */
+    public function afterSave($insert, $changedAttributes)
+    {
+        parent::afterSave($insert, $changedAttributes);
+
+        if ($insert) {
+            // Schedule notifications for new appointment
+            $this->scheduleNotifications();
+        } else {
+            // Handle updates
+            $this->handleAppointmentUpdate($changedAttributes);
+        }
+    }
+
+    /**
+     * Handle notification cancellation after delete
+     */
+    public function afterDelete()
+    {
+        parent::afterDelete();
+        NotificationService::cancelNotificationsForAppointment($this->id);
+    }
+
+    /**
+     * Handle appointment updates
+     */
+    private function handleAppointmentUpdate($changedAttributes)
+    {
+        $rescheduleNeeded = false;
+        $cancelNeeded = false;
+
+        // Check if date or time changed
+        if (isset($changedAttributes['date']) || isset($changedAttributes['time'])) {
+            $rescheduleNeeded = true;
+        }
+
+        // Check if status changed to cancelled
+        if (isset($changedAttributes['status']) && $this->status === self::STATUS_CANCELLED) {
+            $cancelNeeded = true;
+        }
+
+        // Check if patient or consultant changed
+        if (isset($changedAttributes['patient_id']) || isset($changedAttributes['consultant_id'])) {
+            $rescheduleNeeded = true;
+        }
+
+        if ($cancelNeeded) {
+            NotificationService::cancelNotificationsForAppointment($this->id);
+        } elseif ($rescheduleNeeded) {
+            NotificationService::rescheduleNotificationsForAppointment($this);
+        }
+    }
+
+    /**
+     * Schedule notifications for this appointment
+     */
+    public function scheduleNotifications()
+    {
+        try {
+            NotificationService::scheduleNotificationsForAppointment($this);
+        } catch (\Exception $e) {
+            Yii::error('Failed to schedule notifications for appointment ' . $this->id . ': ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Cancel notifications for this appointment
+     */
+    public function cancelNotifications()
+    {
+        NotificationService::cancelNotificationsForAppointment($this->id);
+    }
+
+    /**
+     * Check if appointment is in the future
+     */
+    public function isFuture()
+    {
+        $appointmentDateTime = new \DateTime($this->date . ' ' . $this->time);
+        return $appointmentDateTime > new \DateTime();
+    }
+
+    /**
+     * Check if appointment is past
+     */
+    public function isPast()
+    {
+        return !$this->isFuture();
+    }
+
+    /**
+     * Get appointment date and time as DateTime object
+     */
+    public function getDateTime()
+    {
+        return new \DateTime($this->date . ' ' . $this->time);
+    }
+
+    /**
+     * Get formatted appointment date and time
+     */
+    public function getFormattedDateTime()
+    {
+        $dt = $this->getDateTime();
+        return $dt->format('l, F j, Y \a\t g:i A');
+    }
+
+    /**
+     * Get time until appointment in minutes
+     */
+    public function getMinutesUntilAppointment()
+    {
+        $now = new \DateTime();
+        $appointmentTime = $this->getDateTime();
+
+        if ($appointmentTime <= $now) {
+            return 0;
+        }
+
+        $interval = $now->diff($appointmentTime);
+        return ($interval->days * 24 * 60) + ($interval->h * 60) + $interval->i;
     }
 
     public function getConsultant()
@@ -97,6 +242,11 @@ class Appointments extends \yii\db\ActiveRecord
         return $this->hasOne(User::class, ['id' => 'patient_id']);
     }
 
+    public function getNotifications()
+    {
+        return $this->hasMany(AppointmentNotifications::class, ['appointment_id' => 'id']);
+    }
+
     /**
      * {@inheritdoc}
      * @return \frontend\queries\AppointmentsQuery the active query used by this AR class.
@@ -105,5 +255,4 @@ class Appointments extends \yii\db\ActiveRecord
     {
         return new \frontend\queries\AppointmentsQuery(get_called_class());
     }
-
 }
