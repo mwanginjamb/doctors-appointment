@@ -42,18 +42,21 @@ return [
                 [
                     'class' => \yii\log\FileTarget::class,
                     'levels' => ['error', 'warning'],
+                    'logVars' => [],
                 ],
                 [
                     'class' => \yii\log\FileTarget::class,
                     'levels' => ['info'],
                     'categories' => ['jobs'],
                     'logFile' => '@runtime/logs/jobs.log',
+                    'logVars' => []
                 ],
                 [
                     'class' => \yii\log\FileTarget::class,
                     'levels' => ['info'],
                     'categories' => ['linkedin'],
                     'logFile' => '@runtime/logs/linkedin.log',
+                    'logVars' => []
                 ]
             ],
         ],
