@@ -26,6 +26,8 @@ class NotificationSchedules extends \yii\db\ActiveRecord
     const TYPE_SMS = 'sms';
     const TYPE_PUSH = 'push';
 
+    const TYPE_META = 'whatsapp';
+
     const METHOD_PATIENT = 'patient';
     const METHOD_CONSULTANT = 'consultant';
     const METHOD_BOTH = 'both';

@@ -39,6 +39,21 @@ return [
             'attempts' => 3,
             'mutex' => \yii\mutex\MysqlMutex::class, // Mutex used to sync queries
         ],
+        'mailer' => [
+            'class' => \yii\symfonymailer\Mailer::class,
+            'viewPath' => '@common/mail',
+            // send all mails to a file by default.
+            'useFileTransport' => true,
+            'transport' => [
+                'scheme' => 'smtps',
+                'host' => env('SMTP_HOST'),
+                'username' => env('SMTP_USERNAME'),
+                'password' => env('SMTP_PASSWORD'),
+                'port' => env('SMTP_PORT'),
+                'dsn' => 'smtp://' . env('SMTP_USERNAME') . ':' . env('SMTP_PASSWORD') . '@' . env('SMTP_HOST') . ':' . env('SMTP_PORT'),
+                'enableMailerLogging' => true
+            ],
+        ],
 
     ],
 ];
