@@ -7,6 +7,7 @@ use frontend\models\AppointmentNotifications;
 use frontend\models\NotificationSchedules;
 use yii\base\BaseObject;
 use Yii;
+use yii\helpers\VarDumper;
 
 class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
 {
@@ -17,6 +18,17 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
 
     public function execute($queue)
     {
+
+        $logContext = [
+            'appointmentId' => $this->appointmentId,
+            'reminderType' => $this->reminderType,
+            'notificationId' => $this->notificationId,
+            'recipientType' => $this->recipientType,
+            'jobId' => uniqid('job_', true)
+        ];
+
+        Yii::info('Starting email reminder job execution - ' . VarDumper::dump($logContext), 'email.reminder.start');
+
         $appointment = Appointments::findOne($this->appointmentId);
 
         if (!$appointment) {
@@ -39,10 +51,27 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
 
             // Send to recipients
             foreach ($recipients as $email => $name) {
+
+                $emailStartTime = microtime(true);
+                $emailLogContext = array_merge($logContext, [
+                    'recipientEmail' => $email,
+                    'recipientName' => $name
+                ]);
+
                 $personalizedBody = str_replace('{recipient_name}', $name, $body);
-                $mailer->setTo([$email => $name])
+                $result = $mailer->setTo([$email => $name])
                     ->setHtmlBody($personalizedBody)
                     ->send();
+
+                $emailDuration = microtime(true) - $emailStartTime;
+                $emailLogContext['sendDuration'] = round($emailDuration, 4);
+                $emailLogContext['sendResult'] = $result;
+
+                if ($result) {
+                    Yii::info('Email sent successfully - ' . VarDumper::dump($emailLogContext), 'email.reminder.sent');
+                } else {
+                    Yii::error('Email send returned false - ' . VarDumper::dump($emailLogContext), 'email.reminder.send_failed');
+                }
             }
 
             // Update the old reminder fields for backward compatibility
@@ -179,6 +208,12 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
             $appointment->reminder_2hrs_sent = 1;
         }
 
-        $appointment->save(false);
+        $result = $appointment->save(false);
+
+        Yii::debug('Legacy reminder fields updated - ' . VarDumper::dump([
+            'appointmentId' => $this->appointmentId,
+            'minutes' => $minutes,
+            'updateResult' => $result
+        ]), 'email.reminder.legacy_update');
     }
 }
