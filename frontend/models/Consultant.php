@@ -27,6 +27,8 @@ use yii\behaviors\TimestampBehavior;
  * @property string|null $working_start_time
  * @property string|null $working_end_time
  * @property string|null $practice_type
+ * @property string|null $consultant_email
+ * @property string|null $consultant_phone_number
  */
 class Consultant extends \yii\db\ActiveRecord
 {
@@ -62,7 +64,10 @@ class Consultant extends \yii\db\ActiveRecord
             [['kmpdc_registration_number'], 'string', 'max' => 255],
             [['facility'], 'string', 'max' => 250],
             [['names', 'license_number', 'speciality', 'physical_address'], 'required'],
-            [['license_type', 'practice_type'], 'string']
+            [['license_type', 'practice_type'], 'string'],
+            ['consultant_email', 'email'],
+            ['consultant_email', 'string', 'max' => 150],
+            ['consultant_phone_number', 'string', 'max' => 15],
         ];
     }
 

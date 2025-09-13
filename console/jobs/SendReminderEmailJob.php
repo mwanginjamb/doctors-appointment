@@ -77,8 +77,8 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
                 break;
 
             case NotificationSchedules::METHOD_CONSULTANT:
-                if ($appointment->consultant && $appointment->consultant->email) {
-                    $recipients[$appointment->consultant->email] = $appointment->consultant->names ?? 'Doctor';
+                if ($appointment->consultant && $appointment->consultant->consultant_email) {
+                    $recipients[$appointment->consultant->consultant_email] = $appointment->consultant->names ?? 'Doctor';
                 }
                 break;
 
@@ -87,7 +87,7 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
                 if ($appointment->patient && $appointment->patient->email) {
                     $recipients[$appointment->patient->email] = $appointment->patient->full_name ?? 'Patient';
                 }
-                if ($appointment->consultant && $appointment->consultant->email) {
+                if ($appointment->consultant && $appointment->consultant->consultant_email) {
                     $recipients[$appointment->consultant->email] = $appointment->consultant->names ?? 'Doctor';
                 }
                 break;
