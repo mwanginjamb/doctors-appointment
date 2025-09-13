@@ -1,103 +1,176 @@
-main > .container, main > .container-fluid
-{
-    padding: 70px 15px 20px;
+/* HealthFirst Site Styles - Minimal Custom CSS with Bootstrap 5 */
+
+:root {
+    --bs-primary-rgb: 17, 147, 212;
+    --bs-link-color-rgb: 17, 147, 212;
+    --bs-link-hover-color-rgb: 14, 122, 184;
 }
 
+html,
+body {
+    height: 100%;
+}
+
+body {
+    font-family: "Inter", sans-serif;
+    background-color: #f8f9fa;
+}
+
+/* Header Styles */
+.navbar-brand svg {
+    color: #1193d4;
+}
+
+/* Minimal Custom Dropdown Styling - Bootstrap handles the rest */
+.dropdown-item.text-danger:hover {
+    background-color: var(--bs-danger-bg-subtle);
+    color: var(--bs-danger-text-emphasis);
+}
+
+/* Card Styles */
+.card {
+    border-radius: 12px;
+    border: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+.card-body {
+    padding: 2rem;
+}
+
+/* Button Styles */
+.btn {
+    border-radius: 8px;
+    font-weight: 500;
+    padding: 0.5rem 1.25rem;
+    text-decoration: none;
+}
+
+.btn-primary {
+    background-color: #1193d4;
+    border-color: #1193d4;
+}
+
+.btn-primary:hover {
+    background-color: #0e7ab8;
+    border-color: #0e7ab8;
+}
+
+.btn-sm {
+    padding: 0.25rem 0.75rem;
+    font-size: 0.875rem;
+}
+
+/* Form Styles */
+.form-control {
+    border-radius: 6px;
+    border: 1px solid #d1d5db;
+    padding: 0.625rem 0.75rem;
+}
+
+.form-control:focus {
+    border-color: #1193d4;
+    box-shadow: 0 0 0 0.2rem rgba(17, 147, 212, 0.25);
+}
+
+.form-label {
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+
+/* Table Styles */
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+/* Star Rating Styles - using Bootstrap Icons */
+.bi.star-filled {
+    color: #ffc107;
+}
+
+.bi.star-empty {
+    color: #e0e0e0;
+}
+
+.bi.star-half {
+    color: #ffc107;
+}
+
+/* Material Stars */
+
+.material-symbols-outlined.star-filled {
+    color: #ffc107;
+}
+
+.material-symbols-outlined.star-empty {
+    color: #e0e0e0;
+}
+
+/* Footer Styles */
 .footer {
-    background-color: #f5f5f5;
-    font-size: .9em;
-    height: 60px;
+    background-color: white;
+    border-top: 1px solid #e5e7eb;
 }
 
-.footer > .container, .footer > .container-fluid {
-    padding-right: 15px;
-    padding-left: 15px;
+/* Utility Classes */
+.text-muted {
+    color: #6b7280 !important;
 }
 
-.not-set {
-    color: #c55;
-    font-style: italic;
+.fw-medium {
+    font-weight: 500;
 }
 
-/* add sorting icons to gridview sort links */
-a.asc:after, a.desc:after {
-    content: '';
-    left: 3px;
-    display: inline-block;
-    width: 0;
-    height: 0;
-    border: solid 5px transparent;
-    margin: 4px 4px 2px 4px;
-    background: transparent;
+.fw-semibold {
+    font-weight: 600;
 }
 
-a.asc:after {
-    border-bottom: solid 7px #212529;
-    border-top-width: 0;
-}
+/* Responsive Adjustments */
+@media (max-width: 767.98px) {
+    .card-body {
+        padding: 1.5rem;
+    }
 
-a.desc:after {
-    border-top: solid 7px #212529;
-    border-bottom-width: 0;
-}
-
-.grid-view th,
-.grid-view td:last-child {
-    white-space: nowrap;
-}
-
-.grid-view .filters input,
-.grid-view .filters select {
-    min-width: 50px;
-}
-
-.hint-block {
-    display: block;
-    margin-top: 5px;
-    color: #999;
-}
-
-.error-summary {
-    color: #a94442;
-    background: #fdf7f7;
-    border-left: 3px solid #eed3d7;
-    padding: 10px 20px;
-    margin: 0 0 15px 0;
-}
-
-/* align the logout "link" (button in form) of the navbar */
-.navbar form > button.logout {
-    padding-top: 7px;
-    color: rgba(255, 255, 255, 0.5);
-}
-
-@media(max-width:767px) {
-    .navbar form > button.logout {
-        display:block;
-        text-align: left;
-        width: 100%;
-        padding: 10px 0;
+    .table-responsive {
+        font-size: 0.875rem;
     }
 }
 
-.navbar form > button.logout:focus,
-.navbar form > button.logout:hover {
-    text-decoration: none;
-    color: rgba(255, 255, 255, 0.75);
+/* Alert Styles for Yii2 Flash Messages */
+.alert {
+    border-radius: 8px;
+    border: none;
+    margin-bottom: 1rem;
 }
 
-.navbar form > button.logout:focus {
-    outline: none;
+.alert-success {
+    background-color: #d1fae5;
+    color: #065f46;
 }
 
-/* style breadcrumb widget as in previous bootstrap versions */
+.alert-danger {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+.alert-warning {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.alert-info {
+    background-color: #dbeafe;
+    color: #1e40af;
+}
+
+/* Breadcrumb Styles */
 .breadcrumb {
-    background-color: var(--bs-gray-200);
-    border-radius: .25rem;
-    padding: .75rem 1rem;
+    background-color: transparent;
+    padding: 0;
+    margin-bottom: 1rem;
 }
 
-.breadcrumb-item > a
-{
-    text-decoration: none;
+.breadcrumb-item+.breadcrumb-item::before {
+    content: ">";
+    color: #6b7280;
 }
