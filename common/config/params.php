@@ -53,4 +53,10 @@ return [
             'server_key' => 'your_firebase_server_key',
         ],
     ],
+    //whatsapp channel configuration
+    'whatsapp' => [
+        'endpoint' => env('WAHA_ENDPOINT'),
+        'session' => 'default',
+        'ssl_verify' => false, // Set to true in production with proper SSL
+    ],
 ];
