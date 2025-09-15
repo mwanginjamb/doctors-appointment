@@ -101,7 +101,7 @@ $this->registerLinkTag(['rel' => 'icon', 'type' => 'image/x-icon', 'href' => Yii
             // Bootstrap native dropdown for authenticated users
             echo Html::tag(
                 'div',
-                \Yii::$app->utility->currentaction('consultant', 'view') ? Html::a('Book Appointment', ['/appointments/calendar', 'cid' => Yii::$app->request->get('id')], ['class' => 'btn btn-primary me-3']) : '' .
+
                 Html::tag(
                     'div',
                     Html::tag(

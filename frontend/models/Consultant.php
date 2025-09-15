@@ -3,6 +3,7 @@
 namespace frontend\models;
 
 use Yii;
+use common\models\User;
 use yii\behaviors\BlameableBehavior;
 use yii\behaviors\TimestampBehavior;
 
@@ -95,6 +96,13 @@ class Consultant extends \yii\db\ActiveRecord
             'working_start_time' => Yii::t('app', 'Working Start Time'),
             'working_end_time' => Yii::t('app', 'Working End Time'),
         ];
+    }
+
+    // Find User assciated with the consultant
+
+    public function getUser()
+    {
+        return $this->hasOne(User::class, ['id' => 'user_id']);
     }
 
     /**
