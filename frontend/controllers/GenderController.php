@@ -3,20 +3,15 @@
 namespace frontend\controllers;
 
 use frontend\models\Gender;
-use yii\helpers\ArrayHelper;
+use frontend\models\GenderSearch;
 use yii\web\Controller;
-use frontend\models\Consultant;
-use yii\filters\VerbFilter;
-use yii\filters\AccessControl;
-use frontend\models\ConsultantSearch;
 use yii\web\NotFoundHttpException;
-
-use Yii;
+use yii\filters\VerbFilter;
 
 /**
- * ConsultantController implements the CRUD actions for Consultant model.
+ * GenderController implements the CRUD actions for Gender model.
  */
-class ConsultantController extends Controller
+class GenderController extends Controller
 {
     /**
      * @inheritDoc
@@ -27,48 +22,24 @@ class ConsultantController extends Controller
             parent::behaviors(),
             [
                 'verbs' => [
-                    'class' => VerbFilter::class,
+                    'class' => VerbFilter::className(),
                     'actions' => [
                         'delete' => ['POST'],
                     ],
                 ],
-                'access' => [
-                    'class' => AccessControl::class,
-                    'only' => [
-                        'index',
-                        'create',
-                        'update',
-                        'delete',
-                        'view',
-                        'verify'
-                    ],
-                    'rules' => [
-                        [ // unauthenticated users
-                            'actions' => ['signup'],
-                            'allow' => true,
-                            'roles' => ['?'],
-                        ],
-                        [ // logged in users
-                            'actions' => ['index', 'create', 'update', 'delete', 'view'],
-                            'allow' => true,
-                            'roles' => ['@'],
-                        ],
-                    ],
-                ]
             ]
         );
     }
 
     /**
-     * Lists all Consultant models.
+     * Lists all Gender models.
      *
      * @return string
      */
     public function actionIndex()
     {
-        $searchModel = new ConsultantSearch();
+        $searchModel = new GenderSearch();
         $dataProvider = $searchModel->search($this->request->queryParams);
-        $dataProvider->query->andWhere(['user_id' => Yii::$app->user->id]);
 
         return $this->render('index', [
             'searchModel' => $searchModel,
@@ -77,7 +48,7 @@ class ConsultantController extends Controller
     }
 
     /**
-     * Displays a single Consultant model.
+     * Displays a single Gender model.
      * @param int $id ID
      * @return string
      * @throws NotFoundHttpException if the model cannot be found
@@ -90,14 +61,13 @@ class ConsultantController extends Controller
     }
 
     /**
-     * Creates a new Consultant model.
+     * Creates a new Gender model.
      * If creation is successful, the browser will be redirected to the 'view' page.
      * @return string|\yii\web\Response
      */
     public function actionCreate()
     {
-        $model = new Consultant();
-        $model->user_id = \Yii::$app->user->id;
+        $model = new Gender();
 
         if ($this->request->isPost) {
             if ($model->load($this->request->post()) && $model->save()) {
@@ -107,14 +77,13 @@ class ConsultantController extends Controller
             $model->loadDefaultValues();
         }
 
-        Yii::$app->session->setFlash('info', 'Please correct the Names accordingly as you fill out this form.');
         return $this->render('create', [
             'model' => $model,
         ]);
     }
 
     /**
-     * Updates an existing Consultant model.
+     * Updates an existing Gender model.
      * If update is successful, the browser will be redirected to the 'view' page.
      * @param int $id ID
      * @return string|\yii\web\Response
@@ -123,9 +92,6 @@ class ConsultantController extends Controller
     public function actionUpdate($id)
     {
         $model = $this->findModel($id);
-        if ($model->user_id == NULL) {
-            $model->user_id = \Yii::$app->user->id;
-        }
 
         if ($this->request->isPost && $model->load($this->request->post()) && $model->save()) {
             return $this->redirect(['view', 'id' => $model->id]);
@@ -133,13 +99,11 @@ class ConsultantController extends Controller
 
         return $this->render('update', [
             'model' => $model,
-            'gender' => ArrayHelper::map(Gender::find()->all(), 'id', 'name'),
-            'providers' => ArrayHelper::map(\app\models\Provider::find()->all(), 'id', 'provider'),
         ]);
     }
 
     /**
-     * Deletes an existing Consultant model.
+     * Deletes an existing Gender model.
      * If deletion is successful, the browser will be redirected to the 'index' page.
      * @param int $id ID
      * @return \yii\web\Response
@@ -153,18 +117,18 @@ class ConsultantController extends Controller
     }
 
     /**
-     * Finds the Consultant model based on its primary key value.
+     * Finds the Gender model based on its primary key value.
      * If the model is not found, a 404 HTTP exception will be thrown.
      * @param int $id ID
-     * @return Consultant the loaded model
+     * @return Gender the loaded model
      * @throws NotFoundHttpException if the model cannot be found
      */
     protected function findModel($id)
     {
-        if (($model = Consultant::findOne(['id' => $id])) !== null) {
+        if (($model = Gender::findOne(['id' => $id])) !== null) {
             return $model;
         }
 
-        throw new NotFoundHttpException(Yii::t('app', 'The requested page does not exist.'));
+        throw new NotFoundHttpException('The requested page does not exist.');
     }
 }

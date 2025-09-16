@@ -45,6 +45,31 @@ use yii\bootstrap5\ActiveForm;
             <?php $form->field($model, 'license_type')->textInput(['maxlength' => true]) ?>
         </div>
     </div>
+    <div class="row">
+        <div class="col-md-6">
+            <?= $form->field($model, 'consultant_email')->textInput(['maxlength' => true]) ?>
+        </div>
+        <div class="col-md-6">
+            <?= $form->field($model, 'consultant_phone_number')->textInput(['maxlength' => true]) ?>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-6">
+            <?= $form->field($model, 'gender')->dropDownList($gender, ['prompt' => 'Select ...']) ?>
+        </div>
+        <div class="col-md-6">
+            <?= $form->field($model, 'practice_name')->textInput(['maxlength' => true]) ?>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-6">
+            <?= $form->field($model, 'working_hours')->textInput(['maxlength' => true]) ?>
+        </div>
+        <div class="col-md-6">
+            <?= $form->field($model, 'covers_supported')->dropDownList($providers, ['prompt' => 'Select ...', 'multiple' => true]) ?>
+        </div>
+
+    </div>
 
 
     <?php $form->field($model, 'user_id')->textInput() ?>
@@ -68,3 +93,14 @@ use yii\bootstrap5\ActiveForm;
     <?php ActiveForm::end(); ?>
 
 </div>
+
+<?php
+
+$script = <<<JS
+    $(document).ready(function() {
+        $('#consultant-covers_supported').select2();
+    });
+JS;
+$this->registerJs($script);
+
+?>

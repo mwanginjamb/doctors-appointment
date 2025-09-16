@@ -126,8 +126,9 @@ $this->registerLinkTag(['rel' => 'icon', 'type' => 'image/x-icon', 'href' => Yii
                         Html::tag('li', Html::tag('h6', 'My Account', ['class' => 'dropdown-header'])) .
                         Html::tag('li', Html::a(
                             Html::tag('i', '', ['class' => 'bi bi-person me-2']) . 'Profile',
-                            ['/user/profile'],
-                            ['class' => 'dropdown-item']
+                            ['/consultant/view', 'id' => Yii::$app->request->get('id') ?? Yii::$app->user->identity->id],
+                            ['class' => 'dropdown-item'],
+
                         )) .
                         Html::tag('li', Html::a(
                             Html::tag('i', '', ['class' => 'bi bi-gear me-2']) . 'Settings',

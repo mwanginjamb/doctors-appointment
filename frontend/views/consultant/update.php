@@ -6,7 +6,7 @@ use yii\helpers\Html;
 /** @var app\models\Consultant $model */
 
 $this->title = Yii::t('app', 'Update Consultant: {name}', [
-    'name' => $model->id,
+    'name' => $model->names,
 ]);
 $this->params['breadcrumbs'][] = ['label' => Yii::t('app', 'Consultants'), 'url' => ['index']];
 $this->params['breadcrumbs'][] = ['label' => $model->id, 'url' => ['view', 'id' => $model->id]];
@@ -14,7 +14,7 @@ $this->params['breadcrumbs'][] = Yii::t('app', 'Update');
 ?>
 <div class="consultant-update">
 
-    <div class="card">
+    <div class="card my-4">
         <div class="card-header">
             <h2 class="card-title"><?= Html::encode($this->title) ?></h2>
         </div>
@@ -22,6 +22,8 @@ $this->params['breadcrumbs'][] = Yii::t('app', 'Update');
 
             <?= $this->render('_form', [
                 'model' => $model,
+                'gender' => $gender,
+                'providers' => $providers,
             ]) ?>
 
         </div>

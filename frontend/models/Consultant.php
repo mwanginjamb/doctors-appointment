@@ -2,10 +2,12 @@
 
 namespace frontend\models;
 
+use app\models\Provider;
 use Yii;
 use common\models\User;
 use yii\behaviors\BlameableBehavior;
 use yii\behaviors\TimestampBehavior;
+use yii\helpers\ArrayHelper;
 
 /**
  * This is the model class for table "consultant".
@@ -30,9 +32,15 @@ use yii\behaviors\TimestampBehavior;
  * @property string|null $practice_type
  * @property string|null $consultant_email
  * @property string|null $consultant_phone_number
+ * @property string|null $gender
+ * @property string|null $consultant_phone_number
+ * @property string|null $practice_name
+ * @property string|null $working_hours
+ * @property string|null $covers_supported
  */
 class Consultant extends \yii\db\ActiveRecord
 {
+    public $covers_supported_names;
 
     public function behaviors()
     {
@@ -67,8 +75,15 @@ class Consultant extends \yii\db\ActiveRecord
             [['names', 'license_number', 'speciality', 'physical_address'], 'required'],
             [['license_type', 'practice_type'], 'string'],
             ['consultant_email', 'email'],
+            ['consultant_email', 'required'],
             ['consultant_email', 'string', 'max' => 150],
             ['consultant_phone_number', 'string', 'max' => 15],
+            ['consultant_phone_number', 'required'],
+            ['gender', 'integer'],
+            ['practice_name', 'string', 'max' => 150],
+            ['working_hours', 'string'],
+            [['covers_supported'], 'each', 'rule' => ['string']],
+            ['covers_supported', 'required'],
         ];
     }
 
@@ -112,6 +127,31 @@ class Consultant extends \yii\db\ActiveRecord
     public static function find()
     {
         return new \app\queries\ConsultantQuery(get_called_class());
+    }
+
+    public function beforeSave($insert)
+    {
+        if (is_array($this->covers_supported)) {
+            $this->covers_supported = implode(',', $this->covers_supported);
+        }
+        return parent::beforeSave($insert);
+    }
+
+    public function afterFind()
+    {
+        parent::afterFind();
+        if (!empty($this->covers_supported)) {
+            $ids = explode(',', $this->covers_supported);
+
+            // Attributes for the form
+            $this->covers_supported = $ids;
+            // Fetch provider names
+            $names = ArrayHelper::getColumn(Provider::find()->where(['id' => $ids])->asArray()->all(), 'provider');
+
+            // virtual attribute for the view
+            $this->covers_supported_names = implode(', ', $names);
+        }
+        return $this;
     }
 
 }
