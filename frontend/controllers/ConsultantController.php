@@ -110,6 +110,8 @@ class ConsultantController extends Controller
         Yii::$app->session->setFlash('info', 'Please correct the Names accordingly as you fill out this form.');
         return $this->render('create', [
             'model' => $model,
+            'gender' => ArrayHelper::map(Gender::find()->all(), 'id', 'name'),
+            'providers' => ArrayHelper::map(\app\models\Provider::find()->all(), 'id', 'provider'),
         ]);
     }
 
