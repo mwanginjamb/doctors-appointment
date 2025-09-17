@@ -1,0 +1,72 @@
+:root {
+    --bs-primary: #0c73b0;
+    --bs-primary-rgb: 12, 115, 176;
+    --bs-primary-light: #eff8ff;
+    --bs-primary-dark: #083049;
+    --bs-secondary: #6c757d;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+}
+
+.sidebar {
+    width: 280px;
+    min-height: 100vh;
+}
+
+.sidebar .nav-link {
+    color: #343a40;
+    text-decoration: none;
+    transition: all 0.2s ease-in-out;
+}
+
+.sidebar .nav-link.active,
+.sidebar .nav-link:hover {
+    color: var(--bs-primary);
+    background-color: var(--bs-primary-light);
+}
+
+.sidebar .nav-link .material-symbols-outlined {
+    font-size: 1.25rem;
+    vertical-align: text-bottom;
+}
+
+/* Custom Bootstrap overrides */
+.btn-primary {
+    background-color: var(--bs-primary);
+    border-color: var(--bs-primary);
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+    background-color: var(--bs-primary-dark);
+    border-color: var(--bs-primary-dark);
+}
+
+.text-primary {
+    color: var(--bs-primary) !important;
+}
+
+/* Table improvements */
+.table-hover tbody tr:hover {
+    background-color: rgba(var(--bs-primary-rgb), 0.05);
+}
+
+/* Card shadows */
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .sidebar {
+        width: 100%;
+        min-height: auto;
+        position: static;
+    }
+
+    .d-flex {
+        flex-direction: column;
+    }
+}

@@ -69,9 +69,11 @@ class ConsultantSearch extends Consultant
             'practice_type' => $this->practice_type,
         ]);
 
+        $this->addSpecialitySearch($query);
+
         $query->andFilterWhere(['like', 'names', $this->names])
             ->andFilterWhere(['like', 'license_number', $this->license_number])
-            ->andFilterWhere(['like', 'speciality', $this->speciality])
+            //->andFilterWhere(['like', 'speciality', $this->speciality])
             ->andFilterWhere(['like', 'sub_speciality', $this->sub_speciality])
             ->andFilterWhere(['like', 'kmpdc_registration_number', $this->kmpdc_registration_number])
             ->andFilterWhere(['like', 'facility', $this->facility])
@@ -79,5 +81,26 @@ class ConsultantSearch extends Consultant
             ->andFilterWhere(['like', 'practice_type', $this->practice_type]);
 
         return $dataProvider;
+    }
+
+    private function addSpecialitySearch($query)
+    {
+        if (!empty($this->speciality)) {
+            $speciality = trim($this->speciality);
+
+            // Multiple keyword search (recommended for better UX)
+            $keywords = preg_split('/\s+/', $speciality);
+            $keywords = array_filter($keywords); // Remove empty elements
+
+            if (!empty($keywords)) {
+                $conditions = ['or'];
+                foreach ($keywords as $keyword) {
+                    // Each keyword should match somewhere in the speciality field
+                    $conditions[] = ['like', 'LOWER(speciality)', strtolower($this->speciality)];
+                }
+                $query->andWhere($conditions);
+            }
+
+        }
     }
 }

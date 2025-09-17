@@ -18,6 +18,8 @@ $this->registerMetaTag(['name' => 'viewport', 'content' => 'width=device-width, 
 $this->registerMetaTag(['name' => 'description', 'content' => $this->params['meta_description'] ?? '']);
 $this->registerMetaTag(['name' => 'keywords', 'content' => $this->params['meta_keywords'] ?? '']);
 $this->registerLinkTag(['rel' => 'icon', 'type' => 'image/x-icon', 'href' => Yii::getAlias('@web/favicon.ico')]);
+
+$username = Yii::$app->user->identity->username ?? 'User';
 ?>
 <?php $this->beginPage() ?>
 <!DOCTYPE html>
@@ -112,7 +114,7 @@ $this->registerLinkTag(['rel' => 'icon', 'type' => 'image/x-icon', 'href' => Yii
                             'height' => '32',
                             'alt' => 'User Avatar'
                         ]) .
-                        Html::encode(Yii::$app->user->identity->username ?? 'User'),
+                        Html::encode($username . ' - ' . Yii::$app->user->identity->role),
                         [
                             'class' => 'btn btn-light dropdown-toggle d-flex align-items-center',
                             'type' => 'button',
@@ -127,12 +129,12 @@ $this->registerLinkTag(['rel' => 'icon', 'type' => 'image/x-icon', 'href' => Yii
                         Html::tag('li', Html::a(
                             Html::tag('i', '', ['class' => 'bi bi-person me-2']) . 'Profile',
                             ['/consultant/view', 'id' => Yii::$app->request->get('id') ?? Yii::$app->user->identity->id],
-                            ['class' => 'dropdown-item'],
+                            ['class' => 'dropdown-item', 'visible' => Yii::$app->user->identity->role == 'consultant'],
 
                         )) .
                         Html::tag('li', Html::a(
                             Html::tag('i', '', ['class' => 'bi bi-gear me-2']) . 'Settings',
-                            ['/user/settings'],
+                            ['/site/settings'],
                             ['class' => 'dropdown-item']
                         )) .
                         Html::tag('li', Html::tag('hr', '', ['class' => 'dropdown-divider'])) .
@@ -175,7 +177,10 @@ $this->registerLinkTag(['rel' => 'icon', 'type' => 'image/x-icon', 'href' => Yii
                     'options' => ['class' => 'breadcrumb my-3']
                 ]) ?>
             <?php endif ?>
-            <?= Alert::widget() ?>
+
+            <?= Alert::widget([
+                'options' => ['class' => 'my-3']
+            ]) ?>
             <?= $content ?>
         </div>
     </main>

@@ -324,6 +324,14 @@ class SiteController extends Controller
         ]);
     }
 
+    // Settings route
+
+    public function actionSettings()
+    {
+        $this->layout = 'admin';
+        return $this->render('settings');
+    }
+
     public function actionTemplate()
     {
         return $this->render('template');

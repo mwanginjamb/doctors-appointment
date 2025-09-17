@@ -3,6 +3,7 @@
 namespace frontend\controllers;
 
 use frontend\models\Gender;
+use Symfony\Component\VarDumper\VarDumper;
 use yii\helpers\ArrayHelper;
 use yii\web\Controller;
 use frontend\models\Consultant;
@@ -84,8 +85,16 @@ class ConsultantController extends Controller
      */
     public function actionView($id)
     {
+        $model = Consultant::findOne($id);
+
+        if (!$model) {
+            Yii::$app->session->setFlash('info', 'Client profiles are not yet available.');
+            // Return to home
+            return $this->goHome();
+        }
+
         return $this->render('view', [
-            'model' => $this->findModel($id),
+            'model' => $model,
         ]);
     }
 
