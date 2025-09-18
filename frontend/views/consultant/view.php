@@ -88,8 +88,9 @@ $this->params['breadcrumbs'][] = $this->title;
             <div class="card shadow-sm">
                 <div class="card-body p-4">
                     <h2 class="h5 fw-bold mb-3">Book an Appointment</h2>
-                    <p class="text-muted small mb-4">Select a date and time to book your consultation with Dr.
-                        Carter.</p>
+                    <p class="text-muted small mb-4">Select a date and time to book your consultation with
+                        <b> <?= $model->names ?></b>.
+                    </p>
                     <!-- <a class="btn btn-primary w-100 btn-lg" href="#">Book Appointment</a> -->
                     <?= \yii\bootstrap5\Html::a('Book Appointment', ['appointments/calendar', 'cid' => $model->id], ['class' => 'btn btn-primary w-100 btn-lg']) ?>
                     <hr class="my-4" />
