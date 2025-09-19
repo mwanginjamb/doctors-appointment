@@ -15,8 +15,8 @@ use yii\helpers\ArrayHelper;
  * @property string|null $phone
  * @property string|null $email
  * @property int|null $cash
- * @property string|null $insurance
- * @property date|null $dob
+ * @property array|null $insurance
+ * @property string|null $dob
  * @property int|null $gender
  * @property int|null $created_at
  * @property int|null $updated_at

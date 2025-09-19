@@ -78,7 +78,7 @@ $this->title = 'Find a Doctor';
                                                     </div>
                                                 </td>
                                                 <td>
-                                                    <?= Html::a('View Profile', Url::toRoute(['consultant/view', 'id' => $res->id]), ['class' => 'btn btn-sm btn-outline-primary text-decoration-none fw-semibold', 'target' => '_blank']) ?>
+                                                    <?= Html::a('View Profile', Url::toRoute(['consultant/view', 'id' => $res->id, 'consultant' => 1]), ['class' => 'btn btn-sm btn-outline-primary text-decoration-none fw-semibold', 'target' => '_blank']) ?>
                                                     <?= Html::a('Book Appointment', Url::toRoute(['appointments/calendar', 'cid' => $res->id]), ['class' => 'btn btn-sm btn-primary text-decoration-none fw-semibold']) ?>
                                                 </td>
                                             </tr>

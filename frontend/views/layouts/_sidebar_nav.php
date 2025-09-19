@@ -25,10 +25,10 @@ $menuItems = [
         'active' => in_array($currentRoute, ['admin/consultants/index', 'admin/consultants/create', 'admin/consultants/update', 'admin/consultants/view'])
     ],
     [
-        'label' => 'System Configurations',
+        'label' => 'Insurance Providers',
         'url' => ['#'],
-        'icon' => 'settings',
-        'active' => in_array($currentRoute, ['admin/configurations/index', 'admin/configurations/update'])
+        'icon' => 'security',
+        'active' => in_array($currentRoute, ['provider/index', 'provider/update', 'provider/view', 'provider/create'])
     ],
     [
         'label' => 'Reports',

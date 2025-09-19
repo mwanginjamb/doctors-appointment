@@ -38,6 +38,7 @@ class ProviderController extends Controller
      */
     public function actionIndex()
     {
+        $this->layout = 'admin';
         $searchModel = new ProviderSearch();
         $dataProvider = $searchModel->search($this->request->queryParams);
 
@@ -55,6 +56,7 @@ class ProviderController extends Controller
      */
     public function actionView($id)
     {
+        $this->layout = 'admin';
         return $this->render('view', [
             'model' => $this->findModel($id),
         ]);
@@ -67,6 +69,7 @@ class ProviderController extends Controller
      */
     public function actionCreate()
     {
+        $this->layout = 'admin';
         $model = new Provider();
 
         if ($this->request->isPost) {
@@ -91,6 +94,7 @@ class ProviderController extends Controller
      */
     public function actionUpdate($id)
     {
+        $this->layout = 'admin';
         $model = $this->findModel($id);
 
         if ($this->request->isPost && $model->load($this->request->post()) && $model->save()) {

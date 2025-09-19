@@ -88,7 +88,7 @@ class ConsultantController extends Controller
     {
         $model = Consultant::findOne($id);
 
-        if (Yii::$app->user->identity->role === 'client' || !$model) {
+        if (!Yii::$app->request->get('consultant') && (Yii::$app->user->identity->role === 'client' || !$model)) {
             $userId = Yii::$app->user->id;
             // check if user profile exists for this user
             $userProfile = \frontend\models\UserProfile::findOne(['user_id' => $userId]);
@@ -99,7 +99,11 @@ class ConsultantController extends Controller
                 Yii::$app->session->setFlash('info', 'Please create your profile.');
                 return $this->redirect(Url::toRoute(['user-profile/create']), 302);
             }
+        }
 
+        if (!$model) {
+            Yii::$app->session->setFlash('error', 'The requested profile does not exist.');
+            return $this->redirect(Url::toRoute(['site/index']), 302);
         }
 
         return $this->render('view', [
