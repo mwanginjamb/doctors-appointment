@@ -4,14 +4,15 @@ namespace frontend\controllers;
 
 use Yii;
 use yii\helpers\Url;
+use common\models\User;
 use yii\web\Controller;
 use frontend\models\Gender;
 use yii\filters\VerbFilter;
 use yii\helpers\ArrayHelper;
 use yii\filters\AccessControl;
 use frontend\models\Consultant;
-use yii\web\NotFoundHttpException;
 
+use yii\web\NotFoundHttpException;
 use frontend\models\ConsultantSearch;
 use Symfony\Component\VarDumper\VarDumper;
 
@@ -88,10 +89,12 @@ class ConsultantController extends Controller
     {
         $model = Consultant::findOne($id);
 
-        if (!Yii::$app->request->get('consultant') && (Yii::$app->user->identity->role === 'client' || !$model)) {
+        if (Yii::$app->user->identity->role === 'client') {
             $userId = Yii::$app->user->id;
+
             // check if user profile exists for this user
             $userProfile = \frontend\models\UserProfile::findOne(['user_id' => $userId]);
+
             if ($userProfile) {
                 Yii::$app->session->setFlash('info', 'Please view your profile.');
                 return $this->redirect(Url::toRoute(['user-profile/view', 'id' => $userProfile->id]), 302);
@@ -99,11 +102,22 @@ class ConsultantController extends Controller
                 Yii::$app->session->setFlash('info', 'Please create your profile.');
                 return $this->redirect(Url::toRoute(['user-profile/create']), 302);
             }
+        } elseif ($model === null && Yii::$app->user->identity->role === 'client') { // a client has not found a consultant profile
+            // email the consultant via identity email address, then redirect to home page
+            Yii::$app->session->setFlash('error', 'The requested profile does not exist, we have notified the consultant.');
+            return $this->redirect(Url::toRoute(['site/index']), 302);
         }
 
-        if (!$model) {
-            Yii::$app->session->setFlash('error', 'The requested profile does not exist.');
-            return $this->redirect(Url::toRoute(['site/index']), 302);
+        if (!$model && Yii::$app->user->identity->role === 'consultant') {
+
+            // Attempt to find a consultant profile for this user
+            $user = User::findIdentity($id);
+            if ($user && $user->consultancy) {
+                return $this->redirect(Url::toRoute(['view', 'id' => $user->consultancy->id]));
+            }
+
+            Yii::$app->session->setFlash('error', 'The requested profile does not exist, proceed to create one.');
+            return $this->redirect(Url::toRoute(['create']));
         }
 
         return $this->render('view', [
@@ -119,7 +133,7 @@ class ConsultantController extends Controller
     public function actionCreate()
     {
         $model = new Consultant();
-        $model->user_id = \Yii::$app->user->id;
+        $model->user_id = Yii::$app->user->id;
 
         if ($this->request->isPost) {
             if ($model->load($this->request->post()) && $model->save()) {

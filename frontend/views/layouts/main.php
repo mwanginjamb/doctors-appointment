@@ -128,7 +128,7 @@ $username = Yii::$app->user->identity->username ?? 'User';
                         Html::tag('li', Html::tag('h6', 'My Account', ['class' => 'dropdown-header'])) .
                         Html::tag('li', Html::a(
                             Html::tag('i', '', ['class' => 'bi bi-person me-2']) . 'Profile',
-                            ['/consultant/view', 'id' => Yii::$app->request->get('id') ?? Yii::$app->user->identity->id],
+                            ['/consultant/view', 'id' => Yii::$app->user->identity->id],
                             ['class' => 'dropdown-item', 'visible' => Yii::$app->user->identity->role == 'consultant'],
 
                         )) .

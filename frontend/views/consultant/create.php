@@ -8,6 +8,8 @@ use yii\helpers\Html;
 $this->title = Yii::t('app', 'Add Consultant');
 $this->params['breadcrumbs'][] = ['label' => Yii::t('app', 'Consultants'), 'url' => ['index']];
 $this->params['breadcrumbs'][] = $this->title;
+
+$model->user_id = Yii::$app->user->id;
 ?>
 <div class="consultant-create">
 

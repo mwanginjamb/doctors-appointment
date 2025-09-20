@@ -1,11 +1,12 @@
 <?php
 
-use frontend\models\Appointments;
-use yii\helpers\Html;
 use yii\helpers\Url;
-use yii\grid\ActionColumn;
-use yii\grid\GridView;
+use yii\helpers\Html;
 use yii\widgets\Pjax;
+use yii\grid\GridView;
+use yii\jui\DatePicker;
+use yii\grid\ActionColumn;
+use frontend\models\Appointments;
 /** @var yii\web\View $this */
 /** @var frontend\models\AppointmentsSearch $searchModel */
 /** @var yii\data\ActiveDataProvider $dataProvider */
@@ -34,12 +35,25 @@ $this->params['breadcrumbs'][] = $this->title;
             ['class' => 'yii\grid\SerialColumn'],
 
             // 'id',
-            'date:date',
+            [
+                'attribute' => 'date',
+                // long date format
+                'format' => ['date', 'php:Y-m-d'],
+                'value' => 'date',
+                'filter' => DatePicker::widget([
+                    'model' => $searchModel,
+                    'attribute' => 'date',
+                    'dateFormat' => 'php:Y-m-d',
+                    'options' => ['class' => 'form-control'],
+                ]),
+                'label' => 'Appointment Date',
+            ],
             'time:time',
+            // filter condition: user_id me
             [
                 'attribute' => 'patient_id',
                 'value' => 'patient.full_name',
-                'label' => 'patient_id',
+                'label' => 'Patient',
             ],
             // 'speciality_id',
             //'service_id',
@@ -55,7 +69,9 @@ $this->params['breadcrumbs'][] = $this->title;
             [
                 'attribute' => 'consultant_id',
                 'value' => 'consultant.names',
-                'label' => 'consultant_id',
+                'label' => 'Consultant',
+                'filter' => Html::activeDropDownList($searchModel, 'consultant_id', \yii\helpers\ArrayHelper::map(\frontend\models\Consultant::find()->asArray()->all(), 'user_id', 'names'), ['class' => 'form-control', 'prompt' => 'Select Consultant']),
+
             ],
             [
                 'class' => ActionColumn::className(),
