@@ -255,4 +255,15 @@ class Appointments extends \yii\db\ActiveRecord
     {
         return new \frontend\queries\AppointmentsQuery(get_called_class());
     }
+
+    // output array of status labels
+    public static function getStatusList()
+    {
+        return [
+            self::STATUS_SCHEDULED => 'Scheduled',
+            self::STATUS_COMPLETED => 'Completed',
+            self::STATUS_CANCELLED => 'Cancelled',
+            self::STATUS_NO_SHOW => 'No Show',
+        ];
+    }
 }

@@ -19,6 +19,8 @@ class AppointmentsSearch extends Appointments
         return [
             [['id', 'patient_id', 'speciality_id', 'service_id', 'provider_id', 'recurring_appointment', 'walk_in_appointment', 'created_at', 'updated_at', 'created_by', 'updated_by', 'consultant_id'], 'integer'],
             [['date', 'time', 'location', 'symptoms_brief'], 'safe'],
+            [['status'], 'string'],
+            [['status'], 'in', 'range' => array_keys(Appointments::getStatusList())],
         ];
     }
 
@@ -73,6 +75,7 @@ class AppointmentsSearch extends Appointments
             'created_by' => $this->created_by,
             'updated_by' => $this->updated_by,
             'consultant_id' => $this->consultant_id,
+            'status' => $this->status,
         ]);
 
         $query->andFilterWhere(['like', 'location', $this->location])

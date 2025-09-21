@@ -14,6 +14,13 @@ class AppointmentsQuery extends \yii\db\ActiveQuery
         return $this->andWhere('[[status]]=1');
     }*/
 
+    // sort by date and time in descending order by default
+    public function init()
+    {
+        parent::init();
+        $this->orderBy(['date' => SORT_DESC, 'time' => SORT_DESC]);
+    }
+
     /**
      * {@inheritdoc}
      * @return \frontend\models\Appointments[]|array

@@ -49,7 +49,17 @@ $this->params['breadcrumbs'][] = $this->title;
                 'label' => 'Appointment Date',
             ],
             'time:time',
-            // filter condition: user_id me
+            [
+                'attribute' => 'status',
+                'value' => 'status',
+                'label' => 'Status',
+                'filter' => Html::activeDropDownList($searchModel, 'status', [
+                    Appointments::STATUS_SCHEDULED => 'Scheduled',
+                    Appointments::STATUS_COMPLETED => 'Completed',
+                    Appointments::STATUS_CANCELLED => 'Cancelled',
+                    Appointments::STATUS_NO_SHOW => 'No Show',
+                ], ['class' => 'form-control', 'prompt' => 'Select ...']),
+            ],
             [
                 'attribute' => 'patient_id',
                 'value' => 'patient.full_name',
