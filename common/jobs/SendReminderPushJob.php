@@ -1,8 +1,8 @@
 <?php
 // Push Notification Reminder Job
-// File: console/jobs/SendReminderPushJob.php
+// File: common/jobs/SendReminderPushJob.php
 
-namespace console\jobs;
+namespace common\jobs;
 
 use frontend\models\Appointments;
 use frontend\models\AppointmentNotifications;

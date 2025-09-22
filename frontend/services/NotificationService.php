@@ -9,7 +9,7 @@ use common\jobs\SendReminderEmailJob;
 use common\jobs\SendReminderSmsJob;
 use common\jobs\SendReminderPushJob;
 use Yii;
-use yii\helpers\ArrayHelper;
+
 
 /**
  * Service for managing appointment notifications

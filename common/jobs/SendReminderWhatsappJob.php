@@ -1,9 +1,9 @@
 <?php
 
 // WhatsApp Reminder Job
-// File: console/jobs/SendReminderWhatsappJob.php
+// File: /commonjobs/SendReminderWhatsappJob.php
 
-namespace console\jobs;
+namespace common\jobs;
 
 use frontend\models\Appointments;
 use frontend\models\AppointmentNotifications;

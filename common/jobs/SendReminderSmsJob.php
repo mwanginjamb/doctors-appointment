@@ -1,9 +1,9 @@
 <?php
 
 // SMS Reminder Job
-// File: console/jobs/SendReminderSmsJob.php
+// File: common/jobs/SendReminderSmsJob.php
 
-namespace console\jobs;
+namespace common\jobs;
 
 use frontend\models\Appointments;
 use frontend\models\AppointmentNotifications;
