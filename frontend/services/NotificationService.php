@@ -5,9 +5,9 @@ namespace frontend\services;
 use frontend\models\Appointments;
 use frontend\models\NotificationSchedules;
 use frontend\models\AppointmentNotifications;
-use console\jobs\SendReminderEmailJob;
-use console\jobs\SendReminderSmsJob;
-use console\jobs\SendReminderPushJob;
+use common\jobs\SendReminderEmailJob;
+use common\jobs\SendReminderSmsJob;
+use common\jobs\SendReminderPushJob;
 use Yii;
 use yii\helpers\ArrayHelper;
 
@@ -196,7 +196,7 @@ class NotificationService
         $schedule = $notification->notificationSchedule;
 
         switch ($notification->notification_type) {
-            case NotificationSchedules::TYPE_EMAIL:
+            case $schedule::TYPE_EMAIL:
                 Yii::$app->queue->push(new SendReminderEmailJob([
                     'appointmentId' => $notification->appointment_id,
                     'reminderType' => $notification->minutes_before . '-minute',
@@ -205,7 +205,7 @@ class NotificationService
                 ]));
                 break;
 
-            case NotificationSchedules::TYPE_SMS:
+            case $schedule::TYPE_SMS:
                 Yii::$app->queue->push(new SendReminderSmsJob([
                     'appointmentId' => $notification->appointment_id,
                     'reminderType' => $notification->minutes_before . '-minute',
@@ -214,8 +214,17 @@ class NotificationService
                 ]));
                 break;
 
-            case NotificationSchedules::TYPE_PUSH:
+            case $schedule::TYPE_PUSH:
                 Yii::$app->queue->push(new SendReminderPushJob([
+                    'appointmentId' => $notification->appointment_id,
+                    'reminderType' => $notification->minutes_before . '-minute',
+                    'notificationId' => $notification->id,
+                    'recipientType' => $schedule->notification_method
+                ]));
+                break;
+
+            case $schedule::TYPE_META:
+                Yii::$app->queue->push(new SendReminderWhatsAppJob([
                     'appointmentId' => $notification->appointment_id,
                     'reminderType' => $notification->minutes_before . '-minute',
                     'notificationId' => $notification->id,

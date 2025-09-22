@@ -11,7 +11,7 @@ use yii\behaviors\TimestampBehavior;
  * @property int $id
  * @property int $appointment_id
  * @property int $notification_schedule_id
- * @property string $notification_type
+ * @property string $notification_type (email, sms, push, whatsapp)
  * @property int $minutes_before
  * @property string $status (pending, sent, failed)
  * @property string|null $scheduled_time
