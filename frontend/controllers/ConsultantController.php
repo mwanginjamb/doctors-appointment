@@ -89,7 +89,7 @@ class ConsultantController extends Controller
     {
         $model = Consultant::findOne($id);
 
-        if (Yii::$app->user->identity->role === 'client') {
+        if (Yii::$app->user->identity->role === 'client' && !Yii::$app->request->get('consultant')) {
             $userId = Yii::$app->user->id;
 
             // check if user profile exists for this user
