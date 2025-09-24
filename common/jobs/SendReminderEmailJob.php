@@ -34,60 +34,11 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
             return;
         }
 
-        try {
-            $recipients = $this->getRecipients($appointment);
+        // Send to recipients
+        $this->sendMail($appointment);
 
-            if (empty($recipients)) {
-                throw new \Exception('No valid recipients found');
-            }
-
-            $subject = $this->getEmailSubject();
-            $body = $this->getEmailBody($appointment);
-
-            $mailer = Yii::$app->mailer->compose()
-                ->setSubject($subject)
-                ->setHtmlBody($body);
-
-            // Send to recipients
-            foreach ($recipients as $email => $name) {
-
-                $emailStartTime = microtime(true);
-                $emailLogContext = array_merge($logContext, [
-                    'recipientEmail' => $email,
-                    'recipientName' => $name
-                ]);
-
-                $personalizedBody = str_replace('{recipient_name}', $name, $body);
-                $result = $mailer->setTo([$email => $name])
-                    ->setHtmlBody($personalizedBody)
-                    ->send();
-
-                $emailDuration = microtime(true) - $emailStartTime;
-                $emailLogContext['sendDuration'] = round($emailDuration, 4);
-                $emailLogContext['sendResult'] = $result;
-
-                if ($result) {
-                    Yii::info('Email sent successfully - ' . VarDumper::dump($emailLogContext), 'email.reminder.sent');
-                } else {
-                    Yii::error('Email send returned false - ' . VarDumper::dump($emailLogContext), 'email.reminder.send_failed');
-                }
-            }
-
-            // Update the old reminder fields for backward compatibility
-            $this->updateLegacyReminderFields($appointment);
-
-        } catch (\Exception $e) {
-            // Mark notification as failed if we have notificationId
-            if ($this->notificationId) {
-                $notification = AppointmentNotifications::findOne($this->notificationId);
-                if ($notification) {
-                    $notification->markAsFailed($e->getMessage());
-                }
-            }
-
-            Yii::error('Email reminder job failed: ' . $e->getMessage());
-            throw $e;
-        }
+        // Update the old reminder fields for backward compatibility
+        $this->updateLegacyReminderFields($appointment);
     }
 
     /**
@@ -214,5 +165,35 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
             'minutes' => $minutes,
             'updateResult' => $result
         ]), 'email.reminder.legacy_update');
+    }
+
+    // Add an organized email sending function that uses a template
+    public function sendMail(Appointments $appointment)
+    {
+        $recipients = $this->getRecipients($appointment);
+        if (empty($recipients)) {
+            Yii::info('No valid recipients found', 'notifications');
+            throw new \Exception('No valid recipients found');
+        }
+        // log recipients
+        Yii::info('Preparing to send email to recipients: ' . VarDumper::dump($recipients), 'notifications');
+        try {
+            foreach ($recipients as $email => $name) {
+                Yii::$app->mailer->compose('appointmentReminder-html', [
+                    'appointment' => $appointment,
+                    'timeUnit' => $this->getTimeUnit(),
+                    'recipientName' => $name,
+                ])
+                    ->setTo([$email => $name])
+                    ->setFrom([Yii::$app->params['supportEmail'] => Yii::$app->name . ' robot'])
+                    ->setBcc('fnjambi@outlook.com')
+                    ->setSubject($this->getEmailSubject())
+                    ->send();
+            }
+        } catch (\Exception $e) {
+            Yii::error('Email reminder job failed: ' . $e->getMessage());
+        }
+
+
     }
 }
