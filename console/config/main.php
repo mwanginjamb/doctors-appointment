@@ -66,6 +66,13 @@ return [
                     'maxFileSize' => 10240,
                     'maxLogFiles' => 30, // Keep failures longer
                 ],
+                [
+                    'class' => \yii\log\FileTarget::class,
+                    'levels' => ['info'],
+                    'categories' => ['jobs', 'notifications'],
+                    'logFile' => '@runtime/logs/jobs.log',
+                    'logVars' => []
+                ],
             ],
         ],
     ],

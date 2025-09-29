@@ -23,7 +23,7 @@ return [
         [
             'notification_type' => 'email',
             'minutes_before' => 30, // 30 minutes
-            'is_active' => 0, // Disabled by default
+            'is_active' => 1,
             'notification_method' => 'both',
         ],
         // Uncomment if you have SMS configured

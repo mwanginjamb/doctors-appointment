@@ -10,6 +10,7 @@ use common\jobs\SendReminderSmsJob;
 use common\jobs\SendReminderPushJob;
 use common\jobs\SendReminderWhatsAppJob;
 use Yii;
+use yii\helpers\VarDumper;
 
 
 /**
@@ -167,6 +168,12 @@ class NotificationService
     {
         $pendingNotifications = AppointmentNotifications::getPendingNotifications();
 
+        // Log pending notifications retrieved and due for dispatch
+        Yii::info('Pending notifications to process: ' . count($pendingNotifications), 'notifications');
+
+        // Log actual notifications being processed
+        Yii::info('Processing notifications: ' . VarDumper::dump($pendingNotifications), 'notifications');
+
         foreach ($pendingNotifications as $notification) {
             // Skip if appointment is cancelled or past
             $appointment = $notification->appointment;
@@ -177,6 +184,9 @@ class NotificationService
                 $notification->save(false);
                 continue;
             }
+
+            // Log the queued notifications
+            Yii::info('Queued notification: ' . VarDumper::dump($notification), 'notifications');
 
             // Queue the appropriate job based on notification type
             try {
