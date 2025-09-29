@@ -171,8 +171,18 @@ class NotificationService
         // Log pending notifications retrieved and due for dispatch
         Yii::info('Pending notifications to process: ' . count($pendingNotifications), 'notifications');
 
-        // Log actual notifications being processed
-        Yii::info('Processing notifications: ' . VarDumper::dump($pendingNotifications), 'notifications');
+
+        // Log actual notifications being processed -use an array mapper
+        if (count($pendingNotifications) > 0) {
+            Yii::info('Processing notifications: ' . json_encode(array_map(function ($notification) {
+                return [
+                    'id' => $notification->id,
+                    'appointment_id' => $notification->appointment_id,
+                    'scheduled_time' => $notification->scheduled_time,
+                    'status' => $notification->status,
+                ];
+            }, $pendingNotifications)), 'notifications');
+        }
 
         foreach ($pendingNotifications as $notification) {
             // Skip if appointment is cancelled or past
@@ -185,8 +195,15 @@ class NotificationService
                 continue;
             }
 
-            // Log the queued notifications
-            Yii::info('Queued notification: ' . VarDumper::dump($notification), 'notifications');
+            // Log the queued notifications - use an array mapper
+            Yii::info('Queued notification: ' . json_encode(array_map(function ($notification) {
+                return [
+                    'id' => $notification->id,
+                    'appointment_id' => $notification->appointment_id,
+                    'scheduled_time' => $notification->scheduled_time,
+                    'status' => $notification->status,
+                ];
+            }, [$notification])), 'notifications');
 
             // Queue the appropriate job based on notification type
             try {
