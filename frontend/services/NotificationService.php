@@ -8,6 +8,7 @@ use frontend\models\AppointmentNotifications;
 use common\jobs\SendReminderEmailJob;
 use common\jobs\SendReminderSmsJob;
 use common\jobs\SendReminderPushJob;
+use common\jobs\SendReminderWhatsAppJob;
 use Yii;
 
 
