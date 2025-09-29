@@ -207,7 +207,7 @@ class NotificationService
         $schedule = $notification->notificationSchedule;
 
         switch ($notification->notification_type) {
-            case $schedule::TYPE_EMAIL:
+            case NotificationSchedules::TYPE_EMAIL:
                 Yii::$app->queue->push(new SendReminderEmailJob([
                     'appointmentId' => $notification->appointment_id,
                     'reminderType' => $notification->minutes_before . '-minute',
@@ -216,7 +216,7 @@ class NotificationService
                 ]));
                 break;
 
-            case $schedule::TYPE_SMS:
+            case NotificationSchedules::TYPE_SMS:
                 Yii::$app->queue->push(new SendReminderSmsJob([
                     'appointmentId' => $notification->appointment_id,
                     'reminderType' => $notification->minutes_before . '-minute',
@@ -225,7 +225,7 @@ class NotificationService
                 ]));
                 break;
 
-            case $schedule::TYPE_PUSH:
+            case NotificationSchedules::TYPE_PUSH:
                 Yii::$app->queue->push(new SendReminderPushJob([
                     'appointmentId' => $notification->appointment_id,
                     'reminderType' => $notification->minutes_before . '-minute',
@@ -234,7 +234,7 @@ class NotificationService
                 ]));
                 break;
 
-            case $schedule::TYPE_META:
+            case NotificationSchedules::TYPE_META:
                 Yii::$app->queue->push(new SendReminderWhatsAppJob([
                     'appointmentId' => $notification->appointment_id,
                     'reminderType' => $notification->minutes_before . '-minute',
