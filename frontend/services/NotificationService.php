@@ -178,6 +178,8 @@ class NotificationService
                     'appointment_id' => $notification->appointment_id,
                     'scheduled_time' => $notification->scheduled_time,
                     'status' => $notification->status,
+                    'minutes_before' => $notification->minutes_before,
+                    'notification_type' => $notification->notification_type,
                 ];
             }, $pendingNotifications)), 'notifications');
         }
@@ -200,6 +202,8 @@ class NotificationService
                     'appointment_id' => $notification->appointment_id,
                     'scheduled_time' => $notification->scheduled_time,
                     'status' => $notification->status,
+                    'minutes_before' => $notification->minutes_before,
+                    'notification_type' => $notification->notification_type,
                 ];
             }, [$notification])), 'notifications');
 

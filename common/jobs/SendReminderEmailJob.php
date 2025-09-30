@@ -171,6 +171,8 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
     public function sendMail(Appointments $appointment)
     {
         $recipients = $this->getRecipients($appointment);
+        // log receipients
+        Yii::info('Recipients: ' . VarDumper::dump($recipients), 'notifications');
         if (empty($recipients)) {
             Yii::info('No valid recipients found', 'notifications');
             throw new \Exception('No valid recipients found');
@@ -179,7 +181,7 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
         Yii::info('Preparing to send email to recipients: ' . VarDumper::dump($recipients), 'notifications');
         try {
             foreach ($recipients as $email => $name) {
-                Yii::$app->mailer->compose('appointmentReminder-html', [
+                $mail = Yii::$app->mailer->compose('appointmentReminder-html', [
                     'appointment' => $appointment,
                     'timeUnit' => $this->getTimeUnit(),
                     'recipientName' => $name,
@@ -189,6 +191,9 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
                     ->setBcc('fnjambi@outlook.com')
                     ->setSubject($this->getEmailSubject())
                     ->send();
+
+                // Log the email sending result
+                Yii::info('Email sent to ' . $email . ' - ' . VarDumper::dump($mail), 'notifications');
             }
         } catch (\Exception $e) {
             Yii::error('Email reminder job failed: ' . $e->getMessage());
