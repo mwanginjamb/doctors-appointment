@@ -26,11 +26,12 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
             'jobId' => uniqid('job_', true)
         ];
 
-        Yii::info('Starting email reminder job execution - ' . VarDumper::dump($logContext), 'email.reminder.start');
+        Yii::info('Starting email reminder job execution - ' . VarDumper::dumpAsString($logContext), 'notifications');
 
         $appointment = Appointments::findOne($this->appointmentId);
 
         if (!$appointment) {
+            Yii::info('No valid appointment found', 'notifications');
             return;
         }
 

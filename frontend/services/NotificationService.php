@@ -194,19 +194,6 @@ class NotificationService
                 $notification->save(false);
                 continue;
             }
-
-            // Log the queued notifications - use an array mapper
-            Yii::info('Queued notification: ' . json_encode(array_map(function ($notification) {
-                return [
-                    'id' => $notification->id,
-                    'appointment_id' => $notification->appointment_id,
-                    'scheduled_time' => $notification->scheduled_time,
-                    'status' => $notification->status,
-                    'minutes_before' => $notification->minutes_before,
-                    'notification_type' => $notification->notification_type,
-                ];
-            }, [$notification])), 'notifications');
-
             // Queue the appropriate job based on notification type
             try {
                 self::queueNotificationJob($notification);
