@@ -196,7 +196,18 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
         } catch (\Exception $e) {
             Yii::error('Email reminder job failed: ' . $e->getMessage());
         }
+    }
 
+    // Define a method to get the time unit string
+    private function getTimeUnit()
+    {
+        $minutes = (int) str_replace('-minute', '', $this->reminderType);
 
+        if ($minutes >= 60) {
+            $hours = $minutes / 60;
+            return $hours == 1 ? '1 hour' : $hours . ' hours';
+        } else {
+            return $minutes . ' minutes';
+        }
     }
 }
