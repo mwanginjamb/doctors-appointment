@@ -2,7 +2,7 @@
 
 namespace frontend\controllers;
 
-use Symfony\Component\VarDumper\VarDumper;
+
 use yii\web\Controller;
 use frontend\models\Consultant;
 use yii\filters\VerbFilter;

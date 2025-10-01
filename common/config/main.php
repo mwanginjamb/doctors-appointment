@@ -43,7 +43,7 @@ return [
             'class' => \yii\symfonymailer\Mailer::class,
             'viewPath' => '@common/mail',
             // send all mails to a file by default.
-            'useFileTransport' => true,
+            'useFileTransport' => false,
             'transport' => [
                 'scheme' => 'smtps',
                 'host' => env('SMTP_HOST'),
