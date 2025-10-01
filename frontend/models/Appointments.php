@@ -117,9 +117,16 @@ class Appointments extends \yii\db\ActiveRecord
         if ($insert) {
             // Schedule notifications for new appointment
             $this->scheduleNotifications();
+            // Send immediate confirmation notification
+            NotificationService::sendImmediateConfirmation($this);
         } else {
             // Handle updates
             $this->handleAppointmentUpdate($changedAttributes);
+            // Schedule notifications if date/time changed
+            if (isset($changedAttributes['date']) || isset($changedAttributes['time'])) {
+                // Send reschedule notification
+                NotificationService::sendRescheduleNotification($this);
+            }
         }
     }
 
@@ -242,6 +249,12 @@ class Appointments extends \yii\db\ActiveRecord
         return $this->hasOne(User::class, ['id' => 'patient_id']);
     }
 
+    // Get user (patient) Profile
+    public function getPatientProfile()
+    {
+        return $this->hasOne(UserProfile::class, ['user_id' => 'patient_id']);
+    }
+
     public function getNotifications()
     {
         return $this->hasMany(AppointmentNotifications::class, ['appointment_id' => 'id']);
@@ -266,4 +279,6 @@ class Appointments extends \yii\db\ActiveRecord
             self::STATUS_NO_SHOW => 'No Show',
         ];
     }
+
+
 }

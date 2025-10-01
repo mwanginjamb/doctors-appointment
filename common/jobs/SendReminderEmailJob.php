@@ -6,7 +6,7 @@ use frontend\models\AppointmentNotifications;
 use frontend\models\NotificationSchedules;
 use yii\base\BaseObject;
 use Yii;
-use yii\helpers\VarDumper;
+
 
 class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
 {
@@ -26,7 +26,6 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
             'jobId' => uniqid('job_', true)
         ];
 
-        Yii::info('Starting email reminder job execution - ' . VarDumper::dumpAsString($logContext), 'notifications');
 
         $appointment = Appointments::findOne($this->appointmentId);
 
@@ -81,14 +80,19 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
      */
     private function getEmailSubject()
     {
-        $minutes = (int) str_replace('-minute', '', $this->reminderType);
-
-        if ($minutes >= 60) {
-            $hours = $minutes / 60;
-            $timeUnit = $hours == 1 ? '1 hour' : $hours . ' hours';
+        // check if reminderType has string '-minute' first
+        if (strpos($this->reminderType, '-minute') !== false) {
+            $minutes = (int) str_replace('-minute', '', $this->reminderType);
+            if ($minutes >= 60) {
+                $hours = $minutes / 60;
+                $timeUnit = $hours == 1 ? '1 hour' : $hours . ' hours';
+            } else {
+                $timeUnit = $minutes . ' minutes';
+            }
         } else {
-            $timeUnit = $minutes . ' minutes';
+            $timeUnit = $this->reminderType;
         }
+
 
         return "Appointment Reminder - {$timeUnit} notice";
     }
@@ -161,25 +165,19 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
 
         $result = $appointment->save(false);
 
-        Yii::debug('Legacy reminder fields updated - ' . VarDumper::dump([
-            'appointmentId' => $this->appointmentId,
-            'minutes' => $minutes,
-            'updateResult' => $result
-        ]), 'email.reminder.legacy_update');
+
     }
 
     // Add an organized email sending function that uses a template
     public function sendMail(Appointments $appointment)
     {
         $recipients = $this->getRecipients($appointment);
-        // log receipients
-        Yii::info('Recipients: ' . VarDumper::dump($recipients), 'notifications');
+
         if (empty($recipients)) {
             Yii::info('No valid recipients found', 'notifications');
             throw new \Exception('No valid recipients found');
         }
-        // log recipients
-        Yii::info('Preparing to send email to recipients: ' . VarDumper::dump($recipients), 'notifications');
+
         try {
             foreach ($recipients as $email => $name) {
                 $mail = Yii::$app->mailer->compose('appointmentReminder-html', [
@@ -193,8 +191,7 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
                     ->setSubject($this->getEmailSubject())
                     ->send();
 
-                // Log the email sending result
-                Yii::info('Email sent to ' . $email . ' - ' . VarDumper::dump($mail), 'notifications');
+                Yii::info('Email sent to ' . $email . ' - ' . ($mail ? 'Success' : 'Failed'), 'notifications');
             }
         } catch (\Exception $e) {
             Yii::error('Email reminder job failed: ' . $e->getMessage());

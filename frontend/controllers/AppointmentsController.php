@@ -2,6 +2,7 @@
 
 namespace frontend\controllers;
 
+use Symfony\Component\VarDumper\VarDumper;
 use yii\web\Controller;
 use frontend\models\Consultant;
 use yii\filters\VerbFilter;
@@ -89,8 +90,13 @@ class AppointmentsController extends Controller
      */
     public function actionView($id)
     {
+        /**
+         * @todo Endsure the view is well designed and carries patient profile info
+         */
+        $appointment = Appointments::find()->where(['appointments.id' => $id])->joinWith('patientProfile')->one();
+        // \yii\helpers\VarDumper::dump($appointment->patientProfile, 10, true);
         return $this->render('view', [
-            'model' => $this->findModel($id),
+            'model' => $appointment,
         ]);
     }
 

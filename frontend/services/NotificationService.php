@@ -10,7 +10,7 @@ use common\jobs\SendReminderSmsJob;
 use common\jobs\SendReminderPushJob;
 use common\jobs\SendReminderWhatsAppJob;
 use Yii;
-use yii\helpers\VarDumper;
+
 
 
 /**
@@ -275,5 +275,37 @@ class NotificationService
 
         // Schedule new notifications
         self::scheduleNotificationsForAppointment($appointment);
+    }
+
+    // immediate confirmation notification
+    public static function sendImmediateConfirmation(Appointments $appointment)
+    {
+        // use the email job queue immediately without scheduling
+        if ($appointment->patient && $appointment->patient->email) {
+            Yii::$app->queue->push(new SendReminderEmailJob([
+                'appointmentId' => $appointment->id,
+                'reminderType' => 'immediate',
+                'notificationId' => null,
+                'recipientType' => NotificationSchedules::METHOD_PATIENT
+            ]));
+        } else {
+            Yii::error('No patient email found for immediate confirmation notification for appointment ' . $appointment->id, 'notifications');
+        }
+    }
+
+    // reschedule notification
+    public static function sendRescheduleNotification(Appointments $appointment)
+    {
+        // use the email job queue immediately without scheduling
+        if ($appointment->patient && $appointment->patient->email) {
+            Yii::$app->queue->push(new SendReminderEmailJob([
+                'appointmentId' => $appointment->id,
+                'reminderType' => 'reschedule',
+                'notificationId' => null,
+                'recipientType' => NotificationSchedules::METHOD_PATIENT
+            ]));
+        } else {
+            Yii::error('No patient email found for reschedule notification for appointment ' . $appointment->id, 'notifications');
+        }
     }
 }
