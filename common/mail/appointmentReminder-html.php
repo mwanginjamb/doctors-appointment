@@ -2,18 +2,30 @@
 /** @var $appointment frontend\models\Appointments */
 /** @var $timeUnit string */
 /** @var $recipientName string */
+
+$patientName = $appointment->patient->full_name ?? 'Patient';
+$consultantName = $appointment->consultant->names ?? 'Doctor';
+$location = $appointment->consultant->physical_address ?? 'Location not specified';
 ?>
 
 <body style='font-family: Arial, sans-serif; line-height: 1.6; color: #333;'>
     <div style='max-width: 600px; margin: 0 auto; padding: 20px;'>
         <h2 style='color: #2c5aa0;'>Appointment Reminder</h2>
         <p>Dear <?= htmlspecialchars($recipientName) ?>,</p>
-        <p>This is a friendly reminder that you have an appointment in <strong><?= $timeUnit ?></strong>.</p>
+
+        <?php if ($timeUnit): ?>
+            <p>This is a friendly reminder that you have an appointment in <strong><?= $timeUnit ?></strong>.</p>
+        <?php endif; ?>
 
         <p><strong>Date:</strong> <?= Yii::$app->formatter->asDate($appointment->date, 'long') ?><br>
             <strong>Time:</strong> <?= Yii::$app->formatter->asTime($appointment->time, 'short') ?><br>
-            <strong>Doctor:</strong> <?= htmlspecialchars($appointment->consultant->names ?? 'Doctor') ?><br>
-            <strong>Patient:</strong> <?= htmlspecialchars($appointment->patient->full_name ?? 'Patient') ?>
+            <strong>Doctor:</strong> <?= htmlspecialchars($consultantName ?? 'Doctor') ?><br>
+            <hr>
+            <strong>Appointment Brief:</strong>
+            <?= htmlspecialchars(substr($appointment->symptoms_brief, 0, 200)) ?>
+            <hr><br>
+            <strong>Location:</strong> <?= htmlspecialchars($location) ?><br>
+            <strong>Patient:</strong> <?= htmlspecialchars($patientName ?? 'Patient') ?>
         </p>
 
 

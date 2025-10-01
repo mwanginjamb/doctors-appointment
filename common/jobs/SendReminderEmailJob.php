@@ -116,6 +116,7 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
 
         $patientName = $appointment->patient->full_name ?? 'Patient';
         $consultantName = $appointment->consultant->names ?? 'Doctor';
+        $location = $appointment->consultant->physical_address ?? 'Location not specified';
 
         return "
         <html>
