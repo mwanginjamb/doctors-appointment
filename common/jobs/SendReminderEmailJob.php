@@ -27,8 +27,10 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
         ];
 
 
-        $appointment = Appointments::find()->where(['id' => $this->appointmentId])->with(['patient', 'consultant'])->one();
+        $appointment = Appointments::find()->where(['appointments.id' => $this->appointmentId])->with(['patient', 'consultant'])->one();
 
+        // log the appointment details
+        Yii::info('Subject  Appointment: ' . print_r($appointment, true), 'notifications');
         if (!$appointment) {
             Yii::info('No valid appointment found', 'notifications');
             return;
