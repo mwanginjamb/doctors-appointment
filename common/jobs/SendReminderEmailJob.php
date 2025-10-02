@@ -74,7 +74,7 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
                     Yii::info('Patient email used: ' . $appointment->patient->email, 'notifications');
                 }
                 if ($appointment->consultant && $appointment->consultant->consultant_email) {
-                    $recipients[$appointment->consultant->email] = $appointment->consultant->names ?? 'Doctor';
+                    $recipients[$appointment->consultant->consultant_email] = $appointment->consultant->names ?? 'Doctor';
                     // log this scenario and the consultant email used
                     Yii::info('Consultant email used: ' . $appointment->consultant->consultant_email, 'notifications');
                 }
@@ -86,7 +86,7 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
                     $recipients[$appointment->patient->email] = $appointment->patient->full_name ?? 'Patient';
                 }
                 if ($appointment->consultant && $appointment->consultant->consultant_email) {
-                    $recipients[$appointment->consultant->email] = $appointment->consultant->names ?? 'Doctor';
+                    $recipients[$appointment->consultant->consultant_email] = $appointment->consultant->names ?? 'Doctor';
                 } else {
                     // log this scenario
                     Yii::info('Consultant email not found for appointment ID: ' . $appointment->id, 'notifications');

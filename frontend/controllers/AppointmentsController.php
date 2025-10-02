@@ -93,8 +93,8 @@ class AppointmentsController extends Controller
         /**
          * @todo Endsure the view is well designed and carries patient profile info
          */
-        $appointment = Appointments::find()->where(['appointments.id' => $id])->joinWith('patientProfile')->one();
-        // \yii\helpers\VarDumper::dump($appointment->patientProfile, 10, true);
+        //$appointment = Appointments::find()->where(['appointments.id' => $id])->joinWith('patientProfile')->one();
+        $appointment = Appointments::find()->where(['appointments.id' => $id])->with(['patientProfile', 'consultant'])->one();
         return $this->render('view', [
             'model' => $appointment,
         ]);
