@@ -48,6 +48,9 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
     {
         $recipients = [];
 
+        // log receipient type
+        Yii::info('Recipient type: ' . $this->recipientType, 'notifications');
+
         switch ($this->recipientType) {
             case NotificationSchedules::METHOD_PATIENT:
                 if ($appointment->patient && $appointment->patient->email) {
@@ -68,6 +71,9 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
                 }
                 if ($appointment->consultant && $appointment->consultant->consultant_email) {
                     $recipients[$appointment->consultant->email] = $appointment->consultant->names ?? 'Doctor';
+                } else {
+                    // log this scenario
+                    Yii::info('Consultant email not found for appointment ID: ' . $appointment->id, 'notifications');
                 }
                 break;
         }

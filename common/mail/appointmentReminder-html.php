@@ -13,7 +13,7 @@ $location = $appointment->consultant->physical_address ?? 'Location not specifie
         <h2 style='color: #2c5aa0;'>Appointment Reminder</h2>
         <p>Dear <?= htmlspecialchars($recipientName) ?>,</p>
 
-        <?php if ($timeUnit): ?>
+        <?php if ($timeUnit !== '0 minutes'): ?>
             <p>This is a friendly reminder that you have an appointment in <strong><?= $timeUnit ?></strong>.</p>
         <?php endif; ?>
 
