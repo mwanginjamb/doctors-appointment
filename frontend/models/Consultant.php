@@ -120,6 +120,12 @@ class Consultant extends \yii\db\ActiveRecord
         return $this->hasOne(User::class, ['id' => 'user_id']);
     }
 
+    // Get Gender
+    public function getGender()
+    {
+        return $this->hasOne(Gender::class, ['id' => 'gender']);
+    }
+
     /**
      * {@inheritdoc}
      * @return \app\queries\ConsultantQuery the active query used by this AR class.

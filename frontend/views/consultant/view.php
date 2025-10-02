@@ -32,7 +32,7 @@ $this->params['breadcrumbs'][] = $this->title;
                         <div>
                             <h1 class="h3 fw-bold"><?= $model->names ?></h1>
                             <p class="text-muted mb-1"><?= $model->speciality ?></p>
-                            <p class="text-muted">12 years of experience</p>
+                            <!-- <p class="text-muted">12 years of experience</p> -->
                         </div>
                     </div>
                     <h2 class="h5 fw-bold mt-5 mb-3">Contact Information</h2>

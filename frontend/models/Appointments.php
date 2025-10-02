@@ -30,6 +30,7 @@ use yii\behaviors\TimestampBehavior;
  * @property int|null $reminder_5hrs_sent
  * @property int|null $reminder_2hrs_sent
  * @property string|null $status (scheduled, completed, cancelled, no_show)
+ * @property int|null $patient_age
  */
 class Appointments extends \yii\db\ActiveRecord
 {
@@ -39,6 +40,8 @@ class Appointments extends \yii\db\ActiveRecord
     const STATUS_NO_SHOW = 'no_show';
 
     private $_oldAttributes = [];
+
+    public $patient_age;
 
     /**
      * {@inheritdoc}

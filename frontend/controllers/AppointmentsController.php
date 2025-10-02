@@ -90,11 +90,19 @@ class AppointmentsController extends Controller
      */
     public function actionView($id)
     {
-        /**
-         * @todo Endsure the view is well designed and carries patient profile info
-         */
+
         //$appointment = Appointments::find()->where(['appointments.id' => $id])->joinWith('patientProfile')->one();
         $appointment = Appointments::find()->where(['appointments.id' => $id])->with(['patientProfile', 'consultant'])->one();
+
+        // calculate age based on $model->patientProfile->dob in years and months
+        $dob = $appointment->patientProfile->dob;
+        $age = date_diff(date_create($dob), date_create('today'))->y;
+        $months = date_diff(date_create($dob), date_create('today'))->m;
+        $appointment->patient_age = $age . ' years ' . $months . ' months';
+
+        // print '<pre>';
+        // print_r($appointment->patientProfile);
+        // exit;
         return $this->render('view', [
             'model' => $appointment,
         ]);
