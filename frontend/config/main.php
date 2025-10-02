@@ -46,7 +46,7 @@ return [
                 ],
                 [
                     'class' => \yii\log\FileTarget::class,
-                    'levels' => ['info'],
+                    'levels' => ['info', 'error', 'warning'],
                     'categories' => ['jobs', 'notifications'],
                     'logFile' => '@runtime/logs/jobs.log',
                     'logVars' => []
