@@ -286,7 +286,7 @@ class NotificationService
                 'appointmentId' => $appointment->id,
                 'reminderType' => 'immediate',
                 'notificationId' => null,
-                'recipientType' => NotificationSchedules::METHOD_PATIENT
+                'recipientType' => NotificationSchedules::METHOD_BOTH
             ]));
         } else {
             Yii::error('No patient email found for immediate confirmation notification for appointment ' . $appointment->id, 'notifications');
@@ -302,7 +302,7 @@ class NotificationService
                 'appointmentId' => $appointment->id,
                 'reminderType' => 'reschedule',
                 'notificationId' => null,
-                'recipientType' => NotificationSchedules::METHOD_PATIENT
+                'recipientType' => NotificationSchedules::METHOD_BOTH
             ]));
         } else {
             Yii::error('No patient email found for reschedule notification for appointment ' . $appointment->id, 'notifications');
