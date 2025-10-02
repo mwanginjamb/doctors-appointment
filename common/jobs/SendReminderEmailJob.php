@@ -67,16 +67,16 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
             case NotificationSchedules::METHOD_BOTH:
                 if ($appointment->patient && $appointment->patient->email) {
                     $recipients[$appointment->patient->email] = $appointment->patient->full_name ?? 'Patient';
-                } else {
-                    // log this scenario
-                    Yii::info('Patient email not found for appointment ID: ' . $appointment->id, 'notifications');
+                    // log this scenario and the patient email used
+                    Yii::info('Patient email used: ' . $appointment->patient->email, 'notifications');
                 }
                 if ($appointment->consultant && $appointment->consultant->consultant_email) {
                     $recipients[$appointment->consultant->email] = $appointment->consultant->names ?? 'Doctor';
-                } else {
-                    // log this scenario
-                    Yii::info('Consultant email not found for appointment ID: ' . $appointment->id, 'notifications');
+                    // log this scenario and the consultant email used
+                    Yii::info('Consultant email used: ' . $appointment->consultant->consultant_email, 'notifications');
                 }
+                // log recipients to show receipients used
+                Yii::info('Recipients: ' . print_r($recipients, true), 'notifications');
                 break;
             default:
                 if ($appointment->patient && $appointment->patient->email) {
