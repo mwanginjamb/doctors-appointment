@@ -27,7 +27,7 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
         ];
 
 
-        $appointment = Appointments::findOne($this->appointmentId);
+        $appointment = Appointments::find()->where(['id' => $this->appointmentId])->with(['patient', 'consultant'])->one();
 
         if (!$appointment) {
             Yii::info('No valid appointment found', 'notifications');
@@ -65,6 +65,7 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
                 break;
 
             case NotificationSchedules::METHOD_BOTH:
+
                 if ($appointment->patient && $appointment->patient->email) {
                     $recipients[$appointment->patient->email] = $appointment->patient->full_name ?? 'Patient';
                     // log this scenario and the patient email used
