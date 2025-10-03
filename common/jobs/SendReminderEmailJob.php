@@ -52,49 +52,52 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
 
         // log receipient type
         Yii::info('Recipient type: ' . $this->recipientType, 'notifications');
+        try {
+            switch ($this->recipientType) {
+                case NotificationSchedules::METHOD_PATIENT:
+                    if ($appointment->patient && $appointment->patient->email) {
+                        $recipients[$appointment->patient->email] = $appointment->patient->full_name ?? 'Patient';
+                    }
+                    break;
 
-        switch ($this->recipientType) {
-            case NotificationSchedules::METHOD_PATIENT:
-                if ($appointment->patient && $appointment->patient->email) {
-                    $recipients[$appointment->patient->email] = $appointment->patient->full_name ?? 'Patient';
-                }
-                break;
+                case NotificationSchedules::METHOD_CONSULTANT:
+                    if ($appointment->consultant && $appointment->consultant->consultant_email) {
+                        $recipients[$appointment->consultant->consultant_email] = $appointment->consultant->names ?? 'Doctor';
+                    }
+                    break;
 
-            case NotificationSchedules::METHOD_CONSULTANT:
-                if ($appointment->consultant && $appointment->consultant->consultant_email) {
-                    $recipients[$appointment->consultant->consultant_email] = $appointment->consultant->names ?? 'Doctor';
-                }
-                break;
+                case NotificationSchedules::METHOD_BOTH:
 
-            case NotificationSchedules::METHOD_BOTH:
-
-                if ($appointment->patient && $appointment->patient->email) {
-                    $recipients[$appointment->patient->email] = $appointment->patient->full_name ?? 'Patient';
-                    // log this scenario and the patient email used
-                    Yii::info('Patient email used: ' . $appointment->patient->email, 'notifications');
-                }
-                if ($appointment->consultant && $appointment->consultant->consultant_email) {
-                    $recipients[$appointment->consultant->consultant_email] = $appointment->consultant->names ?? 'Doctor';
-                    // log this scenario and the consultant email used
-                    Yii::info('Consultant email used: ' . $appointment->consultant->consultant_email, 'notifications');
-                }
-                // log recipients to show receipients used
-                Yii::info('Recipients: ' . print_r($recipients, true), 'notifications');
-                break;
-            default:
-                if ($appointment->patient && $appointment->patient->email) {
-                    $recipients[$appointment->patient->email] = $appointment->patient->full_name ?? 'Patient';
-                }
-                if ($appointment->consultant && $appointment->consultant->consultant_email) {
-                    $recipients[$appointment->consultant->consultant_email] = $appointment->consultant->names ?? 'Doctor';
-                } else {
-                    // log this scenario
-                    Yii::info('Consultant email not found for appointment ID: ' . $appointment->id, 'notifications');
-                }
-                break;
+                    if ($appointment->patient && $appointment->patient->email) {
+                        $recipients[$appointment->patient->email] = $appointment->patient->full_name ?? 'Patient';
+                        // log this scenario and the patient email used
+                        Yii::info('Patient email used: ' . $appointment->patient->email, 'notifications');
+                    }
+                    if ($appointment->consultant && $appointment->consultant->consultant_email) {
+                        $recipients[$appointment->consultant->consultant_email] = $appointment->consultant->names ?? 'Doctor';
+                        // log this scenario and the consultant email used
+                        Yii::info('Consultant email used: ' . $appointment->consultant->consultant_email, 'notifications');
+                    }
+                    // log recipients to show receipients used
+                    Yii::info('Recipients: ' . print_r($recipients, true), 'notifications');
+                    break;
+                default:
+                    if ($appointment->patient && $appointment->patient->email) {
+                        $recipients[$appointment->patient->email] = $appointment->patient->full_name ?? 'Patient';
+                    }
+                    if ($appointment->consultant && $appointment->consultant->consultant_email) {
+                        $recipients[$appointment->consultant->consultant_email] = $appointment->consultant->names ?? 'Doctor';
+                    } else {
+                        // log this scenario
+                        Yii::info('Consultant email not found for appointment ID: ' . $appointment->id, 'notifications');
+                    }
+                    break;
+            }
+            return $recipients;
+        } catch (\Exception $e) {
+            Yii::error('Error determining recipient(s): ' . $e->getMessage(), 'notifications');
         }
 
-        return $recipients;
     }
 
     /**
@@ -119,58 +122,7 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
         return "Appointment Reminder - {$timeUnit} notice";
     }
 
-    /**
-     * Get email body
-     */
-    private function getEmailBody($appointment)
-    {
-        $minutes = (int) str_replace('-minute', '', $this->reminderType);
 
-        if ($minutes >= 60) {
-            $hours = $minutes / 60;
-            $timeUnit = $hours == 1 ? '1 hour' : $hours . ' hours';
-        } else {
-            $timeUnit = $minutes . ' minutes';
-        }
-
-        $appointmentDate = date('l, F j, Y', strtotime($appointment->date));
-        $appointmentTime = date('g:i A', strtotime($appointment->time));
-
-        $patientName = $appointment->patient->full_name ?? 'Patient';
-        $consultantName = $appointment->consultant->names ?? 'Doctor';
-        $location = $appointment->consultant->physical_address ?? 'Location not specified';
-
-        return "
-        <html>
-        <body style='font-family: Arial, sans-serif; line-height: 1.6; color: #333;'>
-            <div style='max-width: 600px; margin: 0 auto; padding: 20px;'>
-                <h2 style='color: #2c5aa0;'>Appointment Reminder</h2>
-                
-                <p>Dear {recipient_name},</p>
-                
-                <p>This is a friendly reminder that you have an appointment coming up in <strong>{$timeUnit}</strong>.</p>
-                
-                <div style='background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;'>
-                    <h3 style='margin-top: 0; color: #2c5aa0;'>Appointment Details</h3>
-                    <p><strong>Date:</strong> {$appointmentDate}</p>
-                    <p><strong>Time:</strong> {$appointmentTime}</p>
-                    <p><strong>Patient:</strong> {$patientName}</p>
-                    <p><strong>Doctor:</strong> {$consultantName}</p>
-                    " . ($appointment->location ? "<p><strong>Location:</strong> {$appointment->location}</p>" : "") . "
-                    " . ($appointment->symptoms_brief ? "<p><strong>Purpose:</strong> " . htmlspecialchars(substr($appointment->symptoms_brief, 0, 200)) . "</p>" : "") . "
-                </div>
-                
-                <p>Please arrive 15 minutes early for check-in. If you need to reschedule or cancel, please contact us as soon as possible.</p>
-                
-                <p>Thank you!</p>
-                
-                <div style='margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #666;'>
-                    <p>This is an automated reminder. Please do not reply to this email.</p>
-                </div>
-            </div>
-        </body>
-        </html>";
-    }
 
     /**
      * Update legacy reminder fields for backward compatibility
