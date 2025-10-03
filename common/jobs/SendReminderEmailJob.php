@@ -169,7 +169,7 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
             );
 
             // ✅ FIX: Set the class property so getRecipients() can access it
-            $this->consultant = $appointment->consultant;
+            // $this->consultant = $appointment->consultant;
 
             // DIAGNOSTIC: Deep dive into consultant
             if ($this->consultant) {
