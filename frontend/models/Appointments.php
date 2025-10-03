@@ -246,7 +246,7 @@ class Appointments extends \yii\db\ActiveRecord
 
     public function getConsultant()
     {
-        return $this->hasOne(Consultant::class, ['user_id' => 'consultant_id']);
+        return $this->hasOne(Consultant::class, ['user_id' => 'appointments.consultant_id']);
     }
 
     public function getPatient()
