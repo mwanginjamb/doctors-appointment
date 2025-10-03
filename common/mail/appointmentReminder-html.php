@@ -4,8 +4,9 @@
 /** @var $recipientName string */
 
 $patientName = $appointment->patient->full_name ?? 'Patient';
-$consultantName = $appointment->consultant->names ?? 'Doctor';
-$location = $appointment->consultant->physical_address ?? 'Location not specified';
+$consultantName = $consultant->names ?? 'Doctor';
+$location = $consultant->physical_address ?? 'Location not specified';
+$practiceName = $consultant->practice_name ?? 'Practice Name Not Specified';
 ?>
 
 <body style='font-family: Arial, sans-serif; line-height: 1.6; color: #333;'>
@@ -20,6 +21,7 @@ $location = $appointment->consultant->physical_address ?? 'Location not specifie
         <p><strong>Date:</strong> <?= Yii::$app->formatter->asDate($appointment->date, 'long') ?><br>
             <strong>Time:</strong> <?= Yii::$app->formatter->asTime($appointment->time, 'short') ?><br>
             <strong>Doctor:</strong> <?= htmlspecialchars($consultantName ?? 'Doctor') ?><br>
+            <strong>Practice:</strong> <?= htmlspecialchars($practiceName ?? 'Practice Name Not Specified') ?><br>
             <hr>
             <strong>Appointment Brief:</strong>
             <?= htmlspecialchars(substr($appointment->symptoms_brief, 0, 200)) ?>

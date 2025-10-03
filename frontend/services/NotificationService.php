@@ -282,7 +282,7 @@ class NotificationService
     {
         // use the email job queue immediately without scheduling
         if ($appointment->patient && $appointment->patient->email) {
-            Yii::$app->queue->push(new SendReminderEmailJob([
+            Yii::$app->queue->delay(10)->push(new SendReminderEmailJob([
                 'appointmentId' => $appointment->id,
                 'reminderType' => 'immediate',
                 'notificationId' => null,
@@ -300,7 +300,7 @@ class NotificationService
     {
         // use the email job queue immediately without scheduling
         if ($appointment->patient && $appointment->patient->email) {
-            Yii::$app->queue->push(new SendReminderEmailJob([
+            Yii::$app->queue->delay(10)->push(new SendReminderEmailJob([
                 'appointmentId' => $appointment->id,
                 'reminderType' => 'reschedule',
                 'notificationId' => null,

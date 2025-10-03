@@ -121,7 +121,7 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
             try {
                 if ($appointment->consultant_id) {
                     $consultantData = Yii::$app->db->createCommand(
-                        'SELECT id, user_id, names, consultant_email, consultant_phone_number 
+                        'SELECT id, user_id, names, consultant_email, consultant_phone_number,physical_address,practice_name
                          FROM consultant 
                          WHERE user_id = :consultant_id'
                     )
@@ -430,6 +430,7 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
                         'appointment' => $appointment,
                         'timeUnit' => $this->getTimeUnit(),
                         'recipientName' => $name,
+                        'consultant' => $this->consultant,
                     ])
                         ->setTo([$email => $name])
                         ->setFrom([Yii::$app->params['supportEmail'] => Yii::$app->name . ' robot'])
