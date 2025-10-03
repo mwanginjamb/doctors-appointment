@@ -19,7 +19,6 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
 
     public function execute($queue)
     {
-
         // Force immediate logging to file
         file_put_contents(
             Yii::getAlias('@runtime/logs/job-debug.log'),
@@ -35,33 +34,98 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
             'jobId' => uniqid('job_', true)
         ];
 
-        // eager load the appointment with patient and consultant relations
-        $appointment = Appointments::find()
-            ->where(['appointments.id' => $this->appointmentId])
-            ->with(['patient', 'consultant'])
-            ->one();
+        try {
+            file_put_contents(
+                Yii::getAlias('@runtime/logs/job-debug.log'),
+                date('Y-m-d H:i:s') . " - Fetching appointment {$this->appointmentId}\n",
+                FILE_APPEND
+            );
 
-        // check if appointment exists
-        if (!$appointment) {
-            Yii::info('No valid appointment found', 'notifications');
-            return;
+            // Use eager loading to fetch appointment with related data
+            $appointment = Appointments::find()
+                ->where(['id' => $this->appointmentId])
+                ->with(['patient', 'consultant'])
+                ->one();
+
+            if (!$appointment) {
+                file_put_contents(
+                    Yii::getAlias('@runtime/logs/job-debug.log'),
+                    date('Y-m-d H:i:s') . " - ERROR: Appointment not found\n",
+                    FILE_APPEND
+                );
+                Yii::error('Appointment not found: ' . $this->appointmentId, 'notifications');
+                return;
+            }
+
+            file_put_contents(
+                Yii::getAlias('@runtime/logs/job-debug.log'),
+                date('Y-m-d H:i:s') . " - Appointment loaded. consultant_id: " . ($appointment->consultant_id ?? 'NULL') . "\n",
+                FILE_APPEND
+            );
+
+            // ✅ FIX: Set the class property so getRecipients() can access it
+            $this->consultant = $appointment->consultant;
+
+            // DIAGNOSTIC: Deep dive into consultant
+            if ($this->consultant) {
+                file_put_contents(
+                    Yii::getAlias('@runtime/logs/job-debug.log'),
+                    date('Y-m-d H:i:s') . " - Consultant loaded: " . json_encode($this->consultant->attributes) . "\n",
+                    FILE_APPEND
+                );
+                Yii::info('Consultant object loaded - Class: ' . get_class($this->consultant), 'notifications');
+                Yii::info('Consultant attributes: ' . json_encode($this->consultant->attributes), 'notifications');
+            } else {
+                file_put_contents(
+                    Yii::getAlias('@runtime/logs/job-debug.log'),
+                    date('Y-m-d H:i:s') . " - WARNING: Consultant is NULL\n",
+                    FILE_APPEND
+                );
+                Yii::warning('Consultant relationship returned NULL for appointment: ' . $this->appointmentId . ' with consultant_id: ' . ($appointment->consultant_id ?? 'NULL'), 'notifications');
+            }
+
+            // DIAGNOSTIC: Log patient info too
+            if ($appointment->patient) {
+                file_put_contents(
+                    Yii::getAlias('@runtime/logs/job-debug.log'),
+                    date('Y-m-d H:i:s') . " - Patient email: " . ($appointment->patient->email ?? 'NULL') . "\n",
+                    FILE_APPEND
+                );
+                Yii::info('Patient loaded - email: ' . ($appointment->patient->email ?? 'NULL'), 'notifications');
+            }
+
+            file_put_contents(
+                Yii::getAlias('@runtime/logs/job-debug.log'),
+                date('Y-m-d H:i:s') . " - Calling sendMail()\n",
+                FILE_APPEND
+            );
+
+            // Send to recipients
+            $this->sendMail($appointment);
+
+            file_put_contents(
+                Yii::getAlias('@runtime/logs/job-debug.log'),
+                date('Y-m-d H:i:s') . " - Email sent, updating legacy fields\n",
+                FILE_APPEND
+            );
+
+            // Update the old reminder fields for backward compatibility
+            $this->updateLegacyReminderFields($appointment);
+
+            file_put_contents(
+                Yii::getAlias('@runtime/logs/job-debug.log'),
+                date('Y-m-d H:i:s') . " - Job completed successfully\n",
+                FILE_APPEND
+            );
+
+        } catch (\Exception $e) {
+            file_put_contents(
+                Yii::getAlias('@runtime/logs/job-debug.log'),
+                date('Y-m-d H:i:s') . " - EXCEPTION: " . $e->getMessage() . "\n" . $e->getTraceAsString() . "\n",
+                FILE_APPEND
+            );
+            throw $e;
         }
-
-        $this->consultant = $appointment ? $appointment->consultant : null;
-
-
-        // Log consultant details for debugging
-        if ($this->consultant) {
-            Yii::info('Consultant loaded: ' . $this->consultant->names . ' (' . ($this->consultant->consultant_email ?? 'no email') . ')', 'notifications');
-        } else {
-            Yii::warning('No consultant found for appointment: ' . $this->appointmentId, 'notifications');
-        }
-
-        // Send to recipients
-        $this->sendMail($appointment);
-
-        // Update the old reminder fields for backward compatibility
-        $this->updateLegacyReminderFields($appointment);
     }
 
     /**
@@ -71,8 +135,8 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
     {
         $recipients = [];
 
-        // log receipient type
-        Yii::info('Recipient type: ' . $this->recipientType, 'notifications');
+        Yii::info('Determining recipients for type: ' . $this->recipientType, 'notifications');
+
         try {
             switch ($this->recipientType) {
                 case NotificationSchedules::METHOD_PATIENT:
@@ -86,45 +150,47 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
                     if ($this->consultant && $this->consultant->consultant_email) {
                         $recipients[$this->consultant->consultant_email] = $this->consultant->names ?? 'Doctor';
                         Yii::info('Added consultant recipient: ' . $this->consultant->consultant_email, 'notifications');
+                    } else {
+                        Yii::warning('Consultant or email not available', 'notifications');
                     }
                     break;
+
                 case NotificationSchedules::METHOD_BOTH:
                     if ($appointment->patient && $appointment->patient->email) {
                         $recipients[$appointment->patient->email] = $appointment->patient->full_name ?? 'Patient';
-                        // log this scenario and the patient email used
                         Yii::info('Added patient recipient: ' . $appointment->patient->email, 'notifications');
                     }
                     if ($this->consultant && $this->consultant->consultant_email) {
                         $recipients[$this->consultant->consultant_email] = $this->consultant->names ?? 'Doctor';
-                        // log this scenario and the consultant email used
                         Yii::info('Added consultant recipient: ' . $this->consultant->consultant_email, 'notifications');
                     } else {
                         Yii::warning('Consultant or email not available for BOTH method', 'notifications');
                     }
-
                     break;
+
                 default:
+                    // Default to both if method is not recognized
                     if ($appointment->patient && $appointment->patient->email) {
                         $recipients[$appointment->patient->email] = $appointment->patient->full_name ?? 'Patient';
                     }
                     if ($this->consultant && $this->consultant->consultant_email) {
                         $recipients[$this->consultant->consultant_email] = $this->consultant->names ?? 'Doctor';
-                    } else {
-                        // log this scenario
-                        Yii::info('Consultant email not found for appointment ID: ' . $appointment->id, 'notifications');
                     }
                     break;
             }
+
             if (empty($recipients)) {
                 Yii::warning('No recipients found for appointment ' . $appointment->id . ' with method ' . $this->recipientType, 'notifications');
             } else {
                 Yii::info('Total recipients: ' . count($recipients), 'notifications');
             }
-            return $recipients;
-        } catch (\Exception $e) {
-            Yii::error('Error determining recipient(s): ' . $e->getMessage(), 'notifications');
-        }
 
+            return $recipients;
+
+        } catch (\Exception $e) {
+            Yii::error('Error determining recipients: ' . $e->getMessage(), 'notifications');
+            return [];
+        }
     }
 
     /**
@@ -132,7 +198,7 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
      */
     private function getEmailSubject()
     {
-        // check if reminderType has string '-minute' first
+        // Check if reminderType has string '-minute' first
         if (strpos($this->reminderType, '-minute') !== false) {
             $minutes = (int) str_replace('-minute', '', $this->reminderType);
             if ($minutes >= 60) {
@@ -145,17 +211,18 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
             $timeUnit = $this->reminderType;
         }
 
-
         return "Appointment Reminder - {$timeUnit} notice";
     }
-
-
 
     /**
      * Update legacy reminder fields for backward compatibility
      */
     private function updateLegacyReminderFields($appointment)
     {
+        if (strpos($this->reminderType, '-minute') === false) {
+            return;
+        }
+
         $minutes = (int) str_replace('-minute', '', $this->reminderType);
 
         // Update the legacy reminder fields if they match common times
@@ -165,25 +232,25 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
             $appointment->reminder_2hrs_sent = 1;
         }
 
-        $result = $appointment->save(false);
-
-
+        $appointment->save(false);
     }
 
-    // Add an organized email sending function that uses a template
+    /**
+     * Send email to all recipients
+     */
     public function sendMail(Appointments $appointment)
     {
         $recipients = $this->getRecipients($appointment);
 
         if (empty($recipients)) {
-            Yii::info('No valid recipients found', 'notifications');
+            Yii::warning('No valid recipients found for appointment ' . $appointment->id, 'notifications');
             throw new \Exception('No valid recipients found');
         }
 
         if ($this->consultant) {
             Yii::info('Using consultant: ' . $this->consultant->names, 'notifications');
         } else {
-            Yii::info('No consultant details available', 'notifications');
+            Yii::info('No consultant available for this notification', 'notifications');
         }
 
         $successCount = 0;
@@ -215,16 +282,24 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
                     Yii::error('Exception sending email to ' . $email . ': ' . $e->getMessage(), 'notifications');
                 }
             }
+
+            Yii::info("Email batch complete: {$successCount} sent, {$failCount} failed", 'notifications');
+
         } catch (\Exception $e) {
             Yii::error('Email reminder job failed: ' . $e->getMessage(), 'notifications');
             throw $e;
         }
-
     }
 
-    // Define a method to get the time unit string
+    /**
+     * Get the time unit string for display
+     */
     private function getTimeUnit()
     {
+        if (strpos($this->reminderType, '-minute') === false) {
+            return $this->reminderType;
+        }
+
         $minutes = (int) str_replace('-minute', '', $this->reminderType);
 
         if ($minutes >= 60) {
