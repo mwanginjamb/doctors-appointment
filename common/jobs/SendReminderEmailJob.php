@@ -19,6 +19,18 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
 
     public function execute($queue)
     {
+        // Set error handler to catch fatal errors
+        register_shutdown_function(function () {
+            $error = error_get_last();
+            if ($error && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
+                file_put_contents(
+                    Yii::getAlias('@runtime/logs/job-debug.log'),
+                    date('Y-m-d H:i:s') . " - FATAL ERROR: " . print_r($error, true) . "\n",
+                    FILE_APPEND
+                );
+            }
+        });
+
         // Force immediate logging to file
         file_put_contents(
             Yii::getAlias('@runtime/logs/job-debug.log'),
@@ -37,15 +49,33 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
         try {
             file_put_contents(
                 Yii::getAlias('@runtime/logs/job-debug.log'),
-                date('Y-m-d H:i:s') . " - Fetching appointment {$this->appointmentId}\n",
+                date('Y-m-d H:i:s') . " - About to check if Appointments class exists\n",
                 FILE_APPEND
             );
 
-            // Use eager loading to fetch appointment with related data
-            $appointment = Appointments::find()
-                ->where(['id' => $this->appointmentId])
-                ->with(['patient', 'consultant'])
-                ->one();
+            if (!class_exists('frontend\models\Appointments')) {
+                file_put_contents(
+                    Yii::getAlias('@runtime/logs/job-debug.log'),
+                    date('Y-m-d H:i:s') . " - ERROR: Appointments class not found!\n",
+                    FILE_APPEND
+                );
+                return;
+            }
+
+            file_put_contents(
+                Yii::getAlias('@runtime/logs/job-debug.log'),
+                date('Y-m-d H:i:s') . " - Appointments class exists, fetching appointment {$this->appointmentId}\n",
+                FILE_APPEND
+            );
+
+            // Try to fetch without eager loading first
+            $appointment = Appointments::findOne($this->appointmentId);
+
+            file_put_contents(
+                Yii::getAlias('@runtime/logs/job-debug.log'),
+                date('Y-m-d H:i:s') . " - Basic appointment fetch: " . ($appointment ? 'SUCCESS' : 'NULL') . "\n",
+                FILE_APPEND
+            );
 
             if (!$appointment) {
                 file_put_contents(
@@ -56,6 +86,45 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
                 Yii::error('Appointment not found: ' . $this->appointmentId, 'notifications');
                 return;
             }
+
+            file_put_contents(
+                Yii::getAlias('@runtime/logs/job-debug.log'),
+                date('Y-m-d H:i:s') . " - Appointment data: " . json_encode([
+                    'id' => $appointment->id,
+                    'patient_id' => $appointment->patient_id,
+                    'consultant_id' => $appointment->consultant_id,
+                ]) . "\n",
+                FILE_APPEND
+            );
+
+            // Now try to load patient
+            file_put_contents(
+                Yii::getAlias('@runtime/logs/job-debug.log'),
+                date('Y-m-d H:i:s') . " - Loading patient relationship...\n",
+                FILE_APPEND
+            );
+
+            $patient = $appointment->patient;
+            file_put_contents(
+                Yii::getAlias('@runtime/logs/job-debug.log'),
+                date('Y-m-d H:i:s') . " - Patient loaded: " . ($patient ? get_class($patient) : 'NULL') . "\n",
+                FILE_APPEND
+            );
+
+            // Now try to load consultant
+            file_put_contents(
+                Yii::getAlias('@runtime/logs/job-debug.log'),
+                date('Y-m-d H:i:s') . " - Loading consultant relationship...\n",
+                FILE_APPEND
+            );
+
+            $this->consultant = $appointment->consultant;
+
+            file_put_contents(
+                Yii::getAlias('@runtime/logs/job-debug.log'),
+                date('Y-m-d H:i:s') . " - Consultant loaded: " . ($this->consultant ? get_class($this->consultant) : 'NULL') . "\n",
+                FILE_APPEND
+            );
 
             file_put_contents(
                 Yii::getAlias('@runtime/logs/job-debug.log'),
@@ -230,9 +299,25 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
             $appointment->reminder_5hrs_sent = 1;
         } elseif ($minutes == 120) { // 2 hours
             $appointment->reminder_2hrs_sent = 1;
+        } else {
+            // No legacy field to update
+            return;
         }
 
-        $appointment->save(false);
+        // Use updateAll to bypass afterSave() hook and prevent infinite loops
+        Appointments::updateAll(
+            [
+                'reminder_5hrs_sent' => $appointment->reminder_5hrs_sent,
+                'reminder_2hrs_sent' => $appointment->reminder_2hrs_sent,
+            ],
+            ['id' => $appointment->id]
+        );
+
+        file_put_contents(
+            Yii::getAlias('@runtime/logs/job-debug.log'),
+            date('Y-m-d H:i:s') . " - Updated legacy reminder fields via updateAll\n",
+            FILE_APPEND
+        );
     }
 
     /**
