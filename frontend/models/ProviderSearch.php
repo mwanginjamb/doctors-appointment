@@ -1,13 +1,13 @@
 <?php
 
-namespace app\models;
+namespace frontend\models;
 
 use yii\base\Model;
 use yii\data\ActiveDataProvider;
-use app\models\Provider;
+use frontend\models\Provider;
 
 /**
- * ProviderSearch represents the model behind the search form of `app\models\Provider`.
+ * ProviderSearch represents the model behind the search form of `frontend\models\Provider`.
  */
 class ProviderSearch extends Provider
 {
