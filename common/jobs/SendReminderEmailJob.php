@@ -201,12 +201,27 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
 
             file_put_contents(
                 Yii::getAlias('@runtime/logs/job-debug.log'),
-                date('Y-m-d H:i:s') . " - Calling sendMail()\n",
+                date('Y-m-d H:i:s') . " - About to call sendMail(). recipientType: {$this->recipientType}\n",
                 FILE_APPEND
             );
 
             // Send to recipients
-            $this->sendMail($appointment);
+            try {
+                $this->sendMail($appointment);
+
+                file_put_contents(
+                    Yii::getAlias('@runtime/logs/job-debug.log'),
+                    date('Y-m-d H:i:s') . " - sendMail() completed successfully\n",
+                    FILE_APPEND
+                );
+            } catch (\Exception $e) {
+                file_put_contents(
+                    Yii::getAlias('@runtime/logs/job-debug.log'),
+                    date('Y-m-d H:i:s') . " - ERROR in sendMail(): " . $e->getMessage() . "\n",
+                    FILE_APPEND
+                );
+                throw $e;
+            }
 
             file_put_contents(
                 Yii::getAlias('@runtime/logs/job-debug.log'),
@@ -361,9 +376,35 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
      */
     public function sendMail(Appointments $appointment)
     {
-        $recipients = $this->getRecipients($appointment);
+        file_put_contents(
+            Yii::getAlias('@runtime/logs/job-debug.log'),
+            date('Y-m-d H:i:s') . " - [sendMail] Method entered\n",
+            FILE_APPEND
+        );
+
+        try {
+            $recipients = $this->getRecipients($appointment);
+
+            file_put_contents(
+                Yii::getAlias('@runtime/logs/job-debug.log'),
+                date('Y-m-d H:i:s') . " - [sendMail] Recipients: " . json_encode(array_keys($recipients)) . "\n",
+                FILE_APPEND
+            );
+        } catch (\Exception $e) {
+            file_put_contents(
+                Yii::getAlias('@runtime/logs/job-debug.log'),
+                date('Y-m-d H:i:s') . " - [sendMail] ERROR getting recipients: " . $e->getMessage() . "\n",
+                FILE_APPEND
+            );
+            throw $e;
+        }
 
         if (empty($recipients)) {
+            file_put_contents(
+                Yii::getAlias('@runtime/logs/job-debug.log'),
+                date('Y-m-d H:i:s') . " - [sendMail] No recipients found, throwing exception\n",
+                FILE_APPEND
+            );
             Yii::warning('No valid recipients found for appointment ' . $appointment->id, 'notifications');
             throw new \Exception('No valid recipients found');
         }
@@ -379,6 +420,12 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
 
         try {
             foreach ($recipients as $email => $name) {
+                file_put_contents(
+                    Yii::getAlias('@runtime/logs/job-debug.log'),
+                    date('Y-m-d H:i:s') . " - [sendMail] Sending to: {$email} ({$name})\n",
+                    FILE_APPEND
+                );
+
                 try {
                     $mail = Yii::$app->mailer->compose('appointmentReminder-html', [
                         'appointment' => $appointment,
@@ -393,20 +440,45 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
 
                     if ($mail) {
                         $successCount++;
+                        file_put_contents(
+                            Yii::getAlias('@runtime/logs/job-debug.log'),
+                            date('Y-m-d H:i:s') . " - [sendMail] SUCCESS: Email to {$email}\n",
+                            FILE_APPEND
+                        );
                         Yii::info('Email sent successfully to ' . $email, 'notifications');
                     } else {
                         $failCount++;
+                        file_put_contents(
+                            Yii::getAlias('@runtime/logs/job-debug.log'),
+                            date('Y-m-d H:i:s') . " - [sendMail] FAILED: Email to {$email}\n",
+                            FILE_APPEND
+                        );
                         Yii::error('Email failed to send to ' . $email, 'notifications');
                     }
                 } catch (\Exception $e) {
                     $failCount++;
+                    file_put_contents(
+                        Yii::getAlias('@runtime/logs/job-debug.log'),
+                        date('Y-m-d H:i:s') . " - [sendMail] EXCEPTION sending to {$email}: " . $e->getMessage() . "\n",
+                        FILE_APPEND
+                    );
                     Yii::error('Exception sending email to ' . $email . ': ' . $e->getMessage(), 'notifications');
                 }
             }
 
+            file_put_contents(
+                Yii::getAlias('@runtime/logs/job-debug.log'),
+                date('Y-m-d H:i:s') . " - [sendMail] Batch complete: {$successCount} sent, {$failCount} failed\n",
+                FILE_APPEND
+            );
             Yii::info("Email batch complete: {$successCount} sent, {$failCount} failed", 'notifications');
 
         } catch (\Exception $e) {
+            file_put_contents(
+                Yii::getAlias('@runtime/logs/job-debug.log'),
+                date('Y-m-d H:i:s') . " - [sendMail] FATAL ERROR: " . $e->getMessage() . "\n",
+                FILE_APPEND
+            );
             Yii::error('Email reminder job failed: ' . $e->getMessage(), 'notifications');
             throw $e;
         }
