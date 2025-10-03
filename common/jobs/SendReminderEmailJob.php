@@ -175,18 +175,17 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
             if ($this->consultant) {
                 file_put_contents(
                     Yii::getAlias('@runtime/logs/job-debug.log'),
-                    date('Y-m-d H:i:s') . " - Consultant loaded: " . json_encode($this->consultant->attributes) . "\n",
+                    date('Y-m-d H:i:s') . " - Consultant loaded: " . json_encode($this->consultant->names) . "\n",
                     FILE_APPEND
                 );
-                Yii::info('Consultant object loaded - Class: ' . get_class($this->consultant), 'notifications');
-                Yii::info('Consultant attributes: ' . json_encode($this->consultant->attributes), 'notifications');
+
             } else {
                 file_put_contents(
                     Yii::getAlias('@runtime/logs/job-debug.log'),
                     date('Y-m-d H:i:s') . " - WARNING: Consultant is NULL\n",
                     FILE_APPEND
                 );
-                Yii::warning('Consultant relationship returned NULL for appointment: ' . $this->appointmentId . ' with consultant_id: ' . ($appointment->consultant_id ?? 'NULL'), 'notifications');
+
             }
 
             // DIAGNOSTIC: Log patient info too
