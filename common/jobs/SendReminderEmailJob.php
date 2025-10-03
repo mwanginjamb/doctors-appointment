@@ -30,7 +30,7 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
 
         // eager load the appointment with patient and consultant relations
         $appointment = Appointments::find()
-            ->where(['id' => $this->appointmentId])
+            ->where(['appointments.id' => $this->appointmentId])
             ->with(['patient', 'consultant'])
             ->one();
 
