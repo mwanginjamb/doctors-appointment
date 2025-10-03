@@ -2,7 +2,7 @@
 
 namespace frontend\models;
 
-use app\models\Provider;
+use frontend\models\Provider;
 use Yii;
 use common\models\User;
 use yii\behaviors\BlameableBehavior;

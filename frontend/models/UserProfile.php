@@ -4,7 +4,7 @@ namespace frontend\models;
 
 use Yii;
 use common\models\User;
-use app\models\Provider;
+use frontend\models\Provider;
 use yii\helpers\ArrayHelper;
 
 /**
