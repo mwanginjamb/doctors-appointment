@@ -20,6 +20,13 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
     public function execute($queue)
     {
 
+        // Force immediate logging to file
+        file_put_contents(
+            Yii::getAlias('@runtime/logs/job-debug.log'),
+            date('Y-m-d H:i:s') . " - Job started for appointment {$this->appointmentId}\n",
+            FILE_APPEND
+        );
+
         $logContext = [
             'appointmentId' => $this->appointmentId,
             'reminderType' => $this->reminderType,
