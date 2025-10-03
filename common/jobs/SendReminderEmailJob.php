@@ -15,6 +15,8 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
     public $notificationId;
     public $recipientType;
 
+    private $consultant;
+
     public function execute($queue)
     {
 
@@ -27,6 +29,7 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
         ];
 
         $appointment = Appointments::findOne(['id' => $this->appointmentId]);
+        $consultant = $appointment ? $appointment->consultant : null;
         // $appointment = Appointments::find()->where(['appointments.id' => $this->appointmentId])->with(['patient', 'consultant'])->one();
 
         // log the appointment details
@@ -37,7 +40,7 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
         }
 
         // Send to recipients
-        $this->sendMail($appointment);
+        $this->sendMail($appointment, $consultant);
 
         // Update the old reminder fields for backward compatibility
         $this->updateLegacyReminderFields($appointment);
@@ -144,13 +147,19 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
     }
 
     // Add an organized email sending function that uses a template
-    public function sendMail(Appointments $appointment)
+    public function sendMail(Appointments $appointment, $consultant = null)
     {
         $recipients = $this->getRecipients($appointment);
 
         if (empty($recipients)) {
             Yii::info('No valid recipients found', 'notifications');
             throw new \Exception('No valid recipients found');
+        }
+
+        if ($consultant) {
+            Yii::info('Consultant details: ' . print_r($consultant, true), 'notifications');
+        } else {
+            Yii::info('No consultant details available', 'notifications');
         }
 
         try {
