@@ -281,7 +281,7 @@ class NotificationService
     public static function sendImmediateConfirmation(Appointments $appointment)
     {
         // use the email job queue immediately without scheduling
-        if ($appointment->patient && $appointment->patient->email) {
+        if ($appointment->patient && $appointment->patient->email && $appointment->consultant->consultant_email) {
             Yii::$app->queue->push(new SendReminderEmailJob([
                 'appointmentId' => $appointment->id,
                 'reminderType' => 'immediate',
@@ -297,7 +297,7 @@ class NotificationService
     public static function sendRescheduleNotification(Appointments $appointment)
     {
         // use the email job queue immediately without scheduling
-        if ($appointment->patient && $appointment->patient->email) {
+        if ($appointment->patient && $appointment->patient->email && $appointment->consultant->consultant_email) {
             Yii::$app->queue->push(new SendReminderEmailJob([
                 'appointmentId' => $appointment->id,
                 'reminderType' => 'reschedule',
