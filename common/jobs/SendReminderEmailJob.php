@@ -26,8 +26,8 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
             'jobId' => uniqid('job_', true)
         ];
 
-
-        $appointment = Appointments::find()->where(['appointments.id' => $this->appointmentId])->with(['patient', 'consultant'])->one();
+        $appointment = Appointments::findOne(['id' => $this->appointmentId]);
+        // $appointment = Appointments::find()->where(['appointments.id' => $this->appointmentId])->with(['patient', 'consultant'])->one();
 
         // log the appointment details
         Yii::info('Subject  Appointment: ' . print_r($appointment, true), 'notifications');
