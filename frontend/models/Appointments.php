@@ -4,6 +4,8 @@ namespace frontend\models;
 
 use frontend\models\User;
 use frontend\services\NotificationService;
+use frontend\models\UserProfile;
+use frontend\models\Consultant;
 use Yii;
 use yii\behaviors\BlameableBehavior;
 use yii\behaviors\TimestampBehavior;
