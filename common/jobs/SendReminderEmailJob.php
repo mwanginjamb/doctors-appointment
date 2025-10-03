@@ -111,20 +111,56 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
                 FILE_APPEND
             );
 
-            // Now try to load consultant
+            // Load consultant using raw SQL to bypass ActiveRecord issues
             file_put_contents(
                 Yii::getAlias('@runtime/logs/job-debug.log'),
-                date('Y-m-d H:i:s') . " - Loading consultant relationship...\n",
+                date('Y-m-d H:i:s') . " - Loading consultant via raw SQL...\n",
                 FILE_APPEND
             );
 
-            $this->consultant = $appointment->consultant;
+            try {
+                if ($appointment->consultant_id) {
+                    $consultantData = Yii::$app->db->createCommand(
+                        'SELECT id, user_id, names, consultant_email, consultant_phone_number 
+                         FROM consultant 
+                         WHERE user_id = :consultant_id'
+                    )
+                        ->bindValue(':consultant_id', $appointment->consultant_id)
+                        ->queryOne();
 
-            file_put_contents(
-                Yii::getAlias('@runtime/logs/job-debug.log'),
-                date('Y-m-d H:i:s') . " - Consultant loaded: " . ($this->consultant ? get_class($this->consultant) : 'NULL') . "\n",
-                FILE_APPEND
-            );
+                    if ($consultantData) {
+                        // Create a simple object to hold consultant data
+                        $this->consultant = (object) $consultantData;
+
+                        file_put_contents(
+                            Yii::getAlias('@runtime/logs/job-debug.log'),
+                            date('Y-m-d H:i:s') . " - Consultant loaded via SQL: " . json_encode($consultantData) . "\n",
+                            FILE_APPEND
+                        );
+                    } else {
+                        file_put_contents(
+                            Yii::getAlias('@runtime/logs/job-debug.log'),
+                            date('Y-m-d H:i:s') . " - No consultant found for user_id: " . $appointment->consultant_id . "\n",
+                            FILE_APPEND
+                        );
+                        $this->consultant = null;
+                    }
+                } else {
+                    file_put_contents(
+                        Yii::getAlias('@runtime/logs/job-debug.log'),
+                        date('Y-m-d H:i:s') . " - No consultant_id on appointment\n",
+                        FILE_APPEND
+                    );
+                    $this->consultant = null;
+                }
+            } catch (\Exception $e) {
+                file_put_contents(
+                    Yii::getAlias('@runtime/logs/job-debug.log'),
+                    date('Y-m-d H:i:s') . " - SQL ERROR: " . $e->getMessage() . "\n",
+                    FILE_APPEND
+                );
+                $this->consultant = null;
+            }
 
             file_put_contents(
                 Yii::getAlias('@runtime/logs/job-debug.log'),
