@@ -1,5 +1,6 @@
 <?php
 
+use yii\base\View;
 use yii\bootstrap5\ActiveForm;
 use yii\bootstrap5\Html;
 use yii\helpers\Url;
@@ -46,15 +47,18 @@ $this->title = 'Find a Doctor';
                 <?php if (!empty($results)): ?>
                     <h2 class="h3 mb-4">Search Results</h2>
                     <div class="card shadow-sm border-0">
-                        <div class="card-body p-0">
+                        <div class="card-body p-4">
                             <div class="table-responsive">
-                                <table class="table table-hover table-borderless mb-0">
+                                <table class="table table-hover table-borderless mb-0" id="results">
                                     <thead class="bg-light">
                                         <tr>
-                                            <th class="p-3" scope="col">Specialialization</th>
                                             <th class="p-3" scope="col">Consultant</th>
+                                            <th class="p-3" scope="col">Specialialization</th>
                                             <th class="p-3" scope="col">Physical Address</th>
-                                            <th class="p-3" scope="col">Rating</th>
+                                            <!-- <th class="p-3" scope="col">Rating</th> -->
+                                            <th class="p-3" scope="col">Gender</th>
+                                            <th class="p-3" scope="col">Facility</th>
+                                            <th class="p-3" scope="col">Practice</th>
                                             <th class="p-3" scope="col"></th>
                                         </tr>
                                     </thead>
@@ -65,7 +69,7 @@ $this->title = 'Find a Doctor';
                                                 </td>
                                                 <td class="p-3 align-middle text-muted"><?= $res->speciality ?></td>
                                                 <td class="p-3 align-middle text-muted"><?= $res->physical_address ?></td>
-                                                <td class="p-3 align-middle">
+                                                <!-- <td class="p-3 align-middle">
                                                     <div class="d-flex align-items-center gap-2">
                                                         <div>
                                                             <span class="material-symbols-outlined star-filled fs-5">star</span>
@@ -76,10 +80,16 @@ $this->title = 'Find a Doctor';
                                                         </div>
                                                         <span class="fw-medium text-muted">4.0</span>
                                                     </div>
-                                                </td>
+                                                </td> -->
+                                                <td><?= $res->genderIdentity->name ?? '' ?></td>
+                                                <td><?= $res->facility ?? '' ?></td>
+                                                <td><?= $res->practice_name ?></td>
                                                 <td>
-                                                    <?= Html::a('View Profile', Url::toRoute(['consultant/view', 'id' => $res->id, 'consultant' => 1]), ['class' => 'btn btn-sm btn-outline-primary text-decoration-none fw-semibold', 'target' => '_blank']) ?>
-                                                    <?= Html::a('Book Appointment', Url::toRoute(['appointments/calendar', 'cid' => $res->id]), ['class' => 'btn btn-sm btn-primary text-decoration-none fw-semibold']) ?>
+                                                    <!-- make the buttons responsive -->
+                                                    <div class="d-flex align-items-center gap-2">
+                                                        <?= Html::a('View Profile', Url::toRoute(['consultant/view', 'id' => $res->id, 'consultant' => 1]), ['class' => 'btn btn-sm btn-outline-primary text-decoration-none fw-semibold', 'target' => '_blank']) ?>
+                                                        <?= Html::a('Book Appointment', Url::toRoute(['appointments/calendar', 'cid' => $res->id]), ['class' => 'btn btn-sm btn-primary text-decoration-none fw-semibold']) ?>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         <?php endforeach; ?>
@@ -96,3 +106,11 @@ $this->title = 'Find a Doctor';
 
     </div>
 </div>
+
+<?php
+# Attach data tables to results table
+$script = <<<JS
+    $('#results').DataTable();
+JS;
+$this->registerJs($script, \yii\web\View::POS_READY);
+?>

@@ -13,6 +13,12 @@ class ConsultantQuery extends \yii\db\ActiveQuery
     {
         return $this->andWhere('[[status]]=1');
     }*/
+    // eager load gender relationship
+    public function init()
+    {
+        parent::init();
+        $this->with('genderIdentity');
+    }
 
     /**
      * {@inheritdoc}

@@ -291,6 +291,7 @@ class Appointments extends \yii\db\ActiveRecord
             self::STATUS_COMPLETED => 'Completed',
             self::STATUS_CANCELLED => 'Cancelled',
             self::STATUS_NO_SHOW => 'No Show',
+            self::STATUS_CONFIRMED => 'Confirmed',
         ];
     }
 

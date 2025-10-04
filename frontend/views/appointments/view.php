@@ -1,6 +1,7 @@
 <?php
 
 use yii\helpers\Html;
+use yii\helpers\VarDumper;
 use yii\widgets\DetailView;
 
 /** @var yii\web\View $this */
@@ -10,6 +11,8 @@ $this->title = $model->id;
 $this->params['breadcrumbs'][] = ['label' => Yii::t('app', 'Appointments'), 'url' => ['index']];
 $this->params['breadcrumbs'][] = $this->title;
 \yii\web\YiiAsset::register($this);
+// VarDumper::dump($model->consultant->genderIdentity->name, 10, true);
+
 ?>
 <div class="appointments-view my-2">
 
@@ -96,7 +99,7 @@ $this->params['breadcrumbs'][] = $this->title;
                         <div class="col-md-6">
                             <label class="form-label" for="gender">Gender</label>
                             <input class="form-control" disabled
-                                value="<?= $model->consultant->gender->name ?? '' ?>" />
+                                value="<?= $model->consultant->genderIdentity->name ?? '' ?>" />
                         </div>
 
                     </form>

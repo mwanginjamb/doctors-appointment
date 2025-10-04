@@ -121,7 +121,7 @@ class Consultant extends \yii\db\ActiveRecord
     }
 
     // Get Gender
-    public function getGender()
+    public function getGenderIdentity()
     {
         return $this->hasOne(Gender::class, ['id' => 'gender']);
     }
