@@ -284,9 +284,9 @@ class NotificationService
         if ($appointment->patient && $appointment->patient->email) {
             Yii::$app->queue->delay(10)->push(new SendReminderEmailJob([
                 'appointmentId' => $appointment->id,
-                'reminderType' => 'immediate',
+                'reminderType' => 'Booking Confirmation',
                 'notificationId' => null,
-                'recipientType' => NotificationSchedules::METHOD_BOTH
+                'recipientType' => NotificationSchedules::METHOD_PATIENT
             ]));
 
 
@@ -309,6 +309,23 @@ class NotificationService
 
         } else {
             Yii::error('No patient email found for reschedule notification for appointment ' . $appointment->id, 'notifications');
+        }
+    }
+
+    // send immediate confirmation notification
+    public static function sendAppointmentConfirmation(Appointments $appointment)
+    {
+        // use the email job queue immediately without scheduling
+        if ($appointment->patient && $appointment->patient->email) {
+            Yii::$app->queue->delay(10)->push(new SendReminderEmailJob([
+                'appointmentId' => $appointment->id,
+                'reminderType' => 'Appointment Confirmation',
+                'notificationId' => null,
+                'recipientType' => NotificationSchedules::METHOD_BOTH
+            ]));
+
+        } else {
+            Yii::error('No patient email found for appointment confirmation notification for appointment ' . $appointment->id, 'notifications');
         }
     }
 }

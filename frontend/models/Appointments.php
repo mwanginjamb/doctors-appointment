@@ -31,7 +31,7 @@ use yii\behaviors\TimestampBehavior;
  * @property int|null $consultant_id
  * @property int|null $reminder_5hrs_sent
  * @property int|null $reminder_2hrs_sent
- * @property string|null $status (scheduled, completed, cancelled, no_show)
+ * @property string|null $status (scheduled, completed, cancelled, no_show, confirmed)
  * @property int|null $patient_age
  */
 class Appointments extends \yii\db\ActiveRecord
@@ -40,6 +40,7 @@ class Appointments extends \yii\db\ActiveRecord
     const STATUS_COMPLETED = 'completed';
     const STATUS_CANCELLED = 'cancelled';
     const STATUS_NO_SHOW = 'no_show';
+    const STATUS_CONFIRMED = 'confirmed';
 
     private $_oldAttributes = [];
 
@@ -151,6 +152,7 @@ class Appointments extends \yii\db\ActiveRecord
     {
         $rescheduleNeeded = false;
         $cancelNeeded = false;
+        $confirmNeeded = false;
 
         // Check if date or time changed
         if (isset($changedAttributes['date']) || isset($changedAttributes['time'])) {
@@ -162,6 +164,11 @@ class Appointments extends \yii\db\ActiveRecord
             $cancelNeeded = true;
         }
 
+        // check if status changed to confirmed
+        if (isset($changedAttributes['status']) && $this->status === self::STATUS_CONFIRMED) {
+            $confirmNeeded = true;
+        }
+
         // Check if patient or consultant changed
         if (isset($changedAttributes['patient_id']) || isset($changedAttributes['consultant_id'])) {
             $rescheduleNeeded = true;
@@ -171,6 +178,8 @@ class Appointments extends \yii\db\ActiveRecord
             NotificationService::cancelNotificationsForAppointment($this->id);
         } elseif ($rescheduleNeeded) {
             NotificationService::rescheduleNotificationsForAppointment($this);
+        } elseif ($confirmNeeded) {
+            NotificationService::sendAppointmentConfirmation($this);
         }
     }
 

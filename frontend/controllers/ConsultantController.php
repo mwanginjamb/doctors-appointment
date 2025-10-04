@@ -172,7 +172,7 @@ class ConsultantController extends Controller
         return $this->render('update', [
             'model' => $model,
             'gender' => ArrayHelper::map(Gender::find()->all(), 'id', 'name'),
-            'providers' => ArrayHelper::map(\app\models\Provider::find()->all(), 'id', 'provider'),
+            'providers' => ArrayHelper::map(\frontend\models\Provider::find()->all(), 'id', 'provider'),
         ]);
     }
 

@@ -8,7 +8,7 @@ use yii\bootstrap5\ActiveForm;
 /** @var yii\widgets\ActiveForm $form */
 ?>
 
-<div class="appointments-form">
+<div class="appointments-form my-3">
 
     <?php $form = ActiveForm::begin(); ?>
 

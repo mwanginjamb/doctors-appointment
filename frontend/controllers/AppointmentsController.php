@@ -30,6 +30,7 @@ class AppointmentsController extends Controller
                     'class' => VerbFilter::class,
                     'actions' => [
                         'delete' => ['POST'],
+                        'confirm' => ['POST'],
                     ],
                 ],
                 'access' => [
@@ -180,6 +181,23 @@ class AppointmentsController extends Controller
     public function actionMyCalendar()
     {
         return $this->render('my-calendar');
+    }
+
+    // confirm appointment
+    public function actionConfirm($id)
+    {
+        $model = $this->findModel($id);
+        if ($model->status === Appointments::STATUS_SCHEDULED) {
+            $model->status = Appointments::STATUS_CONFIRMED;
+            if ($model->save(false)) {
+                Yii::$app->session->setFlash('success', 'Appointment confirmed successfully.');
+            } else {
+                Yii::$app->session->setFlash('error', 'Error confirming appointment. Please try again.');
+            }
+        } else {
+            Yii::$app->session->setFlash('error', 'Only scheduled appointments can be confirmed.');
+        }
+        return $this->redirect(['index']);
     }
 
     /**
