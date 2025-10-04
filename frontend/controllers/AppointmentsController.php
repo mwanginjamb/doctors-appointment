@@ -95,11 +95,14 @@ class AppointmentsController extends Controller
         //$appointment = Appointments::find()->where(['appointments.id' => $id])->joinWith('patientProfile')->one();
         $appointment = Appointments::find()->where(['appointments.id' => $id])->with(['patientProfile', 'consultant'])->one();
 
+        $appointment->patient_age = 0;
         // calculate age based on $model->patientProfile->dob in years and months
-        $dob = $appointment->patientProfile->dob;
-        $age = date_diff(date_create($dob), date_create('today'))->y;
-        $months = date_diff(date_create($dob), date_create('today'))->m;
-        $appointment->patient_age = $age . ' years ' . $months . ' months';
+        if (property_exists($appointment, 'patientProfile') && property_exists($appointment->patientProfile, 'dob')) {
+            $dob = $appointment->patientProfile->dob;
+            $age = date_diff(date_create($dob), date_create('today'))->y;
+            $months = date_diff(date_create($dob), date_create('today'))->m;
+            $appointment->patient_age = $age . ' years ' . $months . ' months';
+        }
 
         // print '<pre>';
         // print_r($appointment->patientProfile);
