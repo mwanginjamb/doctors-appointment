@@ -302,7 +302,7 @@ class NotificationService
         if ($appointment->patient && $appointment->patient->email) {
             Yii::$app->queue->delay(10)->push(new SendReminderEmailJob([
                 'appointmentId' => $appointment->id,
-                'reminderType' => 'reschedule',
+                'reminderType' => 'Reschedule',
                 'notificationId' => null,
                 'recipientType' => NotificationSchedules::METHOD_BOTH
             ]));

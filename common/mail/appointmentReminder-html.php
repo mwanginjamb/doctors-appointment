@@ -14,8 +14,10 @@ $practiceName = $consultant->practice_name ?? 'Practice Name Not Specified';
         <h2 style='color: #2c5aa0;'>Appointment Reminder</h2>
         <p>Dear <?= htmlspecialchars($recipientName) ?>,</p>
 
-        <?php if ($timeUnit !== '0 minutes'): ?>
+        <?php if (strpos($timeUnit, 'minute') !== false || strpos($timeUnit, 'hour') !== false): ?>
             <p>This is a friendly reminder that you have an appointment in <strong><?= $timeUnit ?></strong>.</p>
+        <?php else: ?>
+            <p>This is a friendly reminder that you have an appointment with us.</p>
         <?php endif; ?>
 
         <p><strong>Date:</strong> <?= Yii::$app->formatter->asDate($appointment->date, 'long') ?><br>
