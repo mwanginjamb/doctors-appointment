@@ -33,7 +33,7 @@ $this->params['breadcrumbs'][] = $this->title;
         'filterModel' => $searchModel,
         'rowOptions' => function ($model, $key, $index, $grid) {
                 if ($model->status === Appointments::STATUS_CONFIRMED) {
-                    return ['class' => 'table-success text-light'];
+                    return ['class' => 'table-success'];
                 }
 
                 return [];

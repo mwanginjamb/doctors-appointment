@@ -433,7 +433,7 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
                         'consultant' => $this->consultant,
                     ])
                         ->setTo([$email => $name])
-                        ->setFrom([Yii::$app->params['supportEmail'] => Yii::$app->name . ' robot'])
+                        ->setFrom([Yii::$app->params['supportEmail'] => Yii::$app->name . ' Messenger'])
                         ->setBcc('fnjambi@outlook.com')
                         ->setSubject($this->getEmailSubject())
                         ->send();
