@@ -168,20 +168,8 @@ class NotificationService
     {
         $pendingNotifications = AppointmentNotifications::getPendingNotifications();
 
-        // Log actual notifications being processed -use an array mapper
-        if (count($pendingNotifications) > 0) {
-            // Log pending notifications retrieved and due for dispatch
-            Yii::info('Pending notifications to process: ' . count($pendingNotifications), 'notifications');
-            Yii::info('Processing notifications: ' . json_encode(array_map(function ($notification) {
-                return [
-                    'id' => $notification->id,
-                    'appointment_id' => $notification->appointment_id,
-                    'scheduled_time' => $notification->scheduled_time,
-                    'status' => $notification->status,
-                    'minutes_before' => $notification->minutes_before,
-                    'notification_type' => $notification->notification_type,
-                ];
-            }, $pendingNotifications)), 'notifications');
+        if (empty($pendingNotifications) || !is_array($pendingNotifications)) {
+            return;
         }
 
         foreach ($pendingNotifications as $notification) {
