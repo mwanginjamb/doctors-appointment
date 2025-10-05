@@ -13,11 +13,14 @@ class ApiController extends Controller
 {
     public function actionAppointments()
     {
-        $consultant_id = null;
+        $booking_session = 'booking_session_' . Yii::$app->user->id;
+        $consultant_id = Yii::$app->session->get($booking_session);
         $role = Yii::$app->user->identity->role;
         $userEvents = [];
         $othersEvents = [];
         $events = [];
+        $other_appointments = [];
+        $appointments = [];
 
 
         Yii::$app->response->format = Response::FORMAT_JSON;
@@ -30,49 +33,53 @@ class ApiController extends Controller
             //other users appointment for the same consultant but nit from the logged in patient_id
             $other_appointments = Appointments::find()->
                 where(['not', ['patient_id' => Yii::$app->user->identity->id]])->
-                andWhere(['consultant_id' => $consultant_id])->all();
-        } else if ($role == 'consultant') {
-            $appointments = Appointments::find()->where(['consultant_id' => Yii::$app->user->identity->id])->all();
+                andWhere(['consultant_id' => $consultant_id])->all() ?? [];
+        } elseif ($role === 'consultant') {
+            $appointments = Appointments::find()->andWhere(['consultant_id' => Yii::$app->user->identity->id])->
+                orWhere(['created_by' => Yii::$app->user->identity->id])->all();
         }
-
 
 
         // Process a users events with relevant metadata
-        foreach ($appointments as $app) {
-            // datetime  string
-            $start = $app->date . 'T' . $app->time;
-            // Assume each appointment is 30min
-            $endTimeStamp = strtotime($app->time) + env('DURATION', 30 * 60);
-            $end = $app->date . 'T' . date('H:i:s', $endTimeStamp);
-            $userEvents[] = [
-                'id' => $app->id,
-                'title' => $app->patient->full_name ?? 'Patient' . ' Appointment with ' . $app->consultant->names ?? 'Dr.',
-                'description' => ' Subject: ' . mb_substr($app->symptoms_brief, 0, 200),
-                'start' => $start,
-                'end' => $end
-            ];
+        if (is_array($appointments) && count($appointments) > 0) {
+            foreach ($appointments as $app) {
+                // datetime  string
+                $start = $app->date . 'T' . $app->time;
+                // Assume each appointment is 30min
+                $endTimeStamp = strtotime($app->time) + env('DURATION', 30 * 60);
+                $end = $app->date . 'T' . date('H:i:s', $endTimeStamp);
+                $userEvents[] = [
+                    'id' => $app->id,
+                    'title' => $app->patient->full_name ?? 'Patient' . ' Appointment with ' . $app->consultant->names ?? 'Dr.',
+                    'description' => ' Subject: ' . mb_substr($app->symptoms_brief, 0, 200),
+                    'start' => $start,
+                    'end' => $end
+                ];
+            }
         }
 
         // Process others events with only necessary metadata
-        foreach ($other_appointments as $app) {
-            // datetime  string
-            $start = $app->date . 'T' . $app->time;
-            // Assume each appointment is 30min
-            $endTimeStamp = strtotime($app->time) + env('DURATION', 30 * 60);
-            $end = $app->date . 'T' . date('H:i:s', $endTimeStamp);
-            $othersEvents[] = [
-                'id' => $app->id,
-                'title' => 'Patient Appointment with ' . $app->consultant->names ?? 'Dr.',
-                'description' => ' Subject: ' . mb_substr($app->symptoms_brief, 0, 5) . ' ...',
-                'start' => $start,
-                'end' => $end
-            ];
+        if (is_array($other_appointments) && count($other_appointments) > 0) {
+            foreach ($other_appointments as $app) {
+                // datetime  string
+                $start = $app->date . 'T' . $app->time;
+                // Assume each appointment is 30min
+                $endTimeStamp = strtotime($app->time) + env('DURATION', 30 * 60);
+                $end = $app->date . 'T' . date('H:i:s', $endTimeStamp);
+                $othersEvents[] = [
+                    'id' => $app->id,
+                    'title' => 'Patient Appointment with ' . $app->consultant->names ?? 'Dr.',
+                    'description' => ' Subject: ' . mb_substr($app->symptoms_brief, 0, 5) . ' ...',
+                    'start' => $start,
+                    'end' => $end
+                ];
+            }
         }
 
         if ($role == 'client') {
             $events = array_merge($userEvents, $othersEvents);
         } else {
-            $events = $appointments;
+            $events = $userEvents;
         }
         return $events;
     }
