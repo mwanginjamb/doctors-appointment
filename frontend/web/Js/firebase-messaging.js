@@ -14,6 +14,13 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const messaging = firebase.messaging();
 
+// Request CSRF token
+async function getCsrfToken() {
+    const res = await fetch('/fcm/csrf-token');
+    const data = await res.json();
+    return data.token;
+}
+
 // Request permission and get token
 async function requestNotificationPermission() {
     try {
@@ -47,11 +54,12 @@ async function requestNotificationPermission() {
 // Send token to Yii2 backend
 async function sendTokenToServer(token) {
     try {
+        token = await getCsrfToken();
         const response = await fetch('/device/register', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-Token': yii.getCsrfToken() // Yii2 CSRF token
+                'X-CSRF-Token': token // Yii2 CSRF token
             },
             body: JSON.stringify({
                 device_token: token,

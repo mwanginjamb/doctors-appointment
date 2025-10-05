@@ -4,12 +4,21 @@
 namespace frontend\controllers;
 
 use Yii;
+use yii\base\Response;
 use yii\web\Controller;
 use yii\filters\VerbFilter;
 use yii\filters\AccessControl;
 
 class FcmController extends Controller
 {
+
+    public function beforeAction($action)
+    {
+        if ($action->id == 'csrf-token') {
+            $this->enableCsrfValidation = false;
+        }
+        return parent::beforeAction($action);
+    }
     public function behaviors()
     {
         return [
@@ -66,6 +75,17 @@ class FcmController extends Controller
         return [
             'success' => true,
             'vapidKey' => $vapidKey
+        ];
+    }
+
+    // Generate a CSRF token
+    public function actionCsrfToken()
+    {
+        Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+
+        return [
+            'param' => Yii::$app->request->csrfParam,
+            'token' => Yii::$app->request->getCsrfToken()
         ];
     }
 }
