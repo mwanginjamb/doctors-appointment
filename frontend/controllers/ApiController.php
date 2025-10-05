@@ -13,8 +13,7 @@ class ApiController extends Controller
 {
     public function actionAppointments()
     {
-        $booking_session = 'booking_session_' . Yii::$app->user->id;
-        $consultant_id = Yii::$app->session->get($booking_session);
+        $consultant_id = null;
         $role = Yii::$app->user->identity->role;
         $userEvents = [];
         $othersEvents = [];
@@ -24,11 +23,14 @@ class ApiController extends Controller
         Yii::$app->response->format = Response::FORMAT_JSON;
         if ($role == 'client') {
             $appointments = Appointments::find()->where(['patient_id' => Yii::$app->user->identity->id])->all();
-            //other users appointment of the same consultant
+            // if $appointments exist for the patient, get the consultant_id from the first item
+            if ($appointments) {
+                $consultant_id = $appointments[0]->consultant_id;
+            }
+            //other users appointment for the same consultant
             $other_appointments = Appointments::find()->where(['consultant_id' => $consultant_id])->all();
-        } else {
-            $appointments = Appointments::find()->where(['consultant_id' => Yii::$app->user->identity->id])->
-                orWhere(['created_by' => Yii::$app->user->identity->id])->all();
+        } else if ($role == 'consultant') {
+            $appointments = Appointments::find()->where(['consultant_id' => Yii::$app->user->identity->id])->all();
         }
         $events = [];
 
@@ -50,7 +52,6 @@ class ApiController extends Controller
         }
 
         // Process others events with only necessary metadata
-
         foreach ($other_appointments as $app) {
             // datetime  string
             $start = $app->date . 'T' . $app->time;
@@ -66,7 +67,11 @@ class ApiController extends Controller
             ];
         }
 
-        $events = array_merge($userEvents, $othersEvents);
+        if ($role == 'client') {
+            $events = array_merge($userEvents, $othersEvents);
+        } else {
+            $events = $userEvents;
+        }
         return $events;
     }
 
