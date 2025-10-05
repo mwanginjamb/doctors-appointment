@@ -3,12 +3,13 @@
 /** @var yii\web\View $this */
 /** @var string $content */
 
-use frontend\assets\CustomAsset;
+
 use yii\helpers\Html;
 use yii\bootstrap5\Nav;
+use common\widgets\Alert;
 use yii\bootstrap5\NavBar;
 use yii\bootstrap5\Breadcrumbs;
-use common\widgets\Alert;
+use frontend\assets\CustomAsset;
 
 CustomAsset::register($this);
 
@@ -192,6 +193,14 @@ $username = Yii::$app->user->identity->username ?? 'User';
     </footer>
 
     <?php $this->endBody() ?>
+
+
+    <?php if (!Yii::$app->user->isGuest): ?>
+        <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+        <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-messaging-compat.js"></script>
+    <?php endif; ?>
+
+
 </body>
 
 </html>

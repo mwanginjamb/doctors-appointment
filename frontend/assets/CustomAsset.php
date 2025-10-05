@@ -21,7 +21,7 @@ class CustomAsset extends AssetBundle
 
     public $js = [
         'Js/site.js',
-        'Js/custom.js',
+        'Js/custom.js'
     ];
 
     public $depends = [
@@ -53,8 +53,11 @@ class CustomAsset extends AssetBundle
         $this->js[] = 'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js';
         // register data tables js
         $this->js[] = 'https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js';
-        // add firebase messaging js
+
         $this->js[] = 'Js/firebase-messaging.js';
 
+        $this->jsOptions['position'] = \yii\web\View::POS_END;
     }
+
+
 }
