@@ -50,7 +50,7 @@ return [
     // Push Notification Configuration
     'push' => [
         'fcm' => [
-            'server_key' => 'your_firebase_server_key',
+            'server_key' => env('FCM_KEY'),
         ],
     ],
 ];
