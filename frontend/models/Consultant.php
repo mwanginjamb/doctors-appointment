@@ -37,10 +37,17 @@ use yii\helpers\ArrayHelper;
  * @property string|null $practice_name
  * @property string|null $working_hours
  * @property string|null $covers_supported
+ * @property string|null $device_token
+ * @property string|null $device_type
+ * @property string|null $token_updated_at
  */
 class Consultant extends \yii\db\ActiveRecord
 {
     public $covers_supported_names;
+
+    const DEVICE_TYPE_ANDROID = 'android';
+    const DEVICE_TYPE_IOS = 'ios';
+    const DEVICE_TYPE_WEB = 'web';
 
     public function behaviors()
     {
@@ -84,6 +91,26 @@ class Consultant extends \yii\db\ActiveRecord
             ['working_hours', 'string'],
             [['covers_supported'], 'each', 'rule' => ['string']],
             ['covers_supported', 'required'],
+
+            // Device token validation
+            ['device_token', 'string', 'max' => 255],
+            ['device_token', 'trim'],
+            ['device_token', 'validateDeviceToken'],
+
+            // Device type validation
+            ['device_type', 'string'],
+            [
+                'device_type',
+                'in',
+                'range' => [
+                    self::DEVICE_TYPE_ANDROID,
+                    self::DEVICE_TYPE_IOS,
+                    self::DEVICE_TYPE_WEB
+                ]
+            ],
+            // Token updated at validation
+            ['token_updated_at', 'datetime', 'format' => 'php:Y-m-d H:i:s'],
+            ['token_updated_at', 'default', 'value' => null],
         ];
     }
 
@@ -111,6 +138,33 @@ class Consultant extends \yii\db\ActiveRecord
             'working_start_time' => Yii::t('app', 'Working Start Time'),
             'working_end_time' => Yii::t('app', 'Working End Time'),
         ];
+    }
+
+
+    /**
+     * Custom validator for device token format
+     */
+    public function validateDeviceToken($attribute, $params)
+    {
+        if (empty($this->$attribute)) {
+            return;
+        }
+
+        $token = $this->$attribute;
+
+        // Minimum length check
+        if (strlen($token) < 50) {
+            $this->addError($attribute, 'Device token appears to be invalid (too short).');
+            return;
+        }
+
+        // Maximum length already handled by string rule with max
+
+        // Character validation
+        if (!preg_match('/^[a-zA-Z0-9_:\-]+$/', $token)) {
+            $this->addError($attribute, 'Device token contains invalid characters.');
+            return;
+        }
     }
 
     // Find User assciated with the consultant

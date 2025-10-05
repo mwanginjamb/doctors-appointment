@@ -22,13 +22,19 @@ use yii\helpers\ArrayHelper;
  * @property int|null $updated_at
  * @property int|null $created_by
  * @property int|null $updated_by
- *
+ * @property string|null $device_token
+ * @property string|null $device_type
+ * @property string|null $token_updated_at
  * @property User $user
  */
 class UserProfile extends \yii\db\ActiveRecord
 {
 
     public $insurance_names; // virtual attribute to hold provider names
+
+    const DEVICE_TYPE_ANDROID = 'android';
+    const DEVICE_TYPE_IOS = 'ios';
+    const DEVICE_TYPE_WEB = 'web';
 
     /**
      * {@inheritdoc}
@@ -71,6 +77,26 @@ class UserProfile extends \yii\db\ActiveRecord
 
             [['insurance'], 'each', 'rule' => ['string']],
             ['insurance', 'required'],
+
+            // Device token validation
+            ['device_token', 'string', 'max' => 255],
+            ['device_token', 'trim'],
+            ['device_token', 'validateDeviceToken'],
+
+            // Device type validation
+            ['device_type', 'string'],
+            [
+                'device_type',
+                'in',
+                'range' => [
+                    self::DEVICE_TYPE_ANDROID,
+                    self::DEVICE_TYPE_IOS,
+                    self::DEVICE_TYPE_WEB
+                ]
+            ],
+            // Token updated at validation
+            ['token_updated_at', 'datetime', 'format' => 'php:Y-m-d H:i:s'],
+            ['token_updated_at', 'default', 'value' => null],
         ];
     }
 
@@ -93,6 +119,32 @@ class UserProfile extends \yii\db\ActiveRecord
             'created_by' => 'Created By',
             'updated_by' => 'Updated By',
         ];
+    }
+
+    /**
+     * Custom validator for device token format
+     */
+    public function validateDeviceToken($attribute, $params)
+    {
+        if (empty($this->$attribute)) {
+            return;
+        }
+
+        $token = $this->$attribute;
+
+        // Minimum length check
+        if (strlen($token) < 50) {
+            $this->addError($attribute, 'Device token appears to be invalid (too short).');
+            return;
+        }
+
+        // Maximum length already handled by string rule with max
+
+        // Character validation
+        if (!preg_match('/^[a-zA-Z0-9_:\-]+$/', $token)) {
+            $this->addError($attribute, 'Device token contains invalid characters.');
+            return;
+        }
     }
 
     // Validate that the user is at least 18 years old

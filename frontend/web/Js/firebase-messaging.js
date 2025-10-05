@@ -1,19 +1,6 @@
 // frontend/web/js/firebase-messaging.js
-
-// Initialize Firebase
-const firebaseConfig = {
-    apiKey: "AIzaSyB9RLGWN6ktOjUC8SGSk4C4WoqHn3JmZXY",
-    authDomain: "healthfirst-f6a40.firebaseapp.com",
-    projectId: "healthfirst-f6a40",
-    storageBucket: "healthfirst-f6a40.firebasestorage.app",
-    messagingSenderId: "707544416635",
-    appId: "1:707544416635:web:030458beb19704b783bdde",
-    measurementId: "G-T44FRDXTJM"
-};
-
-firebase.initializeApp(firebaseConfig);
-const messaging = firebase.messaging();
-
+let firebaseApp = null;
+let messaging = null;
 // Request CSRF token
 async function getCsrfToken() {
     const res = await fetch('/fcm/csrf-token');
@@ -21,24 +8,67 @@ async function getCsrfToken() {
     return data.token;
 }
 
+// Initialize Firebase with config from server
+async function initializeFirebase() {
+    try {
+        // Fetch config from your server
+        const configResponse = await fetch('/fcm/get-config', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+
+        const configData = await configResponse.json();
+
+        if (!configData.success) {
+            throw new Error('Failed to fetch Firebase config');
+        }
+
+        // Initialize Firebase with server-provided config
+        firebaseApp = firebase.initializeApp(configData.config);
+        messaging = firebase.messaging(firebaseApp);
+
+        console.log('Firebase initialized successfully');
+
+        // Now request notification permission
+        await requestNotificationPermission();
+
+    } catch (error) {
+        console.error('Error initializing Firebase:', error);
+    }
+}
+
+
 // Request permission and get token
 async function requestNotificationPermission() {
     try {
-        // Request permission from user
         const permission = await Notification.requestPermission();
 
         if (permission === 'granted') {
             console.log('Notification permission granted.');
 
+            // Fetch VAPID key from server
+            const vapidResponse = await fetch('/fcm/get-vapid-key', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+
+            const vapidData = await vapidResponse.json();
+
+            if (!vapidData.success) {
+                throw new Error('Failed to fetch VAPID key');
+            }
+
             // Get registration token
             const currentToken = await messaging.getToken({
-                vapidKey: 'BLMtFs3UYsu43l0RS88q1nnjESieQPju4YOJAXY7FdpvUitl2uxnsR5dzXrEbOC-9Vrt55W0d6vpupQ1raX9oX8' // Get from Firebase Console
+                vapidKey: vapidData.vapidKey
             });
 
             if (currentToken) {
                 console.log('Token:', currentToken);
-
-                // Send token to your Yii2 backend
                 await sendTokenToServer(currentToken);
             } else {
                 console.log('No registration token available.');
@@ -80,5 +110,34 @@ async function sendTokenToServer(token) {
     }
 }
 
-// Call this when user logs in or on page load
-requestNotificationPermission();
+// Handle token refresh
+if (messaging) {
+    messaging.onTokenRefresh(async () => {
+        try {
+            const vapidResponse = await fetch('/fcm/get-vapid-key', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+
+            const vapidData = await vapidResponse.json();
+
+            const refreshedToken = await messaging.getToken({
+                vapidKey: vapidData.vapidKey
+            });
+
+            console.log('Token refreshed:', refreshedToken);
+
+            const oldToken = localStorage.getItem('fcm_token');
+            await updateTokenOnServer(oldToken, refreshedToken);
+            localStorage.setItem('fcm_token', refreshedToken);
+
+        } catch (err) {
+            console.log('Unable to retrieve refreshed token:', err);
+        }
+    });
+}
+
+// Initialize on page load
+initializeFirebase();

@@ -2,6 +2,7 @@
 
 namespace frontend\controllers;
 
+use frontend\models\Provider;
 use Yii;
 use yii\helpers\Url;
 use common\models\User;
@@ -14,7 +15,7 @@ use frontend\models\Consultant;
 
 use yii\web\NotFoundHttpException;
 use frontend\models\ConsultantSearch;
-use Symfony\Component\VarDumper\VarDumper;
+
 
 /**
  * ConsultantController implements the CRUD actions for Consultant model.
@@ -147,7 +148,7 @@ class ConsultantController extends Controller
         return $this->render('create', [
             'model' => $model,
             'gender' => ArrayHelper::map(Gender::find()->all(), 'id', 'name'),
-            'providers' => ArrayHelper::map(\app\models\Provider::find()->all(), 'id', 'provider'),
+            'providers' => ArrayHelper::map(Provider::find()->all(), 'id', 'provider'),
         ]);
     }
 

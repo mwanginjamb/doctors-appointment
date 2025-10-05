@@ -53,4 +53,17 @@ return [
             'server_key' => env('FCM_KEY'),
         ],
     ],
+    // Firebase Configurations
+    'firebase' => [
+        'public' => [
+            'apiKey' => env('FIREBASE_API_KEY'),
+            'authDomain' => env('FIREBASE_DOMAIN'),
+            'projectId' => env('FIREBASE_PROJ'),
+            'storageBucket' => env('FIREBASE_STORE'),
+            'messagingSenderId' => env('FIREBASE_SENDERID'),
+            'appId' => env('FIREBASE_APPID'),
+            'measurementId' => env('FIREBASE_MEASUREID'),
+        ],
+        'vapidKey' => env('FIREBASE_VAPID_KEY'),
+    ],
 ];
