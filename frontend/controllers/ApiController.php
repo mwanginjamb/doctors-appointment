@@ -27,12 +27,14 @@ class ApiController extends Controller
             if ($appointments) {
                 $consultant_id = $appointments[0]->consultant_id;
             }
-            //other users appointment for the same consultant
-            $other_appointments = Appointments::find()->where(['consultant_id' => $consultant_id])->all();
+            //other users appointment for the same consultant but nit from the logged in patient_id
+            $other_appointments = Appointments::find()->
+                where(['not', ['patient_id' => Yii::$app->user->identity->id]])->
+                andWhere(['consultant_id' => $consultant_id])->all();
         } else if ($role == 'consultant') {
             $appointments = Appointments::find()->where(['consultant_id' => Yii::$app->user->identity->id])->all();
         }
-        $events = [];
+
 
 
         // Process a users events with relevant metadata
