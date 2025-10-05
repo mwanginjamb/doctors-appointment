@@ -6,7 +6,9 @@ namespace common\jobs;
 
 use frontend\models\Appointments;
 use frontend\models\AppointmentNotifications;
+use frontend\models\Consultant;
 use frontend\models\NotificationSchedules;
+use frontend\models\UserProfile;
 use yii\base\BaseObject;
 use Yii;
 
@@ -160,8 +162,58 @@ class SendReminderPushJob extends BaseObject implements \yii\queue\JobInterface
         }
 
         $response = json_decode($result, true);
+        // Handle invalid tokens
+        if (isset($response['results'][0]['error'])) {
+            $error = $response['results'][0]['error'];
+
+            // Token is invalid or unregistered - clear it from database
+            if (in_array($error, ['NotRegistered', 'InvalidRegistration', 'MismatchSenderId'])) {
+                Yii::warning("Invalid token detected: {$deviceToken}. Error: {$error}", __METHOD__);
+                $this->clearInvalidToken($deviceToken);
+            }
+
+            throw new \Exception('Push notification failed: ' . $error);
+        }
+
         if (isset($response['failure']) && $response['failure'] > 0) {
             throw new \Exception('Push notification failed: ' . json_encode($response));
+        }
+    }
+
+
+    /**
+     * Clear invalid token from database
+     */
+    private function clearInvalidToken($deviceToken)
+    {
+        try {
+            // Clear from patients table
+            $patientsUpdated = UserProfile::updateAll(
+                [
+                    'device_token' => null,
+                    'device_type' => null,
+                    'token_updated_at' => null
+                ],
+                ['device_token' => $deviceToken]
+            );
+
+            // Clear from consultants table
+            $consultantsUpdated = Consultant::updateAll(
+                [
+                    'device_token' => null,
+                    'device_type' => null,
+                    'token_updated_at' => null
+                ],
+                ['device_token' => $deviceToken]
+            );
+
+            Yii::info(
+                "Cleared invalid token. Patients affected: {$patientsUpdated}, Consultants affected: {$consultantsUpdated}",
+                __METHOD__
+            );
+
+        } catch (\Exception $e) {
+            Yii::error("Failed to clear invalid token: " . $e->getMessage(), __METHOD__);
         }
     }
 }
