@@ -72,7 +72,7 @@ class ApiController extends Controller
         if ($role == 'client') {
             $events = array_merge($userEvents, $othersEvents);
         } else {
-            $events = $userEvents;
+            $events = $appointments;
         }
         return $events;
     }
