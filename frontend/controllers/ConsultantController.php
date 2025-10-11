@@ -90,6 +90,8 @@ class ConsultantController extends Controller
     {
         $model = Consultant::findOne($id);
 
+
+
         if (Yii::$app->user->identity->role === 'client' && !Yii::$app->request->get('consultant')) {
             $userId = Yii::$app->user->id;
 
@@ -109,6 +111,7 @@ class ConsultantController extends Controller
             return $this->redirect(Url::toRoute(['site/index']), 302);
         }
 
+        // consultant view
         if (!$model && Yii::$app->user->identity->role === 'consultant') {
 
             // Attempt to find a consultant profile for this user

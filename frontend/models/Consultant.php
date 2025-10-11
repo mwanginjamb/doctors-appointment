@@ -40,6 +40,7 @@ use yii\helpers\ArrayHelper;
  * @property string|null $device_token
  * @property string|null $device_type
  * @property string|null $token_updated_at
+ * @property string|null $practice_establishment_date
  */
 class Consultant extends \yii\db\ActiveRecord
 {
@@ -111,6 +112,7 @@ class Consultant extends \yii\db\ActiveRecord
             // Token updated at validation
             ['token_updated_at', 'datetime', 'format' => 'php:Y-m-d H:i:s'],
             ['token_updated_at', 'default', 'value' => null],
+            ['practice_establishment_date', 'date', 'format' => 'php:Y-m-d'],
         ];
     }
 
@@ -178,6 +180,19 @@ class Consultant extends \yii\db\ActiveRecord
     public function getGenderIdentity()
     {
         return $this->hasOne(Gender::class, ['id' => 'gender']);
+    }
+
+    /* calculate consultant experience base on model->practice_establishment_date in years and months
+     * if practice_establishment_date  is not set return 0
+     */
+    public function getExperience()
+    {
+        if (empty($this->practice_establishment_date)) {
+            return 0;
+        }
+        $today = date('Y-m-d');
+        $diff = date_diff(date_create($this->practice_establishment_date), date_create($today));
+        return $diff->y . ' years ' . $diff->m . ' months';
     }
 
     /**

@@ -68,6 +68,11 @@ use yii\bootstrap5\ActiveForm;
         <div class="col-md-6">
             <?= $form->field($model, 'covers_supported')->dropDownList($providers, ['prompt' => 'Select ...', 'multiple' => true]) ?>
         </div>
+    </div>
+    <div class="row">
+        <div class="col-md-6">
+            <?= $form->field($model, 'practice_establishment_date')->textInput(['type' => 'date']) ?>
+        </div>
 
     </div>
 

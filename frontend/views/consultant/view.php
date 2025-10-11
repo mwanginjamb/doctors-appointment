@@ -30,9 +30,15 @@ $this->params['breadcrumbs'][] = $this->title;
                             'alt' => 'User Avatar'
                         ]) ?>
                         <div>
-                            <h1 class="h3 fw-bold"><?= $model->names ?></h1>
+                            <div class="d-flex justify-content-between">
+                                <h1 class="h3 fw-bold"><?= $model->names ?></h1>
+                                <!-- Add an edit link with an icon -->
+                                <div class="edit">
+                                    <?= Html::a('<i class="bi bi-pencil-square"></i>', ['update', 'id' => $model->id], ['class' => 'btn btn-link', 'title' => 'Update Your Consultant\'s Profile. ']) ?>
+                                </div>
+                            </div>
                             <p class="text-muted mb-1"><?= $model->speciality ?></p>
-                            <!-- <p class="text-muted">12 years of experience</p> -->
+                            <p class="text-muted"><?= $model->experience ?> years of experience</p>
                         </div>
                     </div>
                     <h2 class="h5 fw-bold mt-5 mb-3">Contact Information</h2>
