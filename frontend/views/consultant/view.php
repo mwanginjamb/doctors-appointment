@@ -34,7 +34,7 @@ $this->params['breadcrumbs'][] = $this->title;
                                 <h1 class="h3 fw-bold"><?= $model->names ?></h1>
                                 <!-- Add an edit link with an icon -->
                                 <div class="edit">
-                                    <?= Html::a('<i class="bi bi-pencil-square"></i>', ['update', 'id' => $model->id], ['class' => 'btn btn-link', 'title' => 'Update Your Consultant\'s Profile. ']) ?>
+                                    <?= Yii::$app->user->identity->role === 'consultant' && Yii::$app->user->identity->id === $model->created_by ? Html::a('<i class="bi bi-pencil-square"></i>', ['update', 'id' => $model->id], ['class' => 'btn btn-link', 'title' => 'Update Your Consultant\'s Profile. ']) : '' ?>
                                 </div>
                             </div>
                             <p class="text-muted mb-1"><?= $model->speciality ?></p>

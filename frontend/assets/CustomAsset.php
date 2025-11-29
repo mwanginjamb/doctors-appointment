@@ -54,6 +54,10 @@ class CustomAsset extends AssetBundle
         // register data tables js
         $this->js[] = 'https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js';
 
+        // Register Firebase Messaging
+        $this->js[] = 'https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js';
+        $this->js[] = 'https://www.gstatic.com/firebasejs/9.0.0/firebase-messaging-compat.js';
+
         $this->js[] = 'Js/firebase-messaging.js';
 
         $this->jsOptions['position'] = \yii\web\View::POS_END;

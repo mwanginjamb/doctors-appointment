@@ -9,6 +9,7 @@ use yii\bootstrap5\Breadcrumbs;
 use yii\bootstrap5\Html;
 use yii\bootstrap5\Nav;
 use yii\bootstrap5\NavBar;
+use yii\helpers\Url;
 
 AppAsset::register($this);
 ?>
@@ -49,7 +50,7 @@ AppAsset::register($this);
                                             <div class="col-12">
                                                 <div class="mb-5">
                                                     <div class="text-center mb-4">
-                                                        <a href="#!">
+                                                        <a href="<?= Url::home() ?>" title="Go to Home Page">
                                                             <img src="<?= Yii::$app->utility->webroot() ?>/images/doctors_calander_booking_logo.svg"
                                                                 alt="Specialist calendar Logo" width="175" height="57">
                                                         </a>
@@ -61,7 +62,7 @@ AppAsset::register($this);
                                         <!--/ row 1 -->
 
                                         <!-- row 2 -->
-                                        <?php if (Yii::$app->utility->currentaction('site', 'login')): ?>
+                                        <?php if (Yii::$app->utility->currentaction('site', ['login', 'signup'])): ?>
                                             <div class="row">
                                                 <div class="col-12">
                                                     <div
@@ -84,6 +85,11 @@ AppAsset::register($this);
                                                 </div>
                                             </div>
                                         <?php endif; ?>
+
+                                        <?= Alert::widget([
+                                            'options' => ['class' => 'my-3']
+                                        ]) ?>
+
                                         <?= $content ?>
                                         <!-- / row 2 -->
                                         <!-- row 3 -->

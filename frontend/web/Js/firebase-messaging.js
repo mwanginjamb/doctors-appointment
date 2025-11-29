@@ -12,7 +12,7 @@ async function getCsrfToken() {
 async function initializeFirebase() {
     try {
         // Fetch config from your server
-        const configResponse = await fetch('fcm/get-config', {
+        const configResponse = await fetch('../../fcm/get-config', {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',

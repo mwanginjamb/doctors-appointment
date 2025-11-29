@@ -18,8 +18,25 @@ $this->params['breadcrumbs'][] = $this->title;
     <div class="row">
         <div class="col-lg-12">
             <div class="d-flex gap-3 justify-content-between align-items-center">
-                <?= Html::a('client account', ['site/signup', 'role' => 'client'], ['class' => 'btn btn-lg btn-outline-dark']) ?>
-                <?= Html::a('consultant account', ['site/signup', 'role' => 'consultant'], ['class' => 'btn btn-lg btn-outline-dark']) ?>
+                <?= Html::a('client account', ['site/signup'], [
+                    'class' => 'btn btn-lg btn-outline-dark',
+                    'data' => [
+                        'confirm' => 'Are you sure you want to sign up as a client?',
+                        'params' => ['role' => 'client'],
+                        'title' => 'Sign up as a Client',
+                        'method' => 'post',
+                    ],
+                ]) ?>
+                <?= Html::a('consultant account', ['site/signup'], [
+                    'class' => 'btn btn-lg btn-outline-dark',
+                    'data' => [
+                        'confirm' => 'Are you sure you want to sign up as a consultant?',
+                        'params' => ['role' => 'consultant'],
+                        'title' => 'Sign up as a Medical Consultant',
+                        'method' => 'post',
+
+                    ],
+                ]) ?>
             </div>
         </div>
     </div>

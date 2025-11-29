@@ -209,9 +209,10 @@ class SiteController extends Controller
      *
      * @return mixed
      */
-    public function actionSignup($role = null)
+    public function actionSignup()
     {
         $this->layout = 'guest';
+        $role = Yii::$app->request->post('role');
         if (!$role) {
             return $this->render('role-choice');
         }
