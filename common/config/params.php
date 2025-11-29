@@ -10,7 +10,7 @@ return [
     'defaultNotificationSchedules' => [
         [
             'notification_type' => 'email',
-            'minutes_before' => 300, // 5 hours
+            'minutes_before' => 1440, // 24 hours
             'is_active' => 1,
             'notification_method' => 'both',
         ],
@@ -23,6 +23,30 @@ return [
         [
             'notification_type' => 'email',
             'minutes_before' => 30, // 30 minutes
+            'is_active' => 1,
+            'notification_method' => 'both',
+        ],
+        [
+            'notification_type' => 'push',
+            'minutes_before' => 1440, // 24 hour
+            'is_active' => 1,
+            'notification_method' => 'both',
+        ],
+        [
+            'notification_type' => 'push',
+            'minutes_before' => 120, // 2 hours
+            'is_active' => 1,
+            'notification_method' => 'both',
+        ],
+        [
+            'notification_type' => 'whatapp',
+            'minutes_before' => 120, // 2 hours
+            'is_active' => 1,
+            'notification_method' => 'both',
+        ],
+        [
+            'notification_type' => 'whatsapp',
+            'minutes_before' => 60, // 1 hour
             'is_active' => 1,
             'notification_method' => 'both',
         ],
