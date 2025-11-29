@@ -23,7 +23,7 @@ $this->params['breadcrumbs'][] = $this->title;
             <div class="card border-0 mb-4">
                 <div class="card-body">
                     <div class="d-flex align-items-center mb-4">
-                        <?= Html::img(Yii::$app->user->avatar ?? 'https://placehold.co/150/cccccc/FFFFFF.webp/?text=' . explode(' ', $model->names)[0], [
+                        <?= Html::img(Yii::$app->user->avatar ?? 'https://placehold.co/150/cccccc/FFFFFF.webp/?text=' . explode(' ', $model->names)[1], [
                             'class' => 'rounded-circle me-2',
                             'width' => '128',
                             'height' => '128',
