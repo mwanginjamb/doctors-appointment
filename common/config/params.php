@@ -71,6 +71,13 @@ return [
             'from' => '+1234567890',
         ],
     ],
+    // WhatsApp Configuration
+    'whatsapp' => [
+        'endpoint' => env('WAHA_ENDPOINT'),
+        'api_key' => env('WAHA_API_KEY'), // Optional - for commercial WAHA plans
+        'sender_number' => env('WAHA_SENDER_NUMBER'), // Optional - get it from user profiles
+        'session' => env('WAHA_SESSION'),
+    ],
     // Push Notification Configuration
     'push' => [
         'fcm' => [

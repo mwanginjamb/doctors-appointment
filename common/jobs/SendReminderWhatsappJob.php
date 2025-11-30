@@ -110,7 +110,7 @@ class SendReminderWhatsappJob extends BaseObject implements \yii\queue\JobInterf
         $patientName = $appointment->patient->full_name ?? 'Patient';
         $consultantName = $appointment->consultant->names ?? 'Doctor';
 
-        return "Hello {recipient_name}, this is a reminder that your appointment with {$consultantName} is scheduled for {$appointmentDate} at {$appointmentTime} (in {$timeUnit}). Please arrive 15 minutes early.";
+        return "Hello {$patientName}, this is a reminder that your appointment with {$consultantName} is scheduled for {$appointmentDate} at {$appointmentTime} (in {$timeUnit}). Please arrive 15 minutes early.";
     }
 
     /**
@@ -177,7 +177,7 @@ class SendReminderWhatsappJob extends BaseObject implements \yii\queue\JobInterf
         $cleanRecipientPhone = preg_replace('/[^0-9]/', '', $recipientPhone);
 
         // If recipient is patient, reply_to should be consultant
-        if ($appointment->patient && $appointment->patient->phone_number) {
+        if ($appointment->patient && $appointment->patient->phone_number == $recipientPhone) {
             $cleanPatientPhone = preg_replace('/[^0-9]/', '', $appointment->patient->phone);
             if (str_contains($cleanPatientPhone, substr($cleanRecipientPhone, -9))) {
                 return $appointment->consultant && $appointment->consultant->consultant_phone_number
@@ -187,7 +187,7 @@ class SendReminderWhatsappJob extends BaseObject implements \yii\queue\JobInterf
         }
 
         // If recipient is consultant, reply_to should be patient
-        if ($appointment->consultant && $appointment->consultant->consultant_phone_number) {
+        if ($appointment->consultant && $appointment->consultant->consultant_phone_number == $recipientPhone) {
             $cleanConsultantPhone = preg_replace('/[^0-9]/', '', $appointment->consultant->consultant_phone_number);
             if (str_contains($cleanConsultantPhone, substr($cleanRecipientPhone, -9))) {
                 return $appointment->patient && $appointment->patient->phone_number
