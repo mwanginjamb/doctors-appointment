@@ -10,11 +10,13 @@ use yii\bootstrap5\ActiveForm;
 
 <div class="consultant-form">
 
-    <?php $form = ActiveForm::begin(); ?>
+    <?php $form = ActiveForm::begin(['id' => 'form-profile']); ?>
+
+    <?= $form->errorSummary($model) ?>
 
     <div class="row">
         <div class="col-md-6">
-            <?= $form->field($model, 'names')->textInput(['maxlength' => true, 'autofocus' => true, 'placeholder' => 'Title Full Names', 'value' => 'Dr. ' . ucwords(Yii::$app->user->identity->full_name)]) ?>
+            <?= $form->field($model, 'names')->textInput(['maxlength' => true, 'autofocus' => true, 'placeholder' => 'Mr. firstname secondName lastName', 'value' => 'Dr. ' . ucwords(Yii::$app->user->identity->full_name)]) ?>
         </div>
         <div class="col-md-6">
             <?= $form->field($model, 'facility')->textInput(['maxlength' => true]) ?>
@@ -36,6 +38,18 @@ use yii\bootstrap5\ActiveForm;
             <?= $form->field($model, 'physical_address')->textarea(['placeholder' => 'County, Town, Building ', 'rows' => 6]) ?>
         </div>
     </div>
+     <div class="row">
+        <div class="col-md-6">
+            <?= $form->field($model, 'role')->dropDownList([
+                'admin' => 'Facility Admin',
+                'consultant' => 'Consultant'
+            ],['prompt' => 'Select Role ...']) ?>
+        </div>
+        <div class="col-md-6">
+            <?= $form->field($model, 'create_user_account')->checkbox()
+            ->hint('Instructs the system to create a new user account for this profile and notify the recipient e-mail.') ?>
+        </div>
+     </div>
     <div class="row">
         <div class="col-md-6">
             <?= $form->field($model, 'license_number')->textInput(['maxlength' => true]) ?>
@@ -45,6 +59,18 @@ use yii\bootstrap5\ActiveForm;
             <?php $form->field($model, 'license_type')->textInput(['maxlength' => true]) ?>
         </div>
     </div>
+
+    <div class="row" id="signupFields">
+        <div class="col-md-6">
+            <?= $form->field($model, 'consultant_email')->textInput(['maxlength' => true,'type' => 'email']) ?>
+        </div>
+        <div class="col-md-6">
+            <?= $form->field($model, 'phoneNumber')->textInput(['maxlength' => true,'type' => 'tel']) ?>
+        </div>
+       
+    </div>
+
+    
 
 
     <?php $form->field($model, 'user_id')->textInput() ?>

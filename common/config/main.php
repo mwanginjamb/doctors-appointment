@@ -12,6 +12,13 @@ return [
         'cache' => [
             'class' => \yii\caching\FileCache::class,
         ],
+        'db' => [
+            'class' => \yii\db\Connection::class,
+            'dsn' => 'mysql:host=' . env('DB_HOST') . ';dbname=' . env('DB_NAME') . ';port=' . env('DB_PORT'),
+            'username' => env('DB_USER'),
+            'password' => env('DB_PASSWORD'),
+            'charset' => 'utf8',
+        ],
         'utility' => [
             'class' => \common\Library\UtilityComponent::class
         ],

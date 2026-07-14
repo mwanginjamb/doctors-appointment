@@ -9,6 +9,7 @@ use frontend\models\Appointments;
 use yii\filters\AccessControl;
 use frontend\models\AppointmentsSearch;
 use yii\web\NotFoundHttpException;
+use yii\helpers\Url;
 
 use Yii;
 
@@ -165,6 +166,12 @@ class AppointmentsController extends Controller
 
     public function actionMyCalendar()
     {
+        // check if consultant profile exists
+        $myProfile = Consultant::findOne(['user_id' => Yii::$app->user->id]);
+        if(!$myProfile) {
+            Yii::$app->session->setFlash('success','Please create your profile.');
+            return $this->redirect(Url::toRoute(['consultant/create'], $schema = true), 302);
+        }
         return $this->render('my-calendar');
     }
 

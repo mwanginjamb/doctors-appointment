@@ -17,9 +17,7 @@ class SignupForm extends Model
     public $confirmPassword;
 
     public $full_name;
-
     public $phone_number;
-
     public $role;
 
 
