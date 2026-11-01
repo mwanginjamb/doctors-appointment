@@ -8,7 +8,7 @@ use frontend\models\AppointmentNotifications;
 use common\jobs\SendReminderEmailJob;
 use common\jobs\SendReminderSmsJob;
 use common\jobs\SendReminderPushJob;
-use common\jobs\SendReminderWhatsAppJob;
+use common\jobs\SendReminderWhatsappJob;
 use Yii;
 
 
@@ -173,19 +173,21 @@ class NotificationService
         }
 
         foreach ($pendingNotifications as $notification) {
-            // Skip if appointment is cancelled or past
+            // Skip if appointment is gone, cancelled or past
             $appointment = $notification->appointment;
-            $appointmentDateTime = new \DateTime($appointment->date . ' ' . $appointment->time);
-
-            if ($appointmentDateTime <= new \DateTime()) {
+            if (
+                !$appointment
+                || $appointment->status === Appointments::STATUS_CANCELLED
+                || new \DateTime($appointment->date . ' ' . $appointment->time) <= new \DateTime()
+            ) {
                 $notification->status = AppointmentNotifications::STATUS_CANCELLED;
                 $notification->save(false);
                 continue;
             }
-            // Queue the appropriate job based on notification type
+            // Queue the appropriate job based on notification type; the job records delivery
             try {
                 self::queueNotificationJob($notification);
-                $notification->markAsSent();
+                $notification->markAsQueued();
             } catch (\Exception $e) {
                 $notification->markAsFailed($e->getMessage());
                 Yii::error('Failed to queue notification: ' . $e->getMessage());
@@ -198,45 +200,43 @@ class NotificationService
      */
     private static function queueNotificationJob(AppointmentNotifications $notification)
     {
-        $schedule = $notification->notificationSchedule;
+        $jobClasses = [
+            NotificationSchedules::TYPE_EMAIL => SendReminderEmailJob::class,
+            // SMS via Twilio / AWS SNS (see params['sms'])
+            NotificationSchedules::TYPE_SMS => SendReminderSmsJob::class,
+            // Push via Firebase Cloud Messaging HTTP v1
+            NotificationSchedules::TYPE_PUSH => SendReminderPushJob::class,
+            // WhatsApp via WAHA
+            NotificationSchedules::TYPE_META => SendReminderWhatsappJob::class,
+        ];
 
-        switch ($notification->notification_type) {
-            case NotificationSchedules::TYPE_EMAIL:
-                Yii::$app->queue->push(new SendReminderEmailJob([
-                    'appointmentId' => $notification->appointment_id,
-                    'reminderType' => $notification->minutes_before . '-minute',
-                    'notificationId' => $notification->id,
-                    'recipientType' => $schedule->notification_method
-                ]));
-                break;
-
-            case NotificationSchedules::TYPE_SMS:
-                Yii::$app->queue->push(new SendReminderSmsJob([
-                    'appointmentId' => $notification->appointment_id,
-                    'reminderType' => $notification->minutes_before . '-minute',
-                    'notificationId' => $notification->id,
-                    'recipientType' => $schedule->notification_method
-                ]));
-                break;
-
-            case NotificationSchedules::TYPE_PUSH:
-                Yii::$app->queue->push(new SendReminderPushJob([
-                    'appointmentId' => $notification->appointment_id,
-                    'reminderType' => $notification->minutes_before . '-minute',
-                    'notificationId' => $notification->id,
-                    'recipientType' => $schedule->notification_method
-                ]));
-                break;
-
-            case NotificationSchedules::TYPE_META:
-                Yii::$app->queue->push(new SendReminderWhatsAppJob([
-                    'appointmentId' => $notification->appointment_id,
-                    'reminderType' => $notification->minutes_before . '-minute',
-                    'notificationId' => $notification->id,
-                    'recipientType' => $schedule->notification_method
-                ]));
-                break;
+        if (!isset($jobClasses[$notification->notification_type])) {
+            throw new \Exception('Unsupported notification type: ' . $notification->notification_type);
         }
+
+        $jobClass = $jobClasses[$notification->notification_type];
+        Yii::$app->queue->push(new $jobClass([
+            'appointmentId' => $notification->appointment_id,
+            'reminderType' => $notification->minutes_before . '-minute',
+            'notificationId' => $notification->id,
+            'recipientType' => self::getRecipientType($notification),
+        ]));
+    }
+
+    /**
+     * A schedule belongs to one user and reminds only that user. Each participant has their
+     * own schedules, so sending a schedule to "both" would deliver every reminder twice.
+     */
+    private static function getRecipientType(AppointmentNotifications $notification)
+    {
+        $schedule = $notification->notificationSchedule;
+        $appointment = $notification->appointment;
+
+        if ($schedule && $appointment && (int) $schedule->user_id === (int) $appointment->consultant_id) {
+            return NotificationSchedules::METHOD_CONSULTANT;
+        }
+
+        return NotificationSchedules::METHOD_PATIENT;
     }
 
     /**

@@ -41,16 +41,10 @@ class SendReminderSmsJob extends BaseObject implements \yii\queue\JobInterface
                 $this->sendSms($phone, $personalizedMessage);
             }
 
+            AppointmentNotifications::markAsSentById($this->notificationId);
         } catch (\Exception $e) {
-            // Mark notification as failed if we have notificationId
-            if ($this->notificationId) {
-                $notification = AppointmentNotifications::findOne($this->notificationId);
-                if ($notification) {
-                    $notification->markAsFailed($e->getMessage());
-                }
-            }
-
-            Yii::error('SMS reminder job failed: ' . $e->getMessage());
+            AppointmentNotifications::markAsFailedById($this->notificationId, $e->getMessage());
+            Yii::error('SMS reminder job failed: ' . $e->getMessage(), 'notifications');
             throw $e;
         }
     }
@@ -61,29 +55,14 @@ class SendReminderSmsJob extends BaseObject implements \yii\queue\JobInterface
     private function getRecipients($appointment)
     {
         $recipients = [];
+        $toPatient = $this->recipientType !== NotificationSchedules::METHOD_CONSULTANT;
+        $toConsultant = $this->recipientType !== NotificationSchedules::METHOD_PATIENT;
 
-        switch ($this->recipientType) {
-            case NotificationSchedules::METHOD_PATIENT:
-                if ($appointment->patient && $appointment->patient->phone) {
-                    $recipients[$appointment->patient->phone] = $appointment->patient->full_name ?? 'Patient';
-                }
-                break;
-
-            case NotificationSchedules::METHOD_CONSULTANT:
-                if ($appointment->consultant && $appointment->consultant->phone) {
-                    $recipients[$appointment->consultant->phone] = $appointment->consultant->names ?? 'Doctor';
-                }
-                break;
-
-            case NotificationSchedules::METHOD_BOTH:
-            default:
-                if ($appointment->patient && $appointment->patient->phone) {
-                    $recipients[$appointment->patient->phone] = $appointment->patient->full_name ?? 'Patient';
-                }
-                if ($appointment->consultant && $appointment->consultant->phone) {
-                    $recipients[$appointment->consultant->phone] = $appointment->consultant->names ?? 'Doctor';
-                }
-                break;
+        if ($toPatient && $appointment->patient && $appointment->patient->phone_number) {
+            $recipients[$appointment->patient->phone_number] = $appointment->patient->full_name ?? 'Patient';
+        }
+        if ($toConsultant && $appointment->consultant && $appointment->consultant->consultant_phone_number) {
+            $recipients[$appointment->consultant->consultant_phone_number] = $appointment->consultant->names ?? 'Doctor';
         }
 
         return $recipients;

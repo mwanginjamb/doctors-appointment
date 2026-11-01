@@ -2,7 +2,7 @@
 namespace console\controllers;
 
 use frontend\models\Appointments;
-use console\jobs\SendReminderEmailJob;
+use common\jobs\SendReminderEmailJob;
 use Yii;
 use yii\console\Controller;
 use yii\console\ExitCode;

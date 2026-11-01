@@ -5,10 +5,17 @@ return [
         '@npm' => '@vendor/npm-asset',
     ],
     'vendorPath' => dirname(dirname(__DIR__)) . '/vendor',
+    // Appointment dates/times are stored as local wall-clock values, so PHP and MySQL must agree on the zone
+    'timeZone' => env('APP_TIMEZONE', 'Africa/Nairobi'),
     'bootstrap' => [
         'queue',
     ],
     'components' => [
+        'db' => [
+            'on afterOpen' => function ($event) {
+                $event->sender->createCommand('SET time_zone = :tz', [':tz' => (new \DateTime())->format('P')])->execute();
+            },
+        ],
         'cache' => [
             'class' => \yii\caching\FileCache::class,
         ],

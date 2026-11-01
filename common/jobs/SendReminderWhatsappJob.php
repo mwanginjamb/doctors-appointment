@@ -10,7 +10,6 @@ use frontend\models\AppointmentNotifications;
 use frontend\models\NotificationSchedules;
 use yii\base\BaseObject;
 use Yii;
-use yii\helpers\VarDumper;
 
 class SendReminderWhatsappJob extends BaseObject implements \yii\queue\JobInterface
 {
@@ -42,16 +41,10 @@ class SendReminderWhatsappJob extends BaseObject implements \yii\queue\JobInterf
                 $this->sendWhatsapp($phone, $personalizedMessage, $appointment);
             }
 
+            AppointmentNotifications::markAsSentById($this->notificationId);
         } catch (\Exception $e) {
-            // Mark notification as failed if we have notificationId
-            if ($this->notificationId) {
-                $notification = AppointmentNotifications::findOne($this->notificationId);
-                if ($notification) {
-                    $notification->markAsFailed($e->getMessage());
-                }
-            }
-
-            Yii::error('WhatsApp reminder job failed: ' . $e->getMessage());
+            AppointmentNotifications::markAsFailedById($this->notificationId, $e->getMessage());
+            Yii::error('WhatsApp reminder job failed: ' . $e->getMessage(), 'notifications');
             throw $e;
         }
     }
@@ -130,9 +123,7 @@ class SendReminderWhatsappJob extends BaseObject implements \yii\queue\JobInterf
         // Format phone number for WhatsApp (add @c.us suffix if not present)
         $chatId = $this->formatPhoneNumber($phone);
 
-        // Get reply_to number (consultant's number when sending to patient, patient's number when sending to consultant)
-        $replyTo = $this->getReplyToNumber($phone, $appointment);
-
+        // WAHA's reply_to quotes an existing message id, so it is not used for reminders
         $payload = [
             'chatId' => $chatId,
             'text' => $message,
@@ -141,12 +132,7 @@ class SendReminderWhatsappJob extends BaseObject implements \yii\queue\JobInterf
             'linkPreviewHighQuality' => false
         ];
 
-        // Add reply_to if available
-        if ($replyTo) {
-            $payload['reply_to'] = $replyTo;
-        }
-
-        $this->sendWahaRequest($endpoint, $payload);
+        $this->sendWahaRequest($endpoint, $payload, $wahaConfig['api_key'] ?? null);
     }
 
     /**
@@ -169,57 +155,27 @@ class SendReminderWhatsappJob extends BaseObject implements \yii\queue\JobInterf
     }
 
     /**
-     * Get reply_to number based on recipient
-     */
-    private function getReplyToNumber($recipientPhone, $appointment)
-    {
-        // Clean recipient phone for comparison
-        $cleanRecipientPhone = preg_replace('/[^0-9]/', '', $recipientPhone);
-
-        // If recipient is patient, reply_to should be consultant
-        if ($appointment->patient && $appointment->patient->phone_number == $recipientPhone) {
-            $cleanPatientPhone = preg_replace('/[^0-9]/', '', $appointment->patient->phone);
-            if (str_contains($cleanPatientPhone, substr($cleanRecipientPhone, -9))) {
-                return $appointment->consultant && $appointment->consultant->consultant_phone_number
-                    ? $this->formatPhoneNumber($appointment->consultant->consultant_phone_number)
-                    : null;
-            }
-        }
-
-        // If recipient is consultant, reply_to should be patient
-        if ($appointment->consultant && $appointment->consultant->consultant_phone_number == $recipientPhone) {
-            $cleanConsultantPhone = preg_replace('/[^0-9]/', '', $appointment->consultant->consultant_phone_number);
-            if (str_contains($cleanConsultantPhone, substr($cleanRecipientPhone, -9))) {
-                return $appointment->patient && $appointment->patient->phone_number
-                    ? $this->formatPhoneNumber($appointment->patient->phone_number)
-                    : null;
-            }
-        }
-
-        return null;
-    }
-
-    /**
      * Send request to WAHA API
      */
-    private function sendWahaRequest($endpoint, $payload)
+    private function sendWahaRequest($endpoint, $payload, $apiKey = null)
     {
+        $headers = [
+            'Content-Type: application/json',
+            'Accept: application/json'
+        ];
+        if ($apiKey) {
+            $headers[] = 'X-Api-Key: ' . $apiKey;
+        }
+
         $ch = curl_init();
 
         curl_setopt($ch, CURLOPT_URL, $endpoint);
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Content-Type: application/json',
-            'Accept: application/json'
-        ]);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_TIMEOUT, 30);
         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
-
-        // SSL configuration to avoid validation issues
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
         curl_setopt($ch, CURLOPT_MAXREDIRS, 3);
 
@@ -242,12 +198,11 @@ class SendReminderWhatsappJob extends BaseObject implements \yii\queue\JobInterf
                     $errorMessage .= '. Response: ' . $result;
                 }
             }
-            // throw new \Exception($errorMessage);
-            Yii::error('WhatsApp message notification error: ' . VarDumper::dump($errorMessage, 10, true));
+            throw new \Exception($errorMessage);
         }
 
         // Log successful send
-        Yii::info('WhatsApp message sent successfully: ' . $result);
+        Yii::info('WhatsApp message sent successfully: ' . $result, 'notifications');
 
         return json_decode($result, true);
     }

@@ -19,230 +19,25 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
 
     public function execute($queue)
     {
-        // Set error handler to catch fatal errors
-        register_shutdown_function(function () {
-            $error = error_get_last();
-            if ($error && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
-                file_put_contents(
-                    Yii::getAlias('@runtime/logs/job-debug.log'),
-                    date('Y-m-d H:i:s') . " - FATAL ERROR: " . print_r($error, true) . "\n",
-                    FILE_APPEND
-                );
-            }
-        });
+        $appointment = Appointments::findOne($this->appointmentId);
+        if (!$appointment) {
+            Yii::error('Appointment not found: ' . $this->appointmentId, 'notifications');
+            return;
+        }
 
-        // Force immediate logging to file
-        file_put_contents(
-            Yii::getAlias('@runtime/logs/job-debug.log'),
-            date('Y-m-d H:i:s') . " - Job started for appointment {$this->appointmentId}\n",
-            FILE_APPEND
-        );
-
-        $logContext = [
-            'appointmentId' => $this->appointmentId,
-            'reminderType' => $this->reminderType,
-            'notificationId' => $this->notificationId,
-            'recipientType' => $this->recipientType,
-            'jobId' => uniqid('job_', true)
-        ];
+        $this->consultant = $appointment->consultant;
+        if (!$this->consultant) {
+            Yii::warning('No consultant profile for appointment ' . $appointment->id, 'notifications');
+        }
 
         try {
-            file_put_contents(
-                Yii::getAlias('@runtime/logs/job-debug.log'),
-                date('Y-m-d H:i:s') . " - About to check if Appointments class exists\n",
-                FILE_APPEND
-            );
-
-            if (!class_exists('frontend\models\Appointments')) {
-                file_put_contents(
-                    Yii::getAlias('@runtime/logs/job-debug.log'),
-                    date('Y-m-d H:i:s') . " - ERROR: Appointments class not found!\n",
-                    FILE_APPEND
-                );
-                return;
-            }
-
-            file_put_contents(
-                Yii::getAlias('@runtime/logs/job-debug.log'),
-                date('Y-m-d H:i:s') . " - Appointments class exists, fetching appointment {$this->appointmentId}\n",
-                FILE_APPEND
-            );
-
-            // Try to fetch without eager loading first
-            $appointment = Appointments::findOne($this->appointmentId);
-
-            file_put_contents(
-                Yii::getAlias('@runtime/logs/job-debug.log'),
-                date('Y-m-d H:i:s') . " - Basic appointment fetch: " . ($appointment ? 'SUCCESS' : 'NULL') . "\n",
-                FILE_APPEND
-            );
-
-            if (!$appointment) {
-                file_put_contents(
-                    Yii::getAlias('@runtime/logs/job-debug.log'),
-                    date('Y-m-d H:i:s') . " - ERROR: Appointment not found\n",
-                    FILE_APPEND
-                );
-                Yii::error('Appointment not found: ' . $this->appointmentId, 'notifications');
-                return;
-            }
-
-            file_put_contents(
-                Yii::getAlias('@runtime/logs/job-debug.log'),
-                date('Y-m-d H:i:s') . " - Appointment data: " . json_encode([
-                    'id' => $appointment->id,
-                    'patient_id' => $appointment->patient_id,
-                    'consultant_id' => $appointment->consultant_id,
-                ]) . "\n",
-                FILE_APPEND
-            );
-
-            // Now try to load patient
-            file_put_contents(
-                Yii::getAlias('@runtime/logs/job-debug.log'),
-                date('Y-m-d H:i:s') . " - Loading patient relationship...\n",
-                FILE_APPEND
-            );
-
-            $patient = $appointment->patient;
-            file_put_contents(
-                Yii::getAlias('@runtime/logs/job-debug.log'),
-                date('Y-m-d H:i:s') . " - Patient loaded: " . ($patient ? get_class($patient) : 'NULL') . "\n",
-                FILE_APPEND
-            );
-
-            // Load consultant using raw SQL to bypass ActiveRecord issues
-            file_put_contents(
-                Yii::getAlias('@runtime/logs/job-debug.log'),
-                date('Y-m-d H:i:s') . " - Loading consultant via raw SQL...\n",
-                FILE_APPEND
-            );
-
-            try {
-                if ($appointment->consultant_id) {
-                    $consultantData = Yii::$app->db->createCommand(
-                        'SELECT id, user_id, names, consultant_email, consultant_phone_number,physical_address,practice_name
-                         FROM consultant 
-                         WHERE user_id = :consultant_id'
-                    )
-                        ->bindValue(':consultant_id', $appointment->consultant_id)
-                        ->queryOne();
-
-                    if ($consultantData) {
-                        // Create a simple object to hold consultant data
-                        $this->consultant = (object) $consultantData;
-
-                        file_put_contents(
-                            Yii::getAlias('@runtime/logs/job-debug.log'),
-                            date('Y-m-d H:i:s') . " - Consultant loaded via SQL: " . json_encode($consultantData) . "\n",
-                            FILE_APPEND
-                        );
-                    } else {
-                        file_put_contents(
-                            Yii::getAlias('@runtime/logs/job-debug.log'),
-                            date('Y-m-d H:i:s') . " - No consultant found for user_id: " . $appointment->consultant_id . "\n",
-                            FILE_APPEND
-                        );
-                        $this->consultant = null;
-                    }
-                } else {
-                    file_put_contents(
-                        Yii::getAlias('@runtime/logs/job-debug.log'),
-                        date('Y-m-d H:i:s') . " - No consultant_id on appointment\n",
-                        FILE_APPEND
-                    );
-                    $this->consultant = null;
-                }
-            } catch (\Exception $e) {
-                file_put_contents(
-                    Yii::getAlias('@runtime/logs/job-debug.log'),
-                    date('Y-m-d H:i:s') . " - SQL ERROR: " . $e->getMessage() . "\n",
-                    FILE_APPEND
-                );
-                $this->consultant = null;
-            }
-
-            file_put_contents(
-                Yii::getAlias('@runtime/logs/job-debug.log'),
-                date('Y-m-d H:i:s') . " - Appointment loaded. consultant_id: " . ($appointment->consultant_id ?? 'NULL') . "\n",
-                FILE_APPEND
-            );
-
-            // ✅ FIX: Set the class property so getRecipients() can access it
-            // $this->consultant = $appointment->consultant;
-
-            // DIAGNOSTIC: Deep dive into consultant
-            if ($this->consultant) {
-                file_put_contents(
-                    Yii::getAlias('@runtime/logs/job-debug.log'),
-                    date('Y-m-d H:i:s') . " - Consultant loaded: " . json_encode($this->consultant->names) . "\n",
-                    FILE_APPEND
-                );
-
-            } else {
-                file_put_contents(
-                    Yii::getAlias('@runtime/logs/job-debug.log'),
-                    date('Y-m-d H:i:s') . " - WARNING: Consultant is NULL\n",
-                    FILE_APPEND
-                );
-
-            }
-
-            // DIAGNOSTIC: Log patient info too
-            if ($appointment->patient) {
-                file_put_contents(
-                    Yii::getAlias('@runtime/logs/job-debug.log'),
-                    date('Y-m-d H:i:s') . " - Patient email: " . ($appointment->patient->email ?? 'NULL') . "\n",
-                    FILE_APPEND
-                );
-                Yii::info('Patient loaded - email: ' . ($appointment->patient->email ?? 'NULL'), 'notifications');
-            }
-
-            file_put_contents(
-                Yii::getAlias('@runtime/logs/job-debug.log'),
-                date('Y-m-d H:i:s') . " - About to call sendMail(). recipientType: {$this->recipientType}\n",
-                FILE_APPEND
-            );
-
-            // Send to recipients
-            try {
-                $this->sendMail($appointment);
-
-                file_put_contents(
-                    Yii::getAlias('@runtime/logs/job-debug.log'),
-                    date('Y-m-d H:i:s') . " - sendMail() completed successfully\n",
-                    FILE_APPEND
-                );
-            } catch (\Exception $e) {
-                file_put_contents(
-                    Yii::getAlias('@runtime/logs/job-debug.log'),
-                    date('Y-m-d H:i:s') . " - ERROR in sendMail(): " . $e->getMessage() . "\n",
-                    FILE_APPEND
-                );
-                throw $e;
-            }
-
-            file_put_contents(
-                Yii::getAlias('@runtime/logs/job-debug.log'),
-                date('Y-m-d H:i:s') . " - Email sent, updating legacy fields\n",
-                FILE_APPEND
-            );
-
+            $this->sendMail($appointment);
             // Update the old reminder fields for backward compatibility
             $this->updateLegacyReminderFields($appointment);
-
-            file_put_contents(
-                Yii::getAlias('@runtime/logs/job-debug.log'),
-                date('Y-m-d H:i:s') . " - Job completed successfully\n",
-                FILE_APPEND
-            );
-
+            AppointmentNotifications::markAsSentById($this->notificationId);
         } catch (\Exception $e) {
-            file_put_contents(
-                Yii::getAlias('@runtime/logs/job-debug.log'),
-                date('Y-m-d H:i:s') . " - EXCEPTION: " . $e->getMessage() . "\n" . $e->getTraceAsString() . "\n",
-                FILE_APPEND
-            );
+            AppointmentNotifications::markAsFailedById($this->notificationId, $e->getMessage());
+            Yii::error('Email reminder job failed: ' . $e->getMessage(), 'notifications');
             throw $e;
         }
     }
@@ -362,12 +157,6 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
             ],
             ['id' => $appointment->id]
         );
-
-        file_put_contents(
-            Yii::getAlias('@runtime/logs/job-debug.log'),
-            date('Y-m-d H:i:s') . " - Updated legacy reminder fields via updateAll\n",
-            FILE_APPEND
-        );
     }
 
     /**
@@ -375,112 +164,49 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
      */
     public function sendMail(Appointments $appointment)
     {
-        file_put_contents(
-            Yii::getAlias('@runtime/logs/job-debug.log'),
-            date('Y-m-d H:i:s') . " - [sendMail] Method entered\n",
-            FILE_APPEND
-        );
-
-        try {
-            $recipients = $this->getRecipients($appointment);
-
-            file_put_contents(
-                Yii::getAlias('@runtime/logs/job-debug.log'),
-                date('Y-m-d H:i:s') . " - [sendMail] Recipients: " . json_encode(array_keys($recipients)) . "\n",
-                FILE_APPEND
-            );
-        } catch (\Exception $e) {
-            file_put_contents(
-                Yii::getAlias('@runtime/logs/job-debug.log'),
-                date('Y-m-d H:i:s') . " - [sendMail] ERROR getting recipients: " . $e->getMessage() . "\n",
-                FILE_APPEND
-            );
-            throw $e;
-        }
+        $recipients = $this->getRecipients($appointment);
 
         if (empty($recipients)) {
-            file_put_contents(
-                Yii::getAlias('@runtime/logs/job-debug.log'),
-                date('Y-m-d H:i:s') . " - [sendMail] No recipients found, throwing exception\n",
-                FILE_APPEND
-            );
             Yii::warning('No valid recipients found for appointment ' . $appointment->id, 'notifications');
             throw new \Exception('No valid recipients found');
         }
 
-        if ($this->consultant) {
-            Yii::info('Using consultant: ' . $this->consultant->names, 'notifications');
-        } else {
-            Yii::info('No consultant available for this notification', 'notifications');
-        }
-
         $successCount = 0;
         $failCount = 0;
+        $bcc = Yii::$app->params['notificationBcc'] ?? null;
 
-        try {
-            foreach ($recipients as $email => $name) {
-                file_put_contents(
-                    Yii::getAlias('@runtime/logs/job-debug.log'),
-                    date('Y-m-d H:i:s') . " - [sendMail] Sending to: {$email} ({$name})\n",
-                    FILE_APPEND
-                );
-
-                try {
-                    $mail = Yii::$app->mailer->compose('appointmentReminder-html', [
-                        'appointment' => $appointment,
-                        'timeUnit' => $this->getTimeUnit(),
-                        'recipientName' => $name,
-                        'consultant' => $this->consultant,
-                    ])
-                        ->setTo([$email => $name])
-                        ->setFrom([Yii::$app->params['supportEmail'] => Yii::$app->name . ' Messenger'])
-                        ->setBcc('fnjambi@outlook.com')
-                        ->setSubject($this->getEmailSubject())
-                        ->send();
-
-                    if ($mail) {
-                        $successCount++;
-                        file_put_contents(
-                            Yii::getAlias('@runtime/logs/job-debug.log'),
-                            date('Y-m-d H:i:s') . " - [sendMail] SUCCESS: Email to {$email}\n",
-                            FILE_APPEND
-                        );
-                        Yii::info('Email sent successfully to ' . $email, 'notifications');
-                    } else {
-                        $failCount++;
-                        file_put_contents(
-                            Yii::getAlias('@runtime/logs/job-debug.log'),
-                            date('Y-m-d H:i:s') . " - [sendMail] FAILED: Email to {$email}\n",
-                            FILE_APPEND
-                        );
-                        Yii::error('Email failed to send to ' . $email, 'notifications');
-                    }
-                } catch (\Exception $e) {
-                    $failCount++;
-                    file_put_contents(
-                        Yii::getAlias('@runtime/logs/job-debug.log'),
-                        date('Y-m-d H:i:s') . " - [sendMail] EXCEPTION sending to {$email}: " . $e->getMessage() . "\n",
-                        FILE_APPEND
-                    );
-                    Yii::error('Exception sending email to ' . $email . ': ' . $e->getMessage(), 'notifications');
+        foreach ($recipients as $email => $name) {
+            try {
+                $message = Yii::$app->mailer->compose('appointmentReminder-html', [
+                    'appointment' => $appointment,
+                    'timeUnit' => $this->getTimeUnit(),
+                    'recipientName' => $name,
+                    'consultant' => $this->consultant,
+                ])
+                    ->setTo([$email => $name])
+                    ->setFrom([Yii::$app->params['supportEmail'] => Yii::$app->name . ' Messenger'])
+                    ->setSubject($this->getEmailSubject());
+                if ($bcc) {
+                    $message->setBcc($bcc);
                 }
+
+                if ($message->send()) {
+                    $successCount++;
+                    Yii::info('Email sent successfully to ' . $email, 'notifications');
+                } else {
+                    $failCount++;
+                    Yii::error('Email failed to send to ' . $email, 'notifications');
+                }
+            } catch (\Exception $e) {
+                $failCount++;
+                Yii::error('Exception sending email to ' . $email . ': ' . $e->getMessage(), 'notifications');
             }
+        }
 
-            file_put_contents(
-                Yii::getAlias('@runtime/logs/job-debug.log'),
-                date('Y-m-d H:i:s') . " - [sendMail] Batch complete: {$successCount} sent, {$failCount} failed\n",
-                FILE_APPEND
-            );
-            Yii::info("Email batch complete: {$successCount} sent, {$failCount} failed", 'notifications');
+        Yii::info("Email batch complete: {$successCount} sent, {$failCount} failed", 'notifications');
 
-        } catch (\Exception $e) {
-            file_put_contents(
-                Yii::getAlias('@runtime/logs/job-debug.log'),
-                date('Y-m-d H:i:s') . " - [sendMail] FATAL ERROR: " . $e->getMessage() . "\n",
-                FILE_APPEND
-            );
-            Yii::error('Email reminder job failed: ' . $e->getMessage(), 'notifications');
-            throw $e;
+        if ($successCount === 0) {
+            throw new \Exception("All {$failCount} reminder emails failed to send");
         }
     }
 

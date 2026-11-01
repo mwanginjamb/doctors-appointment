@@ -39,7 +39,7 @@ return [
             'notification_method' => 'both',
         ],
         [
-            'notification_type' => 'whatapp',
+            'notification_type' => 'whatsapp',
             'minutes_before' => 120, // 2 hours
             'is_active' => 1,
             'notification_method' => 'both',
@@ -78,10 +78,14 @@ return [
         'sender_number' => env('WAHA_SENDER_NUMBER'), // Optional - get it from user profiles
         'session' => env('WAHA_SESSION'),
     ],
-    // Push Notification Configuration
+    // Optional address that receives a blind copy of every reminder email (contains patient details)
+    'notificationBcc' => env('MAIL_BCC'),
+    // Push Notification Configuration (FCM HTTP v1)
     'push' => [
         'fcm' => [
-            'server_key' => env('FCM_KEY'),
+            'project_id' => env('FIREBASE_PROJ'),
+            // Path to the Firebase service-account JSON key (Project settings > Service accounts)
+            'credentials_file' => env('FCM_CREDENTIALS_FILE'),
         ],
     ],
     // Firebase Configurations
