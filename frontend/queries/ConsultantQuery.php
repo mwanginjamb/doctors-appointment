@@ -1,11 +1,11 @@
 <?php
 
-namespace app\queries;
+namespace frontend\queries;
 
 /**
- * This is the ActiveQuery class for [[\app\models\Consultant]].
+ * This is the ActiveQuery class for [[\frontend\models\Consultant]].
  *
- * @see \app\models\Consultant
+ * @see \frontend\models\Consultant
  */
 class ConsultantQuery extends \yii\db\ActiveQuery
 {
@@ -22,7 +22,7 @@ class ConsultantQuery extends \yii\db\ActiveQuery
 
     /**
      * {@inheritdoc}
-     * @return \app\models\Consultant[]|array
+     * @return \frontend\models\Consultant[]|array
      */
     public function all($db = null)
     {
@@ -31,7 +31,7 @@ class ConsultantQuery extends \yii\db\ActiveQuery
 
     /**
      * {@inheritdoc}
-     * @return \app\models\Consultant|array|null
+     * @return \frontend\models\Consultant|array|null
      */
     public function one($db = null)
     {

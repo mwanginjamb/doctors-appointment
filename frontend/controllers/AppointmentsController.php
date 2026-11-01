@@ -9,6 +9,7 @@ use yii\filters\VerbFilter;
 use frontend\models\Appointments;
 use yii\filters\AccessControl;
 use frontend\models\AppointmentsSearch;
+use yii\web\ForbiddenHttpException;
 use yii\web\NotFoundHttpException;
 
 use Yii;
@@ -35,22 +36,8 @@ class AppointmentsController extends Controller
                 ],
                 'access' => [
                     'class' => AccessControl::class,
-                    'only' => [
-                        'index',
-                        'create',
-                        'update',
-                        'delete',
-                        'view',
-                        'calendar'
-                    ],
                     'rules' => [
-                        [ // unauthenticated users
-                            'actions' => ['signup'],
-                            'allow' => true,
-                            'roles' => ['?'],
-                        ],
                         [ // logged in users
-                            'actions' => ['index', 'create', 'update', 'delete', 'view', 'calendar'],
                             'allow' => true,
                             'roles' => ['@'],
                         ],
@@ -72,10 +59,9 @@ class AppointmentsController extends Controller
         $role = Yii::$app->user->identity->role;
         if ($role === 'consultant') {
             $dataProvider->query->andWhere(['consultant_id' => Yii::$app->user->id]);
-        } else if ($role === 'client') {
+        } else {
             $dataProvider->query->andWhere(['patient_id' => Yii::$app->user->id]);
         }
-        //Yii::$app->utility->printrr($dataProvider->getModels());
 
         return $this->render('index', [
             'searchModel' => $searchModel,
@@ -91,22 +77,15 @@ class AppointmentsController extends Controller
      */
     public function actionView($id)
     {
-
-        //$appointment = Appointments::find()->where(['appointments.id' => $id])->joinWith('patientProfile')->one();
-        $appointment = Appointments::find()->where(['appointments.id' => $id])->with(['patientProfile', 'consultant'])->one();
+        $appointment = $this->findModel($id);
 
         $appointment->patient_age = 0;
         // calculate age based on $model->patientProfile->dob in years and months
-        if (property_exists($appointment, 'patientProfile') && property_exists($appointment->patientProfile, 'dob')) {
-            $dob = $appointment->patientProfile->dob;
-            $age = date_diff(date_create($dob), date_create('today'))->y;
-            $months = date_diff(date_create($dob), date_create('today'))->m;
-            $appointment->patient_age = $age . ' years ' . $months . ' months';
+        if ($appointment->patientProfile && $appointment->patientProfile->dob) {
+            $diff = date_diff(date_create($appointment->patientProfile->dob), date_create('today'));
+            $appointment->patient_age = $diff->y . ' years ' . $diff->m . ' months';
         }
 
-        // print '<pre>';
-        // print_r($appointment->patientProfile);
-        // exit;
         return $this->render('view', [
             'model' => $appointment,
         ]);
@@ -120,9 +99,15 @@ class AppointmentsController extends Controller
     public function actionCreate()
     {
         $model = new Appointments();
+        $user = Yii::$app->user->identity;
+        if ($user->role === 'consultant') {
+            $model->consultant_id = $user->id;
+        } else {
+            $model->patient_id = $user->id;
+        }
 
         if ($this->request->isPost) {
-            if ($model->load($this->request->post()) && $model->save()) {
+            if ($model->load($this->request->post()) && $model->saveBooking()) {
                 return $this->redirect(['view', 'id' => $model->id]);
             }
         } else {
@@ -145,7 +130,7 @@ class AppointmentsController extends Controller
     {
         $model = $this->findModel($id);
 
-        if ($this->request->isPost && $model->load($this->request->post()) && $model->save()) {
+        if ($this->request->isPost && $model->load($this->request->post()) && $model->saveBooking()) {
             return $this->redirect(['view', 'id' => $model->id]);
         }
 
@@ -190,6 +175,9 @@ class AppointmentsController extends Controller
     public function actionConfirm($id)
     {
         $model = $this->findModel($id);
+        if (!$model->isConsultant(Yii::$app->user->id)) {
+            throw new ForbiddenHttpException(Yii::t('app', 'Only the consultant can confirm this appointment.'));
+        }
         if ($model->status === Appointments::STATUS_SCHEDULED) {
             $model->status = Appointments::STATUS_CONFIRMED;
             if ($model->save(false)) {
@@ -204,15 +192,19 @@ class AppointmentsController extends Controller
     }
 
     /**
-     * Finds the Appointments model based on its primary key value.
-     * If the model is not found, a 404 HTTP exception will be thrown.
+     * Finds an Appointments model the current user takes part in.
+     * If the model is not found, or belongs to someone else, a 404 HTTP exception will be thrown.
      * @param int $id ID
      * @return Appointments the loaded model
      * @throws NotFoundHttpException if the model cannot be found
      */
     protected function findModel($id)
     {
-        if (($model = Appointments::findOne(['id' => $id])) !== null) {
+        $model = Appointments::find()
+            ->where(['appointments.id' => $id])
+            ->forParticipant(Yii::$app->user->id)
+            ->one();
+        if ($model !== null) {
             return $model;
         }
 

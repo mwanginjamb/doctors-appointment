@@ -103,6 +103,21 @@ class UserProfile extends \yii\db\ActiveRecord
     /**
      * {@inheritdoc}
      */
+    public function scenarios()
+    {
+        $scenarios = parent::scenarios();
+        // Ownership, audit and device fields are set by the system, never from form input
+        $protected = ['user_id', 'created_at', 'updated_at', 'created_by', 'updated_by', 'device_token', 'device_type', 'token_updated_at'];
+        $scenarios[self::SCENARIO_DEFAULT] = array_map(function ($attribute) use ($protected) {
+            return in_array($attribute, $protected, true) ? '!' . $attribute : $attribute;
+        }, $scenarios[self::SCENARIO_DEFAULT]);
+
+        return $scenarios;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function attributeLabels()
     {
         return [

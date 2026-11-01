@@ -6,6 +6,7 @@ use Yii;
 use common\models\User;
 use yii\web\Controller;
 use frontend\models\SearchForm;
+use frontend\components\AdminAccessControl;
 use yii\filters\VerbFilter;
 use common\models\LoginForm;
 use yii\authclient\AuthAction;
@@ -31,6 +32,10 @@ class SiteController extends Controller
     public function behaviors()
     {
         return [
+            'adminAccess' => [
+                'class' => AdminAccessControl::class,
+                'only' => ['settings'],
+            ],
             'access' => [
                 'class' => AccessControl::class,
                 'only' => ['logout', 'signup'],
@@ -82,37 +87,42 @@ class SiteController extends Controller
     {
         $attributes = $client->getUserAttributes();
         $email = $id = $name = null; //initialize values
+        $emailVerified = true;
 
         // Identify the client
         if ($client->getId() === 'google') {
             $email = $attributes['email'] ?? null;
             $id = $attributes['id'] ?? null;
             $name = $attributes['name'] ?? null;
+            $emailVerified = (bool) ($attributes['verified_email'] ?? $attributes['email_verified'] ?? false);
         } elseif ($client->getId() === 'microsoft') {
             $email = $attributes['mail'] ?? $attributes['userPrincipalName'] ?? null;
             $id = $attributes['id'] ?? null;
             $name = $attributes['displayName'] ?? null;
         } elseif ($client->getId() === 'linkedin') {
-            Yii::info('Linkedin attributes: ' . \yii\helpers\Json::encode($attributes), 'linkedin');
-            Yii::info('Linkedin Client: ' . \yii\helpers\Json::encode($client->getUserAttributes()), 'linkedin');
-
             $email = $attributes['emailAddress'] ?? null;
             $id = $attributes['id'] ?? null;
             $name = $attributes['formattedName'] ?? null;
         }
 
-        if (!$email) {
-            Yii::$app->utility->printrr([
-                'client' => $client->getId(),
-                'attributes' => $attributes
-            ]);
-            // throw new \Exception('Failed to retrieve email from OAuth provider');
+        if (!$email || !$id) {
+            Yii::warning('OAuth login without email or id from client ' . $client->getId(), 'linkedin');
+            Yii::$app->session->setFlash('error', 'We could not get your email address from ' . $client->getTitle() . '. Please sign up with email instead.');
+            return $this->redirect(['site/login']);
         }
 
-        // Find or create user
-        $user = User::createOrUpdateFromOauth($client->getId(), $id, $email, $name);
+        // Find, link or create user
+        $user = User::createOrUpdateFromOauth($client->getId(), $id, $email, $name, $emailVerified);
+        if ($user && (int) $user->status !== User::STATUS_ACTIVE) {
+            Yii::$app->session->setFlash('error', 'Your account is not active yet. Please verify your email address first.');
+            return $this->redirect(['site/login']);
+        }
+        if (!$user || !Yii::$app->user->login($user)) {
+            Yii::$app->session->setFlash('error', 'We could not sign you in with ' . $client->getTitle() . '. If you already have an account, sign in with your password.');
+            return $this->redirect(['site/login']);
+        }
 
-        Yii::$app->user->login($user);
+        return null;
     }
 
     /**

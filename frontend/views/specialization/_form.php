@@ -54,8 +54,8 @@ $this->params['breadcrumbs'][] = $this->title;
                                 <?php if (count($specializations)): ?>
                                     <?php foreach ($specializations as $specialization): ?>
                                         <tr>
-                                            <td class="py-3 px-3 fw-medium"><?= $specialization->specialization ?></td>
-                                            <td class="py-3 px-3 text-muted w-50"><?= $specialization->description ?></td>
+                                            <td class="py-3 px-3 fw-medium"><?= Html::encode($specialization->specialization) ?></td>
+                                            <td class="py-3 px-3 text-muted w-50"><?= Html::encode($specialization->description) ?></td>
                                             <td class="py-3 px-3 text-end">
 
                                                 <?= Html::a('Edit', ['update', 'id' => $specialization->id], ['class' => 'text-primary text-decoration-none']) ?>

@@ -2,11 +2,12 @@
 
 namespace frontend\controllers;
 
-use app\models\Provider;
-use app\models\ProviderSearch;
+use frontend\models\Provider;
+use frontend\models\ProviderSearch;
 use yii\web\Controller;
 use yii\web\NotFoundHttpException;
 use yii\filters\VerbFilter;
+use frontend\components\AdminAccessControl;
 
 /**
  * ProviderController implements the CRUD actions for Provider model.
@@ -21,6 +22,9 @@ class ProviderController extends Controller
         return array_merge(
             parent::behaviors(),
             [
+                'access' => [
+                    'class' => AdminAccessControl::class,
+                ],
                 'verbs' => [
                     'class' => VerbFilter::className(),
                     'actions' => [

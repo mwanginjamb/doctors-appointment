@@ -44,28 +44,28 @@ $this->params['breadcrumbs'][] = $this->title;
                     <form class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label" for="first-name">Names</label>
-                            <input class="form-control" disabled value="<?= $model->patient->full_name ?? '' ?>" />
+                            <input class="form-control" disabled value="<?= Html::encode($model->patient->full_name ?? '') ?>" />
                         </div>
                         <div class="col-md-6">
                             <label class="form-label" for="last-name">Symptoms Brief</label>
-                            <input class="form-control" disabled value="<?= $model->symptoms_brief ?? '' ?>" />
+                            <input class="form-control" disabled value="<?= Html::encode($model->symptoms_brief ?? '') ?>" />
                         </div>
                         <div class="col-md-6">
                             <label class="form-label" for="email">Email Address</label>
-                            <input class="form-control" disabled value="<?= $model->patient->email ?? '' ?>" />
+                            <input class="form-control" disabled value="<?= Html::encode($model->patient->email ?? '') ?>" />
                         </div>
                         <div class="col-md-6">
                             <label class="form-label" for="phone">Phone Number</label>
                             <input class="form-control" disabled type="tel"
-                                value="<?= $model->patient->phone_number ?? '' ?>" />
+                                value="<?= Html::encode($model->patient->phone_number ?? '') ?>" />
                         </div>
                         <div class="col-md-6">
                             <label class="form-label" for="dob">Date of Birth</label>
-                            <input class="form-control" disabled value="<?= $model->patientProfile->dob ?? '' ?>" />
+                            <input class="form-control" disabled value="<?= Html::encode($model->patientProfile->dob ?? '') ?>" />
                         </div>
                         <div class="col-md-6">
                             <label class="form-label" for="dob">Patient Age</label>
-                            <input class="form-control" disabled value="<?= $model->patient_age ?? '' ?>" />
+                            <input class="form-control" disabled value="<?= Html::encode($model->patient_age ?? '') ?>" />
                         </div>
 
                     </form>
@@ -79,27 +79,27 @@ $this->params['breadcrumbs'][] = $this->title;
                     <form class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label" for="current-password">Names</label>
-                            <input class="form-control" disabled value="<?= $model->consultant->names ?? '' ?>" />
+                            <input class="form-control" disabled value="<?= Html::encode($model->consultant->names ?? '') ?>" />
                         </div>
                         <div class="col-md-6">
                             <label class="form-label" for="new-password">Specialization</label>
-                            <input class="form-control" disabled value="<?= $model->consultant->speciality ?? '' ?>" />
+                            <input class="form-control" disabled value="<?= Html::encode($model->consultant->speciality ?? '') ?>" />
                         </div>
                         <div class="col-md-6">
                             <label class="form-label" for="new-password">Physical Address</label>
                             <input class="form-control" disabled
-                                value="<?= $model->consultant->physical_address ?? '' ?>" />
+                                value="<?= Html::encode($model->consultant->physical_address ?? '') ?>" />
                         </div>
                         <div class="col-md-6">
                             <label class="form-label" for="confirm-password">Practice Name</label>
                             <input class="form-control" disabled
-                                value="<?= $model->consultant->practice_name ?? '' ?>" />
+                                value="<?= Html::encode($model->consultant->practice_name ?? '') ?>" />
                         </div>
 
                         <div class="col-md-6">
                             <label class="form-label" for="gender">Gender</label>
                             <input class="form-control" disabled
-                                value="<?= $model->consultant->genderIdentity->name ?? '' ?>" />
+                                value="<?= Html::encode($model->consultant->genderIdentity->name ?? '') ?>" />
                         </div>
 
                     </form>

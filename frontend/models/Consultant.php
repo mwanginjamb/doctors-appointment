@@ -119,6 +119,21 @@ class Consultant extends \yii\db\ActiveRecord
     /**
      * {@inheritdoc}
      */
+    public function scenarios()
+    {
+        $scenarios = parent::scenarios();
+        // Ownership, audit and device fields are set by the system, never from form input
+        $protected = ['user_id', 'consultant_id', 'created_at', 'updated_at', 'created_by', 'updated_by', 'device_token', 'device_type', 'token_updated_at'];
+        $scenarios[self::SCENARIO_DEFAULT] = array_map(function ($attribute) use ($protected) {
+            return in_array($attribute, $protected, true) ? '!' . $attribute : $attribute;
+        }, $scenarios[self::SCENARIO_DEFAULT]);
+
+        return $scenarios;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function attributeLabels()
     {
         return [
@@ -197,11 +212,11 @@ class Consultant extends \yii\db\ActiveRecord
 
     /**
      * {@inheritdoc}
-     * @return \app\queries\ConsultantQuery the active query used by this AR class.
+     * @return \frontend\queries\ConsultantQuery the active query used by this AR class.
      */
     public static function find()
     {
-        return new \app\queries\ConsultantQuery(get_called_class());
+        return new \frontend\queries\ConsultantQuery(get_called_class());
     }
 
     public function beforeSave($insert)

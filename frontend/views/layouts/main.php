@@ -133,11 +133,11 @@ $username = Yii::$app->user->identity->username ?? 'User';
                             ['class' => 'dropdown-item', 'visible' => Yii::$app->user->identity->role == 'consultant'],
 
                         )) .
-                        Html::tag('li', Html::a(
+                        (\frontend\components\AdminAccessControl::isAdmin() ? Html::tag('li', Html::a(
                             Html::tag('i', '', ['class' => 'bi bi-gear me-2']) . 'Settings',
                             ['/site/settings'],
                             ['class' => 'dropdown-item']
-                        )) .
+                        )) : '') .
                         Html::tag('li', Html::tag('hr', '', ['class' => 'dropdown-divider'])) .
                         Html::tag(
                             'li',

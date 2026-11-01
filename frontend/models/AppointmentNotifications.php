@@ -23,6 +23,7 @@ use yii\behaviors\TimestampBehavior;
 class AppointmentNotifications extends \yii\db\ActiveRecord
 {
     const STATUS_PENDING = 'pending';
+    const STATUS_QUEUED = 'queued';
     const STATUS_SENT = 'sent';
     const STATUS_FAILED = 'failed';
     const STATUS_CANCELLED = 'cancelled';
@@ -52,7 +53,7 @@ class AppointmentNotifications extends \yii\db\ActiveRecord
             [['appointment_id', 'notification_schedule_id', 'minutes_before', 'created_at', 'updated_at'], 'integer'],
             [['notification_type'], 'string', 'max' => 20],
             [['status'], 'string', 'max' => 20],
-            [['status'], 'in', 'range' => [self::STATUS_PENDING, self::STATUS_SENT, self::STATUS_FAILED, self::STATUS_CANCELLED]],
+            [['status'], 'in', 'range' => [self::STATUS_PENDING, self::STATUS_QUEUED, self::STATUS_SENT, self::STATUS_FAILED, self::STATUS_CANCELLED]],
             [['status'], 'default', 'value' => self::STATUS_PENDING],
             [['scheduled_time', 'sent_at'], 'safe'],
             [['error_message'], 'string'],
@@ -99,5 +100,34 @@ class AppointmentNotifications extends \yii\db\ActiveRecord
         $this->status = self::STATUS_FAILED;
         $this->error_message = $errorMessage;
         return $this->save(false);
+    }
+
+    /**
+     * Mark notification as handed to the queue; the job marks it sent or failed after delivery.
+     */
+    public function markAsQueued()
+    {
+        $this->status = self::STATUS_QUEUED;
+        return $this->save(false);
+    }
+
+    /**
+     * Mark the notification a job was delivering as sent. Ad-hoc jobs pass no id.
+     */
+    public static function markAsSentById($id)
+    {
+        if ($id && ($notification = self::findOne($id))) {
+            $notification->markAsSent();
+        }
+    }
+
+    /**
+     * Mark the notification a job was delivering as failed. Ad-hoc jobs pass no id.
+     */
+    public static function markAsFailedById($id, $errorMessage = null)
+    {
+        if ($id && ($notification = self::findOne($id))) {
+            $notification->markAsFailed($errorMessage);
+        }
     }
 }

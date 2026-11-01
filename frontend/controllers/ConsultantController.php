@@ -38,22 +38,17 @@ class ConsultantController extends Controller
                 ],
                 'access' => [
                     'class' => AccessControl::class,
-                    'only' => [
-                        'index',
-                        'create',
-                        'update',
-                        'delete',
-                        'view',
-                        'verify'
-                    ],
                     'rules' => [
-                        [ // unauthenticated users
-                            'actions' => ['signup'],
+                        [ // only consultants manage consultant profiles
+                            'actions' => ['create', 'update', 'delete'],
                             'allow' => true,
-                            'roles' => ['?'],
+                            'roles' => ['@'],
+                            'matchCallback' => function () {
+                                return Yii::$app->user->identity->role === 'consultant';
+                            },
                         ],
                         [ // logged in users
-                            'actions' => ['index', 'create', 'update', 'delete', 'view'],
+                            'actions' => ['index', 'view'],
                             'allow' => true,
                             'roles' => ['@'],
                         ],
@@ -164,10 +159,7 @@ class ConsultantController extends Controller
      */
     public function actionUpdate($id)
     {
-        $model = $this->findModel($id);
-        if ($model->user_id == NULL) {
-            $model->user_id = \Yii::$app->user->id;
-        }
+        $model = $this->findOwnModel($id);
 
         if ($this->request->isPost && $model->load($this->request->post()) && $model->save()) {
             return $this->redirect(['view', 'id' => $model->id]);
@@ -189,9 +181,29 @@ class ConsultantController extends Controller
      */
     public function actionDelete($id)
     {
-        $this->findModel($id)->delete();
+        $this->findOwnModel($id)->delete();
 
         return $this->redirect(['index']);
+    }
+
+    /**
+     * Finds a Consultant profile owned by the current user.
+     * Unclaimed legacy profiles (no user_id) are claimed by the consultant who edits them.
+     * @param int $id ID
+     * @return Consultant the loaded model
+     * @throws NotFoundHttpException if the model cannot be found or belongs to someone else
+     */
+    protected function findOwnModel($id)
+    {
+        $model = $this->findModel($id);
+        if ($model->user_id === null) {
+            $model->user_id = Yii::$app->user->id;
+        }
+        if ((int) $model->user_id !== (int) Yii::$app->user->id) {
+            throw new NotFoundHttpException(Yii::t('app', 'The requested page does not exist.'));
+        }
+
+        return $model;
     }
 
     /**

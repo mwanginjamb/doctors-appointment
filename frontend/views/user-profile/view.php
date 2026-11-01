@@ -28,13 +28,13 @@ $this->params['breadcrumbs'][] = $this->title;
                         <div class="col-md-6 mb-3">
                             <div class="border-top pt-3">
                                 <p class="text-muted small mb-1">Phone</p>
-                                <p class="fw-medium"><?= $model->phone ?></p>
+                                <p class="fw-medium"><?= Html::encode($model->phone) ?></p>
                             </div>
                         </div>
                         <div class="col-md-6 mb-3">
                             <div class="border-top pt-3">
                                 <p class="text-muted small mb-1">Email</p>
-                                <p class="fw-medium"><?= $model->email ?></p>
+                                <p class="fw-medium"><?= Html::encode($model->email) ?></p>
                             </div>
                         </div>
                     </div>
@@ -49,7 +49,7 @@ $this->params['breadcrumbs'][] = $this->title;
                         <div class="col-md-6 mb-3">
                             <div class="border-top pt-3">
                                 <p class="text-muted small mb-1">Applicable Covers</p>
-                                <p class="fw-medium"><?= $model->insurance_names ?></p>
+                                <p class="fw-medium"><?= Html::encode($model->insurance_names) ?></p>
                             </div>
                         </div>
                         <div class="col-md-12">
@@ -79,8 +79,8 @@ $this->params['breadcrumbs'][] = $this->title;
                 <div class="card-body p-4">
                     <h2 class="h5 fw-bold mb-3">Appointment Notification Schedules</h2>
                     <p class="text-muted small mb-4">
-                        Notifications will be sent to your email <b> <?= $model->user->email ?></b> and phone number
-                        <b> <?= $model->phone ?></b>.
+                        Notifications will be sent to your email <b> <?= Html::encode($model->user->email) ?></b> and phone number
+                        <b> <?= Html::encode($model->phone) ?></b>.
                     </p>
 
                     <hr class="my-4" />

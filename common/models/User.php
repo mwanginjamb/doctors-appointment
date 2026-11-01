@@ -48,25 +48,60 @@ class User extends ActiveRecord implements IdentityInterface
         return self::findOne(['auth_provider' => $provider, 'auth_client_id' => $clientId]);
     }
 
-    // Create or update a user from OAuth data
-    public static function createOrUpdateFromOauth($provider, $clientId, $email, $name)
+    /**
+     * Finds, links or creates the user for an OAuth login.
+     *
+     * An existing account is only linked by email when the provider has verified that email,
+     * otherwise anyone could take over an account by registering its address with a provider.
+     *
+     * @return static|null the user to log in, or null if no usable account could be resolved
+     */
+    public static function createOrUpdateFromOauth($provider, $clientId, $email, $name, $emailVerified = true)
     {
         $user = self::findByAuthClient($provider, $clientId);
-
-        if (!$user) {
-            $user = new self();
-            $user->auth_provider = $provider;
-            $user->auth_client_id = $clientId;
-            $user->setPassword($email);
-            $user->email = $email;
-            $user->username = $name;
-            $user->full_name = $name;
-            $user->generateAuthKey(); // Generate a random auth key
-            $user->role = 'client'; // Default role
-            $user->save(false);
+        if ($user) {
+            return (int) $user->status === self::STATUS_DELETED ? null : $user;
         }
 
-        return $user;
+        $user = self::findOne(['email' => $email]);
+        if ($user) {
+            if (!$emailVerified || (int) $user->status === self::STATUS_DELETED) {
+                return null;
+            }
+            $user->auth_provider = $provider;
+            $user->auth_client_id = (string) $clientId;
+            // The provider has proven ownership of the address
+            $user->status = self::STATUS_ACTIVE;
+            return $user->save(false) ? $user : null;
+        }
+
+        $user = new self();
+        $user->auth_provider = $provider;
+        $user->auth_client_id = (string) $clientId;
+        // OAuth accounts sign in through the provider; the password is random and never disclosed
+        $user->setPassword(Yii::$app->security->generateRandomString(32));
+        $user->email = $email;
+        $user->username = self::generateUniqueUsername($name ?: strstr($email, '@', true));
+        $user->full_name = $name;
+        $user->generateAuthKey();
+        $user->role = 'client'; // Default role
+        $user->status = $emailVerified ? self::STATUS_ACTIVE : self::STATUS_INACTIVE;
+
+        return $user->save(false) ? $user : null;
+    }
+
+    /**
+     * Returns $base, or $base with a numeric suffix if that username is already taken.
+     */
+    public static function generateUniqueUsername($base)
+    {
+        $base = mb_substr(trim((string) $base), 0, 240) ?: 'user';
+        $username = $base;
+        while (self::find()->where(['username' => $username])->exists()) {
+            $username = $base . random_int(1000, 999999);
+        }
+
+        return $username;
     }
 
     /**

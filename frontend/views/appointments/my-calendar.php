@@ -24,7 +24,7 @@ $this->title = $title;
 ?>
 <div class="container mt-4">
     <div class="calendar-header text-center py-3">
-        <h1 class="fw-bold display-5 text-primary"><?= ucwords($title) ?> </h1>
+        <h1 class="fw-bold display-5 text-primary"><?= Html::encode(ucwords($title)) ?> </h1>
         <p class="lead text-muted">Please click on any available time slot to enter your appointment.</p>
     </div>
 </div>
@@ -84,6 +84,9 @@ $script = <<<JS
             contentType: 'application/json',
             success: function(response) {
                 alert(response.message);
+                if (response.status !== 'success') {
+                    location.reload(); // put the event back where it was
+                }
             },
             error: function(xhr) {
                 console.log(xhr);

@@ -57,7 +57,7 @@ class NotificationSchedules extends \yii\db\ActiveRecord
             [['user_id', 'notification_type', 'minutes_before'], 'required'],
             [['user_id', 'minutes_before', 'is_active', 'created_at', 'updated_at', 'created_by', 'updated_by'], 'integer'],
             [['notification_type'], 'string', 'max' => 20],
-            [['notification_type'], 'in', 'range' => [self::TYPE_EMAIL, self::TYPE_SMS, self::TYPE_PUSH]],
+            [['notification_type'], 'in', 'range' => [self::TYPE_EMAIL, self::TYPE_SMS, self::TYPE_PUSH, self::TYPE_META]],
             [['notification_method'], 'string', 'max' => 20],
             [['notification_method'], 'in', 'range' => [self::METHOD_PATIENT, self::METHOD_CONSULTANT, self::METHOD_BOTH]],
             [['notification_method'], 'default', 'value' => self::METHOD_BOTH],

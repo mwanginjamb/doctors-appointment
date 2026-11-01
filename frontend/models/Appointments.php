@@ -42,7 +42,24 @@ class Appointments extends \yii\db\ActiveRecord
     const STATUS_NO_SHOW = 'no_show';
     const STATUS_CONFIRMED = 'confirmed';
 
-    private $_oldAttributes = [];
+    const DEFAULT_WORKING_START = '09:00:00';
+    const DEFAULT_WORKING_END = '17:00:00';
+
+    /**
+     * Attributes that are set by the system or derived from the logged-in user,
+     * never mass-assigned from request data.
+     */
+    const PROTECTED_ATTRIBUTES = [
+        'patient_id',
+        'consultant_id',
+        'status',
+        'created_at',
+        'updated_at',
+        'created_by',
+        'updated_by',
+        'reminder_5hrs_sent',
+        'reminder_2hrs_sent',
+    ];
 
     public $patient_age;
 
@@ -73,9 +90,141 @@ class Appointments extends \yii\db\ActiveRecord
             [['patient_id', 'speciality_id', 'service_id', 'provider_id', 'recurring_appointment', 'walk_in_appointment', 'created_at', 'updated_at', 'created_by', 'updated_by', 'consultant_id', 'reminder_5hrs_sent', 'reminder_2hrs_sent'], 'integer'],
             [['location', 'symptoms_brief'], 'string'],
             [['status'], 'string', 'max' => 20],
-            [['status'], 'in', 'range' => [self::STATUS_SCHEDULED, self::STATUS_COMPLETED, self::STATUS_CANCELLED, self::STATUS_NO_SHOW]],
+            [['status'], 'in', 'range' => array_keys(self::getStatusList())],
             [['status'], 'default', 'value' => self::STATUS_SCHEDULED],
+            [['date', 'time', 'patient_id', 'consultant_id'], 'required'],
+            [['date'], 'date', 'format' => 'php:Y-m-d'],
+            [['consultant_id'], 'exist', 'skipOnError' => true, 'targetClass' => Consultant::class, 'targetAttribute' => ['consultant_id' => 'user_id']],
+            [['time'], 'validateSlot', 'when' => function ($model) {
+                return $model->isNewRecord
+                    || $model->isAttributeChanged('date', false)
+                    || $model->isAttributeChanged('time', false)
+                    || $model->isAttributeChanged('consultant_id', false);
+            }],
         ];
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function scenarios()
+    {
+        $scenarios = parent::scenarios();
+        // '!' keeps the attribute validated but excludes it from load()
+        $scenarios[self::SCENARIO_DEFAULT] = array_map(function ($attribute) {
+            return in_array($attribute, self::PROTECTED_ATTRIBUTES, true) ? '!' . $attribute : $attribute;
+        }, $scenarios[self::SCENARIO_DEFAULT]);
+
+        return $scenarios;
+    }
+
+    /**
+     * Ensures the requested slot is in the future, inside the consultant's
+     * working hours and does not overlap another active appointment.
+     */
+    public function validateSlot($attribute, $params)
+    {
+        if ($this->hasErrors('date') || $this->hasErrors('consultant_id')) {
+            return;
+        }
+
+        $startTs = strtotime($this->date . ' ' . $this->time);
+        if ($startTs === false) {
+            $this->addError($attribute, Yii::t('app', 'Invalid appointment time.'));
+            return;
+        }
+
+        $duration = $this->getDurationMinutes();
+        $endTs = $startTs + $duration * 60;
+        $this->time = date('H:i:s', $startTs);
+
+        if ($startTs <= time()) {
+            $this->addError($attribute, Yii::t('app', 'Appointments must be booked in the future.'));
+            return;
+        }
+
+        $consultant = $this->consultant;
+        $workingStart = strtotime($this->date . ' ' . (!empty($consultant->working_start_time) ? $consultant->working_start_time : self::DEFAULT_WORKING_START));
+        $workingEnd = strtotime($this->date . ' ' . (!empty($consultant->working_end_time) ? $consultant->working_end_time : self::DEFAULT_WORKING_END));
+        if ($startTs < $workingStart || $endTs > $workingEnd) {
+            $this->addError($attribute, Yii::t('app', "Appointment time is outside of the doctor's working hours ({start} - {end}).", [
+                'start' => date('H:i', $workingStart),
+                'end' => date('H:i', $workingEnd),
+            ]));
+            return;
+        }
+
+        // Two slots overlap when each one starts before the other ends.
+        // Existing appointments are assumed to share this consultant's session length.
+        $conflict = self::find()
+            ->where(['date' => $this->date, 'consultant_id' => $this->consultant_id])
+            ->andWhere(['or', ['status' => null], ['<>', 'status', self::STATUS_CANCELLED]])
+            ->andWhere(['<', 'time', date('H:i:s', $endTs)])
+            ->andWhere(new \yii\db\Expression('ADDTIME([[time]], SEC_TO_TIME(:duration)) > :start', [
+                ':duration' => $duration * 60,
+                ':start' => $this->time,
+            ]))
+            ->andFilterWhere(['<>', 'id', $this->id])
+            ->exists();
+
+        if ($conflict) {
+            $this->addError($attribute, Yii::t('app', 'The doctor is not available at this time.'));
+        }
+    }
+
+    /**
+     * Session length in minutes: the consultant's setting, otherwise the DURATION env value (seconds).
+     */
+    public function getDurationMinutes()
+    {
+        $consultant = $this->consultant;
+        if ($consultant && $consultant->appointment_session_duration > 0) {
+            return (int) $consultant->appointment_session_duration;
+        }
+
+        return (int) (env('DURATION', 30 * 60) / 60);
+    }
+
+    /**
+     * Saves the appointment while holding a row lock on the consultant, so two
+     * concurrent requests cannot both pass the overlap check for the same slot.
+     */
+    public function saveBooking()
+    {
+        $db = static::getDb();
+        $transaction = $db->beginTransaction();
+        try {
+            $db->createCommand('SELECT [[id]] FROM {{%consultant}} WHERE [[user_id]] = :uid FOR UPDATE', [
+                ':uid' => $this->consultant_id,
+            ])->queryScalar();
+
+            if ($this->save()) {
+                $transaction->commit();
+                return true;
+            }
+            $transaction->rollBack();
+            return false;
+        } catch (\Throwable $e) {
+            $transaction->rollBack();
+            throw $e;
+        }
+    }
+
+    /**
+     * Whether the given user is the patient, consultant or creator of this appointment.
+     */
+    public function isParticipant($userId)
+    {
+        if (!$userId) {
+            return false;
+        }
+
+        return in_array((int) $userId, [(int) $this->patient_id, (int) $this->consultant_id, (int) $this->created_by], true);
+    }
+
+    public function isConsultant($userId)
+    {
+        return $userId && (int) $userId === (int) $this->consultant_id;
     }
 
     /**
@@ -102,15 +251,6 @@ class Appointments extends \yii\db\ActiveRecord
             'consultant_id' => Yii::t('app', 'Consultant ID'),
             'status' => Yii::t('app', 'Status'),
         ];
-    }
-
-    /**
-     * Store old attributes before update
-     */
-    public function afterFind()
-    {
-        parent::afterFind();
-        $this->_oldAttributes = $this->attributes;
     }
 
     /**

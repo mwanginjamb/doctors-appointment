@@ -7,6 +7,7 @@ use frontend\models\GenderSearch;
 use yii\web\Controller;
 use yii\web\NotFoundHttpException;
 use yii\filters\VerbFilter;
+use frontend\components\AdminAccessControl;
 
 /**
  * GenderController implements the CRUD actions for Gender model.
@@ -21,6 +22,9 @@ class GenderController extends Controller
         return array_merge(
             parent::behaviors(),
             [
+                'access' => [
+                    'class' => AdminAccessControl::class,
+                ],
                 'verbs' => [
                     'class' => VerbFilter::className(),
                     'actions' => [

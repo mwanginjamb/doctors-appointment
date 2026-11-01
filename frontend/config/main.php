@@ -15,7 +15,7 @@ return [
     'components' => [
         'request' => [
             'csrfParam' => '_csrf-frontend',
-            'enableCsrfValidation' => YII_ENV === 'dev' ? false : true,
+            'enableCsrfValidation' => true,
             'enableCookieValidation' => true,
         ],
         'user' => [
@@ -32,7 +32,7 @@ return [
             'cookieParams' => [
                 'httponly' => true,
                 'lifetime' => 3600, // one hour
-                'samesite' => YII_ENV === 'dev' ? 'Lax' : 'None', // Allow cross-origin requests only in prod
+                'samesite' => 'Lax', // OAuth callbacks are top-level redirects, which Lax allows
                 'secure' => YII_ENV === 'dev' ? false : true,     // Ensure secure (HTTPS) transmission only on prod
             ],
         ],

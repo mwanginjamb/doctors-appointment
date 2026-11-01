@@ -65,10 +65,10 @@ $this->title = 'Find a Doctor';
                                     <tbody>
                                         <?php foreach ($results as $res): ?>
                                             <tr class="border-top">
-                                                <td class=" p-3 align-middle fw-medium"><?= ucwords($res->names) ?>
+                                                <td class=" p-3 align-middle fw-medium"><?= Html::encode(ucwords($res->names)) ?>
                                                 </td>
-                                                <td class="p-3 align-middle text-muted"><?= $res->speciality ?></td>
-                                                <td class="p-3 align-middle text-muted"><?= $res->physical_address ?></td>
+                                                <td class="p-3 align-middle text-muted"><?= Html::encode($res->speciality) ?></td>
+                                                <td class="p-3 align-middle text-muted"><?= Html::encode($res->physical_address) ?></td>
                                                 <!-- <td class="p-3 align-middle">
                                                     <div class="d-flex align-items-center gap-2">
                                                         <div>
@@ -81,9 +81,9 @@ $this->title = 'Find a Doctor';
                                                         <span class="fw-medium text-muted">4.0</span>
                                                     </div>
                                                 </td> -->
-                                                <td><?= $res->genderIdentity->name ?? '' ?></td>
-                                                <td><?= $res->facility ?? '' ?></td>
-                                                <td><?= $res->practice_name ?></td>
+                                                <td><?= Html::encode($res->genderIdentity->name ?? '') ?></td>
+                                                <td><?= Html::encode($res->facility ?? '') ?></td>
+                                                <td><?= Html::encode($res->practice_name) ?></td>
                                                 <td>
                                                     <!-- make the buttons responsive -->
                                                     <div class="d-flex align-items-center gap-2">

@@ -22,6 +22,19 @@ class AppointmentsQuery extends \yii\db\ActiveQuery
     }
 
     /**
+     * Limit to appointments where the user is the patient, the consultant or the creator.
+     */
+    public function forParticipant($userId)
+    {
+        return $this->andWhere([
+            'or',
+            ['appointments.patient_id' => $userId],
+            ['appointments.consultant_id' => $userId],
+            ['appointments.created_by' => $userId],
+        ]);
+    }
+
+    /**
      * {@inheritdoc}
      * @return \frontend\models\Appointments[]|array
      */

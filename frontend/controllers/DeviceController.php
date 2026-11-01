@@ -9,8 +9,6 @@ use Yii;
 use yii\web\Controller;
 use yii\filters\VerbFilter;
 use yii\filters\AccessControl;
-use frontend\models\Patients;
-use frontend\models\Consultants;
 
 class DeviceController extends Controller
 {
@@ -199,16 +197,10 @@ class DeviceController extends Controller
      */
     private function getUserModel($user)
     {
-        // Assuming your User model has a 'type' or 'role' attribute
-        // Adjust this logic based on your actual implementation
-
-        // Option 1: If you have a user type field
-        if (isset($user->role)) {
-            if ($user->role === 'patient') {
-                return UserProfile::findOne(['user_id' => $user->id]);
-            } elseif ($user->type === 'consultant') {
-                return Consultant::findOne(['user_id' => $user->id]);
-            }
+        if ($user->role === 'consultant') {
+            return Consultant::findOne(['user_id' => $user->id]);
         }
+
+        return UserProfile::findOne(['user_id' => $user->id]);
     }
 }

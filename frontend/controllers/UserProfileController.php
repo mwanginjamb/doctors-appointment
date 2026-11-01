@@ -2,9 +2,12 @@
 
 namespace frontend\controllers;
 
+use Yii;
 use yii\web\Controller;
 use yii\filters\VerbFilter;
 use yii\helpers\ArrayHelper;
+use yii\filters\AccessControl;
+use frontend\models\Appointments;
 use frontend\models\UserProfile;
 use yii\web\NotFoundHttpException;
 use frontend\models\UserProfileSearch;
@@ -28,6 +31,15 @@ class UserProfileController extends Controller
                         'delete' => ['POST'],
                     ],
                 ],
+                'access' => [
+                    'class' => AccessControl::class,
+                    'rules' => [
+                        [
+                            'allow' => true,
+                            'roles' => ['@'],
+                        ],
+                    ],
+                ],
             ]
         );
     }
@@ -41,6 +53,7 @@ class UserProfileController extends Controller
     {
         $searchModel = new UserProfileSearch();
         $dataProvider = $searchModel->search($this->request->queryParams);
+        $dataProvider->query->andWhere(['user_profile.user_id' => Yii::$app->user->id]);
 
         return $this->render('index', [
             'searchModel' => $searchModel,
@@ -56,8 +69,13 @@ class UserProfileController extends Controller
      */
     public function actionView($id)
     {
+        $model = $this->findModel($id);
+        if (!$this->canView($model)) {
+            throw new NotFoundHttpException(Yii::t('app', 'The requested page does not exist.'));
+        }
+
         return $this->render('view', [
-            'model' => $this->findModel($id),
+            'model' => $model,
         ]);
     }
 
@@ -69,6 +87,7 @@ class UserProfileController extends Controller
     public function actionCreate()
     {
         $model = new UserProfile();
+        $model->user_id = Yii::$app->user->id;
 
         if ($this->request->isPost) {
             if ($model->load($this->request->post()) && $model->save()) {
@@ -81,7 +100,7 @@ class UserProfileController extends Controller
         return $this->render('create', [
             'model' => $model,
             'gender' => ArrayHelper::map(\frontend\models\Gender::find()->all(), 'id', 'name'),
-            'providers' => ArrayHelper::map(\app\models\Provider::find()->all(), 'id', 'provider'),
+            'providers' => ArrayHelper::map(\frontend\models\Provider::find()->all(), 'id', 'provider'),
         ]);
     }
 
@@ -94,7 +113,7 @@ class UserProfileController extends Controller
      */
     public function actionUpdate($id)
     {
-        $model = $this->findModel($id);
+        $model = $this->findOwnModel($id);
 
         if ($this->request->isPost && $model->load($this->request->post()) && $model->save()) {
             return $this->redirect(['view', 'id' => $model->id]);
@@ -103,7 +122,7 @@ class UserProfileController extends Controller
         return $this->render('update', [
             'model' => $model,
             'gender' => ArrayHelper::map(\frontend\models\Gender::find()->all(), 'id', 'name'),
-            'providers' => ArrayHelper::map(\app\models\Provider::find()->all(), 'id', 'provider'),
+            'providers' => ArrayHelper::map(\frontend\models\Provider::find()->all(), 'id', 'provider'),
         ]);
     }
 
@@ -116,9 +135,37 @@ class UserProfileController extends Controller
      */
     public function actionDelete($id)
     {
-        $this->findModel($id)->delete();
+        $this->findOwnModel($id)->delete();
 
         return $this->redirect(['index']);
+    }
+
+    /**
+     * Owners can see their profile; consultants can see the profiles of their own patients.
+     */
+    protected function canView(UserProfile $model)
+    {
+        $userId = Yii::$app->user->id;
+        if ((int) $model->user_id === (int) $userId) {
+            return true;
+        }
+
+        return Yii::$app->user->identity->role === 'consultant'
+            && Appointments::find()->where(['patient_id' => $model->user_id, 'consultant_id' => $userId])->exists();
+    }
+
+    /**
+     * Finds a UserProfile owned by the current user.
+     * @throws NotFoundHttpException if the model cannot be found or belongs to someone else
+     */
+    protected function findOwnModel($id)
+    {
+        $model = $this->findModel($id);
+        if ((int) $model->user_id !== (int) Yii::$app->user->id) {
+            throw new NotFoundHttpException(Yii::t('app', 'The requested page does not exist.'));
+        }
+
+        return $model;
     }
 
     /**

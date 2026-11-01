@@ -7,7 +7,7 @@ use yii\data\ActiveDataProvider;
 use frontend\models\Consultant;
 
 /**
- * ConsultantSearch represents the model behind the search form of `app\models\Consultant`.
+ * ConsultantSearch represents the model behind the search form of `frontend\models\Consultant`.
  */
 class ConsultantSearch extends Consultant
 {
