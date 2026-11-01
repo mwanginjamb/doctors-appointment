@@ -5,3 +5,4 @@ modules:
         - Filesystem
         - Yii2
         - Asserts
+        - frontend\tests\Helper\Functional

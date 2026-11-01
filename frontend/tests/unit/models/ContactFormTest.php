@@ -27,7 +27,7 @@ class ContactFormTest extends \Codeception\Test\Unit
         $emailMessage = $this->tester->grabLastSentEmail();
         verify($emailMessage)->instanceOf('yii\mail\MessageInterface');
         verify($emailMessage->getTo())->arrayHasKey('admin@example.com');
-        verify($emailMessage->getFrom())->arrayHasKey('noreply@example.com');
+        verify($emailMessage->getFrom())->arrayHasKey(\Yii::$app->params['senderEmail']);
         verify($emailMessage->getReplyTo())->arrayHasKey('tester@example.com');
         verify($emailMessage->getSubject())->equals('very important letter subject');
         verify($emailMessage->toString())->stringContainsString('body of current message');
