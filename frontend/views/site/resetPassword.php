@@ -19,6 +19,8 @@ $this->params['breadcrumbs'][] = $this->title;
         <div class="col-12 col-md-12">
             <?php $form = ActiveForm::begin(['id' => 'reset-password-form']); ?>
 
+            <?= $form->errorSummary($model, ['header' => '<p class="fw-semibold mb-1">Please fix the following:</p>']) ?>
+
             <?= $form->field($model, 'password')->passwordInput(['autofocus' => true]) ?>
 
             <div class="form-group">

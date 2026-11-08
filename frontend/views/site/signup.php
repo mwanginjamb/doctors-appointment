@@ -19,6 +19,8 @@ $this->params['breadcrumbs'][] = $this->title;
         <div class="col-12 col-md-12">
             <?php $form = ActiveForm::begin(['id' => 'form-signup']); ?>
 
+            <?= $form->errorSummary($model, ['header' => '<p class="fw-semibold mb-1">Please fix the following:</p>']) ?>
+
             <?= $form->field($model, 'username')->textInput(['autofocus' => true]) ?>
             <?= $form->field($model, 'email') ?>
             <?= $form->field($model, 'full_name') ?>

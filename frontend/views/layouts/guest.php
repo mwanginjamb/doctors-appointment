@@ -5,10 +5,7 @@
 
 use common\widgets\Alert;
 use frontend\assets\AppAsset;
-use yii\bootstrap5\Breadcrumbs;
 use yii\bootstrap5\Html;
-use yii\bootstrap5\Nav;
-use yii\bootstrap5\NavBar;
 use yii\helpers\Url;
 
 AppAsset::register($this);
@@ -61,6 +58,18 @@ AppAsset::register($this);
                                         </div>
                                         <!--/ row 1 -->
 
+                                        <!-- flash messages (success / error / info / warning) -->
+                                        <?php if (Yii::$app->session->getAllFlashes()): ?>
+                                            <div class="row">
+                                                <div class="col-12" id="guest-flash-messages" role="status" aria-live="polite">
+                                                    <?= Alert::widget([
+                                                        'options' => ['class' => 'mb-3'],
+                                                    ]) ?>
+                                                </div>
+                                            </div>
+                                        <?php endif; ?>
+                                        <!--/ flash messages -->
+
                                         <!-- row 2 -->
                                         <?php if (Yii::$app->utility->currentaction('site', ['login', 'signup'])): ?>
                                             <div class="row">
@@ -85,10 +94,6 @@ AppAsset::register($this);
                                                 </div>
                                             </div>
                                         <?php endif; ?>
-
-                                        <?= Alert::widget([
-                                            'options' => ['class' => 'my-3']
-                                        ]) ?>
 
                                         <?= $content ?>
                                         <!-- / row 2 -->

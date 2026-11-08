@@ -19,6 +19,8 @@ $this->params['breadcrumbs'][] = $this->title;
         <div class="col-lg-12">
             <?php $form = ActiveForm::begin(['id' => 'login-form']); ?>
 
+            <?= $form->errorSummary($model, ['header' => '<p class="fw-semibold mb-1">Please fix the following:</p>']) ?>
+
             <?= $form->field($model, 'username')->textInput(['autofocus' => true]) ?>
 
             <?= $form->field($model, 'password')->passwordInput() ?>

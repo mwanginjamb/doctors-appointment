@@ -19,6 +19,8 @@ $this->params['breadcrumbs'][] = $this->title;
         <div class="col-lg-12 col-md-12">
             <?php $form = ActiveForm::begin(['id' => 'resend-verification-email-form']); ?>
 
+            <?= $form->errorSummary($model, ['header' => '<p class="fw-semibold mb-1">Please fix the following:</p>']) ?>
+
             <?= $form->field($model, 'email')->textInput(['autofocus' => true]) ?>
 
             <div class="form-group">
