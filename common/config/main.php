@@ -47,21 +47,17 @@ return [
             'mutex' => \yii\mutex\MysqlMutex::class, // Mutex used to sync queries
         ],
         'mailer' => [
-            // Logs every send and keeps a classified $lastError (see class docs).
-            // If a *-local.php config redefines 'class', it must use this class too.
-            'class' => \common\components\ObservableMailer::class,
+            'class' => \yii\symfonymailer\Mailer::class,
             'viewPath' => '@common/mail',
             'useFileTransport' => false,
             'transport' => [
-                // The DSN is the only transport setting the mailer reads when it is
-                // present. Credentials MUST be URL-encoded: an "@", ":", "/", "#" or
-                // "?" in the password otherwise corrupts the DSN and auth fails.
-                //   smtp://  -> plain connect, upgraded with STARTTLS (port 587/25)
-                //   smtps:// -> implicit TLS (port 465)
-                'transport' => [
-                    'dsn' => 'smtp://' . env('SMTP_USERNAME') . ':' . env('SMTP_PASSWORD') . '@' . env('SMTP_HOST') . ':' . env('SMTP_PORT', 587),
-                 ],
-                'enableMailerLogging' => true,
+                'scheme' => 'smtp',
+                'host' => env('SMTP_HOST'),
+                'username' => env('SMTP_USERNAME'),
+                'password' => env('SMTP_PASSWORD'),
+                'port' => env('SMTP_PORT'),
+                //'dsn' => 'smtp://' . env('SMTP_USERNAME') . ':' . env('SMTP_PASSWORD') . '@' . env('SMTP_HOST') . ':' . env('SMTP_PORT'),
+                'enableMailerLogging' => true
             ],
         ],
 
