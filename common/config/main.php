@@ -58,14 +58,9 @@ return [
                 // "?" in the password otherwise corrupts the DSN and auth fails.
                 //   smtp://  -> plain connect, upgraded with STARTTLS (port 587/25)
                 //   smtps:// -> implicit TLS (port 465)
-                'dsn' => sprintf(
-                    '%s://%s:%s@%s:%d',
-                    ((int) env('SMTP_PORT', 587) === 465 || in_array(strtolower((string) env('SMTP_ENCRYPTION', 'tls')), ['ssl', 'smtps'], true)) ? 'smtps' : 'smtp',
-                    rawurlencode((string) env('SMTP_USERNAME', '')),
-                    rawurlencode((string) env('SMTP_PASSWORD', '')),
-                    (string) env('SMTP_HOST', 'localhost'),
-                    (int) env('SMTP_PORT', 587)
-                ),
+                'transport' => [
+                    'dsn' => 'smtp://' . env('SMTP_USERNAME') . ':' . env('SMTP_PASSWORD') . '@' . env('SMTP_HOST') . ':' . env('SMTP_PORT', 587),
+                 ],
                 'enableMailerLogging' => true,
             ],
         ],

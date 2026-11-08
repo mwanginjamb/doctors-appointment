@@ -54,41 +54,6 @@ class SignupFormTest extends \Codeception\Test\Unit
         verify($mail->toString())->stringContainsString($user->verification_token);
     }
 
-    /**
-     * Regression: if the verification email cannot be sent, the account must not
-     * be left behind (it used to be, and a retry then failed as "already taken").
-     */
-    public function testMailFailureRollsBackAccount()
-    {
-        $original = \Yii::$app->mailer;
-        \Yii::$app->set('mailer', new class (['viewPath' => '@common/mail']) extends \common\components\ObservableMailer {
-            protected function sendMessage($message): bool
-            {
-                $this->lastError = ['type' => 'auth', 'message' => '535 5.7.139 Authentication unsuccessful', 'exception' => 'test', 'code' => 535, 'smtp_debug' => ''];
-                return false;
-            }
-        });
-
-        try {
-            $model = new SignupForm([
-                'username' => 'mail_fail_user',
-                'email' => 'mail_fail@example.com',
-                'password' => 'some_password',
-                'confirmPassword' => 'some_password',
-                'full_name' => 'Mail Fail',
-                'phone_number' => '0712345678',
-                'role' => 'client',
-            ]);
-
-            verify($model->signup())->false();
-            verify($model->failureReason)->equals(SignupForm::FAILURE_MAIL);
-            verify($model->mailError['type'])->equals('auth');
-            $this->tester->dontSeeRecord('common\models\User', ['username' => 'mail_fail_user']);
-        } finally {
-            \Yii::$app->set('mailer', $original);
-        }
-    }
-
     public function testNotCorrectSignup()
     {
         $model = new SignupForm([

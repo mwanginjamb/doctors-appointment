@@ -20,6 +20,18 @@ class Functional extends Module
     }
 
     /**
+     * Follows a data-method="post" link the way yii.js would: POSTs the given
+     * params plus the CSRF token from the current page's meta tag, and loads the
+     * response as the current page (so seeElement/submitForm work on it).
+     */
+    public function postAsLink($route, array $params = [])
+    {
+        $yii2 = $this->getModule('Yii2');
+        $csrf = $yii2->grabAttributeFrom('meta[name="csrf-token"]', 'content');
+        $yii2->_loadPage('POST', Url::to($route), $params + [\Yii::$app->request->csrfParam => $csrf]);
+    }
+
+    /**
      * POSTs to a route with a valid CSRF header, as the site's own JavaScript would, and returns the raw response.
      */
     public function sendCsrfPost($route, $body = '')

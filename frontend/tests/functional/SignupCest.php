@@ -11,13 +11,13 @@ class SignupCest
     /**
      * The signup form is reached by choosing a role on the role-choice screen.
      * Those buttons are data-method="post" links (JS), so the POST of the
-     * top-level "role" is sent directly here.
+     * top-level "role" is sent directly here via the postAsLink helper.
      */
     public function _before(FunctionalTester $I)
     {
         $I->amOnRoute('site/signup');
         $I->see('client account');
-        $I->sendAjaxPostRequest(['/site/signup'], ['role' => 'client']);
+        $I->postAsLink(['/site/signup'], ['role' => 'client']);
         $I->seeElement($this->formId);
     }
 
