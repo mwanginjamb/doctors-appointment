@@ -57,7 +57,30 @@ return [
                     'categories' => ['linkedin'],
                     'logFile' => '@runtime/logs/linkedin.log',
                     'logVars' => []
-                ]
+                ],
+                // Signup funnel: validation / persist / mail / exception outcomes.
+                [
+                    'class' => \yii\log\FileTarget::class,
+                    'levels' => ['info', 'error', 'warning'],
+                    'categories' => ['signup'],
+                    'logFile' => '@runtime/logs/signup.log',
+                    'logVars' => [],
+                    'prefix' => [\common\components\RequestContext::class, 'logPrefix'],
+                    'maxFileSize' => 10240,
+                    'maxLogFiles' => 10,
+                ],
+                // Every email send (success + classified failure with SMTP transcript)
+                // plus Symfony transport events.
+                [
+                    'class' => \yii\log\FileTarget::class,
+                    'levels' => ['info', 'error', 'warning'],
+                    'categories' => ['mail', 'yii\symfonymailer\*'],
+                    'logFile' => '@runtime/logs/mail.log',
+                    'logVars' => [],
+                    'prefix' => [\common\components\RequestContext::class, 'logPrefix'],
+                    'maxFileSize' => 10240,
+                    'maxLogFiles' => 10,
+                ],
             ],
         ],
         'errorHandler' => [

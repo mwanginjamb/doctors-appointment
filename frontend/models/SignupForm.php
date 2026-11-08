@@ -5,6 +5,8 @@ namespace frontend\models;
 use Yii;
 use yii\base\Model;
 use common\models\User;
+use common\components\ObservableMailer;
+use common\components\RequestContext;
 
 /**
  * Signup form
@@ -22,6 +24,18 @@ class SignupForm extends Model
 
     public $role;
 
+    public const LOG_CATEGORY = 'signup';
+
+    public const FAILURE_VALIDATION = 'validation';
+    public const FAILURE_PERSIST = 'persist';
+    public const FAILURE_MAIL = 'mail';
+    public const FAILURE_EXCEPTION = 'exception';
+
+    /** @var string|null which stage the last signup() failed at (FAILURE_* constant) */
+    public $failureReason;
+
+    /** @var array|null classified SMTP error from ObservableMailer when failureReason is "mail" */
+    public $mailError;
 
     /**
      * {@inheritdoc}
@@ -55,12 +69,31 @@ class SignupForm extends Model
     /**
      * Signs user up.
      *
-     * @return bool whether the creating new account was successful and email was sent
+     * The account is created inside a transaction and only committed once the
+     * verification email has been handed to the SMTP server. Previously the user
+     * row was saved first and the email failure ignored, leaving an INACTIVE
+     * account the person could never verify, and a retry then failed with
+     * "username/email already taken".
+     *
+     * After a failed call, {@see $failureReason} says which stage failed and
+     * {@see $mailError} holds the classified SMTP error when it was the email.
+     *
+     * @return bool whether the account was created and the verification email sent
      */
     public function signup()
     {
+        $this->failureReason = null;
+        $this->mailError = null;
+        $log = [
+            'role' => $this->role,
+            'email' => RequestContext::maskEmail($this->email),
+        ];
+
         if (!$this->validate()) {
-            return null;
+            $this->failureReason = self::FAILURE_VALIDATION;
+            // Field names and messages only; never the submitted values.
+            Yii::info(['event' => 'signup.validation_failed', 'errors' => $this->getFirstErrors()] + $log, self::LOG_CATEGORY);
+            return false;
         }
 
         $user = new User();
@@ -74,7 +107,46 @@ class SignupForm extends Model
         $user->phone_number = $this->phone_number;
         $user->role = $this->role;
 
-        return $user->save() && $this->sendEmail($user);
+        $transaction = User::getDb()->beginTransaction();
+        try {
+            if (!$user->save()) {
+                $transaction->rollBack();
+                $this->failureReason = self::FAILURE_PERSIST;
+                Yii::error(['event' => 'signup.save_failed', 'errors' => $user->getFirstErrors()] + $log, self::LOG_CATEGORY);
+                return false;
+            }
+
+            if (!$this->sendEmail($user)) {
+                $transaction->rollBack();
+                $this->failureReason = self::FAILURE_MAIL;
+                $mailer = Yii::$app->mailer;
+                $this->mailError = $mailer instanceof ObservableMailer ? $mailer->lastError : null;
+                Yii::error([
+                    'event' => 'signup.mail_failed',
+                    'diagnosis' => 'SMTP/transport problem, not signup logic; account rolled back',
+                    'smtp_error_type' => $this->mailError['type'] ?? 'unknown',
+                    'smtp_error' => $this->mailError['message'] ?? '(see mail log)',
+                ] + $log, self::LOG_CATEGORY);
+                return false;
+            }
+
+            $transaction->commit();
+        } catch (\Throwable $e) {
+            if ($transaction->isActive) {
+                $transaction->rollBack();
+            }
+            $this->failureReason = self::FAILURE_EXCEPTION;
+            Yii::error([
+                'event' => 'signup.exception',
+                'exception' => get_class($e),
+                'message' => $e->getMessage(),
+                'at' => $e->getFile() . ':' . $e->getLine(),
+            ] + $log, self::LOG_CATEGORY);
+            throw $e;
+        }
+
+        Yii::info(['event' => 'signup.succeeded', 'user_id' => $user->id] + $log, self::LOG_CATEGORY);
+        return true;
     }
 
     /**

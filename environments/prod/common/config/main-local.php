@@ -10,7 +10,7 @@ return [
             'charset' => 'utf8',
         ],
         'mailer' => [
-            'class' => \yii\symfonymailer\Mailer::class,
+            'class' => \common\components\ObservableMailer::class,
             'viewPath' => '@common/mail',
         ],
     ],

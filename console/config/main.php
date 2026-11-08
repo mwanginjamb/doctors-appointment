@@ -60,9 +60,19 @@ return [
                     'categories' => ['jobs', 'notifications'],
                     'logFile' => '@runtime/logs/jobs.log',
                     'logVars' => []
-                ]
-
-
+                ],
+                // Every email send from queue jobs / console commands (see ObservableMailer).
+                [
+                    'class' => \yii\log\FileTarget::class,
+                    'levels' => ['info', 'error', 'warning'],
+                    'categories' => ['mail', 'yii\symfonymailer\*'],
+                    'logFile' => '@runtime/logs/mail.log',
+                    'logVars' => [],
+                    'exportInterval' => 1,
+                    'prefix' => [\common\components\RequestContext::class, 'logPrefix'],
+                    'maxFileSize' => 10240,
+                    'maxLogFiles' => 10,
+                ],
             ],
         ],
     ],

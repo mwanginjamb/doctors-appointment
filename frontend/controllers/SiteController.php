@@ -5,6 +5,7 @@ namespace frontend\controllers;
 use Yii;
 use common\models\User;
 use yii\web\Controller;
+use common\components\RequestContext;
 use frontend\models\SearchForm;
 use frontend\components\AdminAccessControl;
 use yii\filters\VerbFilter;
@@ -222,15 +223,32 @@ class SiteController extends Controller
     public function actionSignup()
     {
         $this->layout = 'guest';
-        $role = Yii::$app->request->post('role');
+        $request = Yii::$app->request;
+        // The role-choice buttons post a top-level "role"; the signup form itself
+        // posts it as SignupForm[role]. Reading only the former sent every form
+        // submission back to the role-choice screen and discarded the input.
+        $formData = $request->post('SignupForm');
+        $role = $request->post('role') ?: (is_array($formData) ? ($formData['role'] ?? null) : null);
         if (!$role) {
             return $this->render('role-choice');
         }
         $model = new SignupForm();
         $model->role = $role;
-        if ($model->load(Yii::$app->request->post()) && $model->signup()) {
-            Yii::$app->session->setFlash('success', 'Thank you for registration. Please check your inbox for verification email.');
-            return $this->goHome();
+        if ($model->load($request->post())) {
+            if ($model->signup()) {
+                Yii::$app->session->setFlash('success', 'Thank you for registration. Please check your inbox for verification email.');
+                return $this->goHome();
+            }
+
+            if ($model->failureReason !== SignupForm::FAILURE_VALIDATION) {
+                // Validation errors render inline; anything else needs a visible
+                // message plus a reference that matches the log lines.
+                $ref = RequestContext::id();
+                $message = $model->failureReason === SignupForm::FAILURE_MAIL
+                    ? 'We could not send your verification email, so your account was not created. Please try again shortly.'
+                    : 'We could not create your account. Please try again shortly.';
+                Yii::$app->session->setFlash('error', $message . ' (Reference: ' . $ref . ')');
+            }
         }
 
         return $this->render('signup', [
