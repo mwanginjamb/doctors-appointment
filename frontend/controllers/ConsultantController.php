@@ -134,6 +134,7 @@ class ConsultantController extends Controller
     {
         $model = new Consultant();
         $model->user_id = Yii::$app->user->id;
+        $model->sub_specialities = [];
 
         if ($this->request->isPost) {
             if ($model->load($this->request->post()) && $model->save()) {
@@ -151,7 +152,7 @@ class ConsultantController extends Controller
             'model' => $model,
             'gender' => ArrayHelper::map(Gender::find()->all(), 'id', 'name'),
             'providers' => ArrayHelper::map(Provider::find()->all(), 'id', 'provider'),
-            'specializations' => $this->specializationOptions(),
+            'catalogue' => Specialization::catalogue(),
         ]);
     }
 
@@ -165,6 +166,7 @@ class ConsultantController extends Controller
     public function actionUpdate($id)
     {
         $model = $this->findOwnModel($id);
+        $model->loadSubSpecialities();
 
         if ($this->request->isPost && $model->load($this->request->post()) && $model->save()) {
             return $this->redirect(['view', 'id' => $model->id]);
@@ -174,23 +176,8 @@ class ConsultantController extends Controller
             'model' => $model,
             'gender' => ArrayHelper::map(Gender::find()->all(), 'id', 'name'),
             'providers' => ArrayHelper::map(\frontend\models\Provider::find()->all(), 'id', 'provider'),
-            'specializations' => $this->specializationOptions(),
+            'catalogue' => Specialization::catalogue(),
         ]);
-    }
-
-    /**
-     * Specialization names for the speciality autocomplete, as name => name
-     * (the consultant table stores the name, which the public search matches on).
-     */
-    protected function specializationOptions()
-    {
-        $names = Specialization::find()
-            ->select('specialization')
-            ->where(['not', ['specialization' => null]])
-            ->orderBy(['specialization' => SORT_ASC])
-            ->column();
-
-        return array_combine($names, $names) ?: [];
     }
 
     /**
