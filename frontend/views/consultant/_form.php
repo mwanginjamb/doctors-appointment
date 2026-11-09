@@ -6,6 +6,13 @@ use yii\bootstrap5\ActiveForm;
 /** @var yii\web\View $this */
 /** @var frontend\models\Consultant $model */
 /** @var yii\widgets\ActiveForm $form */
+/** @var array $specializations name => name from the Specialization model */
+
+// Keep a saved value that is not (or no longer) in the specialization list selectable
+$specializations = $specializations ?? [];
+if ($model->speciality && !isset($specializations[$model->speciality])) {
+    $specializations[$model->speciality] = $model->speciality;
+}
 ?>
 
 <div class="consultant-form">
@@ -22,7 +29,9 @@ use yii\bootstrap5\ActiveForm;
     </div>
     <div class="row">
         <div class="col-md-6">
-            <?= $form->field($model, 'speciality')->textInput(['rows' => 6]) ?>
+            <?= $form->field($model, 'speciality')
+                ->dropDownList($specializations, ['prompt' => ''])
+                ->hint('Start typing to search. If yours is not listed, type it and press Enter.') ?>
         </div>
         <div class="col-md-6">
             <?= $form->field($model, 'sub_speciality')->textInput(['rows' => 6]) ?>
@@ -63,7 +72,7 @@ use yii\bootstrap5\ActiveForm;
     </div>
     <div class="row">
         <div class="col-md-6">
-            <?= $form->field($model, 'working_hours')->textInput(['maxlength' => true]) ?>
+            <?= $form->field($model, 'working_hours')->textInput(['maxlength' => true, 'placeholder' => \frontend\models\Consultant::DEFAULT_WORKING_HOURS]) ?>
         </div>
         <div class="col-md-6">
             <?= $form->field($model, 'covers_supported')->dropDownList($providers, ['prompt' => 'Select ...', 'multiple' => true]) ?>
@@ -104,6 +113,14 @@ use yii\bootstrap5\ActiveForm;
 $script = <<<JS
     $(document).ready(function() {
         $('#consultant-covers_supported').select2();
+
+        // Searchable list of specializations; tags lets a consultant enter one that is not listed yet
+        $('#consultant-speciality').select2({
+            tags: true,
+            width: '100%',
+            placeholder: 'Search specializations...',
+            allowClear: true
+        });
     });
 JS;
 $this->registerJs($script);

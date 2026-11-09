@@ -50,6 +50,8 @@ class Consultant extends \yii\db\ActiveRecord
     const DEVICE_TYPE_IOS = 'ios';
     const DEVICE_TYPE_WEB = 'web';
 
+    const DEFAULT_WORKING_HOURS = '0800hrs - 1700hrs';
+
     public function behaviors()
     {
         return [

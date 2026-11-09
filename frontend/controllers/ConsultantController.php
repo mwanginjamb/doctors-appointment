@@ -12,6 +12,7 @@ use yii\filters\VerbFilter;
 use yii\helpers\ArrayHelper;
 use yii\filters\AccessControl;
 use frontend\models\Consultant;
+use frontend\models\Specialization;
 
 use yii\web\NotFoundHttpException;
 use frontend\models\ConsultantSearch;
@@ -140,6 +141,9 @@ class ConsultantController extends Controller
             }
         } else {
             $model->loadDefaultValues();
+            // Prefill from the logged-in account; the consultant can still edit them
+            $model->consultant_email = Yii::$app->user->identity->email;
+            $model->working_hours = Consultant::DEFAULT_WORKING_HOURS;
         }
 
         Yii::$app->session->setFlash('info', 'Please correct the Names accordingly as you fill out this form.');
@@ -147,6 +151,7 @@ class ConsultantController extends Controller
             'model' => $model,
             'gender' => ArrayHelper::map(Gender::find()->all(), 'id', 'name'),
             'providers' => ArrayHelper::map(Provider::find()->all(), 'id', 'provider'),
+            'specializations' => $this->specializationOptions(),
         ]);
     }
 
@@ -169,7 +174,23 @@ class ConsultantController extends Controller
             'model' => $model,
             'gender' => ArrayHelper::map(Gender::find()->all(), 'id', 'name'),
             'providers' => ArrayHelper::map(\frontend\models\Provider::find()->all(), 'id', 'provider'),
+            'specializations' => $this->specializationOptions(),
         ]);
+    }
+
+    /**
+     * Specialization names for the speciality autocomplete, as name => name
+     * (the consultant table stores the name, which the public search matches on).
+     */
+    protected function specializationOptions()
+    {
+        $names = Specialization::find()
+            ->select('specialization')
+            ->where(['not', ['specialization' => null]])
+            ->orderBy(['specialization' => SORT_ASC])
+            ->column();
+
+        return array_combine($names, $names) ?: [];
     }
 
     /**
