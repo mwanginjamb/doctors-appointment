@@ -1,0 +1,63 @@
+# systemd unit for the doctor-appointments queue worker (yii2-queue, db driver)
+#
+# Sends the emails / WhatsApp / push / SMS jobs that `php yii notification/process`
+# (cron, every minute) and appointment bookings put on the queue.
+#
+# Part of doctors-appointment.target — install and operate it through the target;
+# see deploy/systemd/README.md.
+#
+#   systemctl status doctors-appointment-queue
+#   journalctl -u doctors-appointment-queue -f          # live worker output
+#
+# Assumptions — adjust before installing:
+#   * App deployed at /var/www/html/doctors-appointment
+#   * PHP CLI at /usr/bin/php (check with `command -v php`) with the pcntl extension,
+#     so a stop/restart lets the current job finish instead of killing it mid-send
+#   * Web server user is www-data (same owner as console/runtime, so logs stay writable)
+
+[Unit]
+Description=Doctor appointments queue worker (yii2-queue)
+Documentation=https://github.com/yiisoft/yii2-queue/blob/master/docs/guide/worker.md
+Wants=network-online.target
+# MySQL holds the queue; ordering on whichever of these exists is harmless for the other
+After=network-online.target mysql.service mariadb.service
+# Give up restarting if it crashes 10 times within 5 minutes (e.g. broken deploy, DB down)
+StartLimitIntervalSec=300
+StartLimitBurst=10
+# Stopping/restarting doctors-appointment.target stops/restarts this worker too
+PartOf=doctors-appointment.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/html/doctors-appointment
+
+# Poll the queue table every 5 seconds for due jobs
+ExecStart=/usr/bin/php /var/www/html/doctors-appointment/yii queue/listen 5 --verbose=1 --color=0
+
+Restart=always
+RestartSec=5
+
+# Restart once a day to release any memory a long-running PHP process accumulates
+RuntimeMaxSec=1d
+
+# On stop, SIGTERM lets the worker finish the current job; allow the queue's
+# ttr (300s) plus a margin before systemd kills it
+KillSignal=SIGTERM
+KillMode=mixed
+TimeoutStopSec=310
+
+# Output goes to the journal (journalctl -u doctors-appointment-queue)
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=doctors-queue
+
+# Hardening that does not get in the way of the app writing its runtime/logs
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=doctors-appointment.target
