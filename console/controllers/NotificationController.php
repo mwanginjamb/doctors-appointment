@@ -92,23 +92,54 @@ class NotificationController extends Controller
         $this->stdout("Notification Statistics:\n");
         $this->stdout("======================\n");
 
+        $now = date('Y-m-d H:i:s');
+
         $pending = AppointmentNotifications::find()
             ->where(['status' => AppointmentNotifications::STATUS_PENDING])
             ->count();
 
+        // Pending rows whose time has passed should be picked up by the next scheduler run
+        $due = AppointmentNotifications::find()
+            ->where(['status' => AppointmentNotifications::STATUS_PENDING])
+            ->andWhere(['<=', 'scheduled_time', $now])
+            ->count();
+
+        $queued = AppointmentNotifications::find()
+            ->where(['status' => AppointmentNotifications::STATUS_QUEUED])
+            ->count();
+
+        // Window on when delivery happened, not when the reminder row was created
         $sent = AppointmentNotifications::find()
             ->where(['status' => AppointmentNotifications::STATUS_SENT])
-            ->andWhere(['>', 'created_at', strtotime('-7 days')])
+            ->andWhere(['>', 'sent_at', date('Y-m-d H:i:s', strtotime('-7 days'))])
             ->count();
 
+        // No failed_at column; updated_at is stamped when the row is marked failed/cancelled
         $failed = AppointmentNotifications::find()
             ->where(['status' => AppointmentNotifications::STATUS_FAILED])
-            ->andWhere(['>', 'created_at', strtotime('-7 days')])
+            ->andWhere(['>', 'updated_at', strtotime('-7 days')])
             ->count();
 
-        $this->stdout("Pending notifications: {$pending}\n");
+        $cancelled = AppointmentNotifications::find()
+            ->where(['status' => AppointmentNotifications::STATUS_CANCELLED])
+            ->andWhere(['>', 'updated_at', strtotime('-7 days')])
+            ->count();
+
+        $next = AppointmentNotifications::find()
+            ->where(['status' => AppointmentNotifications::STATUS_PENDING])
+            ->andWhere(['>', 'scheduled_time', $now])
+            ->orderBy(['scheduled_time' => SORT_ASC])
+            ->one();
+
+        $this->stdout("Pending notifications: {$pending} ({$due} due now)\n");
+        $this->stdout("Queued (awaiting worker): {$queued}\n");
         $this->stdout("Sent (last 7 days): {$sent}\n");
         $this->stdout("Failed (last 7 days): {$failed}\n");
+        $this->stdout("Cancelled (last 7 days): {$cancelled}\n");
+        $this->stdout("Next due: " . ($next
+            ? "{$next->scheduled_time} (#{$next->id}, {$next->notification_type}, appointment #{$next->appointment_id})"
+            : 'none') . "\n");
+        $this->stdout("Clock: {$now} " . date_default_timezone_get() . "\n");
 
         return ExitCode::OK;
     }
