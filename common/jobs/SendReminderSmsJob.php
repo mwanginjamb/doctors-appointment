@@ -33,12 +33,9 @@ class SendReminderSmsJob extends BaseObject implements \yii\queue\JobInterface
                 throw new \Exception('No valid recipients found');
             }
 
-            $message = $this->getSmsMessage($appointment);
-
-            // Send SMS to recipients
-            foreach ($recipients as $phone => $name) {
-                $personalizedMessage = str_replace('{recipient_name}', $name, $message);
-                $this->sendSms($phone, $personalizedMessage);
+            // Patients and consultants get differently worded messages
+            foreach ($recipients as $phone => $role) {
+                $this->sendSms($phone, $this->getSmsMessage($appointment, $role));
             }
 
             AppointmentNotifications::markAsSentById($this->notificationId);
@@ -50,7 +47,7 @@ class SendReminderSmsJob extends BaseObject implements \yii\queue\JobInterface
     }
 
     /**
-     * Get SMS recipients based on recipient type
+     * Get SMS recipients based on recipient type, as phone => role (patient|consultant)
      */
     private function getRecipients($appointment)
     {
@@ -59,19 +56,19 @@ class SendReminderSmsJob extends BaseObject implements \yii\queue\JobInterface
         $toConsultant = $this->recipientType !== NotificationSchedules::METHOD_PATIENT;
 
         if ($toPatient && $appointment->patient && $appointment->patient->phone_number) {
-            $recipients[$appointment->patient->phone_number] = $appointment->patient->full_name ?? 'Patient';
+            $recipients[$appointment->patient->phone_number] = 'patient';
         }
         if ($toConsultant && $appointment->consultant && $appointment->consultant->consultant_phone_number) {
-            $recipients[$appointment->consultant->consultant_phone_number] = $appointment->consultant->names ?? 'Doctor';
+            $recipients[$appointment->consultant->consultant_phone_number] = 'consultant';
         }
 
         return $recipients;
     }
 
     /**
-     * Get SMS message
+     * Get the SMS message worded for the recipient's role
      */
-    private function getSmsMessage($appointment)
+    private function getSmsMessage($appointment, $role)
     {
         $minutes = (int) str_replace('-minute', '', $this->reminderType);
 
@@ -88,7 +85,11 @@ class SendReminderSmsJob extends BaseObject implements \yii\queue\JobInterface
         $patientName = $appointment->patient->full_name ?? 'Patient';
         $consultantName = $appointment->consultant->names ?? 'Doctor';
 
-        return "Hello {recipient_name}, this is a reminder that your appointment with {$consultantName} is scheduled for {$appointmentDate} at {$appointmentTime} (in {$timeUnit}). Please arrive 15 minutes early.";
+        if ($role === 'consultant') {
+            return "Hello {$consultantName}, this is a reminder that you have an appointment with {$patientName} scheduled for {$appointmentDate} at {$appointmentTime} (in {$timeUnit}).";
+        }
+
+        return "Hello {$patientName}, this is a reminder that your appointment with {$consultantName} is scheduled for {$appointmentDate} at {$appointmentTime} (in {$timeUnit}). Please arrive 15 minutes early.";
     }
 
     /**
