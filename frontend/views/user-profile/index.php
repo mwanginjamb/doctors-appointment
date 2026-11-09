@@ -48,7 +48,7 @@ $this->params['breadcrumbs'][] = $this->title;
                 'value' => function ($model) {
                         return $model->insurance ? $model->insurance_names : 'Not Set';
                     },
-                'filter' => \yii\helpers\ArrayHelper::map(\app\models\Provider::find()->asArray()->all(), 'id', 'provider'),
+                'filter' => \yii\helpers\ArrayHelper::map(\frontend\models\Provider::find()->asArray()->all(), 'id', 'provider'),
                 'label' => 'Insurance Providers'
             ],
             //'dob',
