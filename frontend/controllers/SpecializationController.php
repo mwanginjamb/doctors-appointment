@@ -9,12 +9,15 @@ use yii\web\Controller;
 use yii\web\NotFoundHttpException;
 use yii\filters\VerbFilter;
 use frontend\components\AdminAccessControl;
+use common\components\RbacHelper;
 
 /**
  * SpecializationController implements the CRUD actions for Specialization model.
  */
 class SpecializationController extends Controller
 {
+    public $layout = 'admin';
+
     /**
      * @inheritDoc
      */
@@ -25,6 +28,7 @@ class SpecializationController extends Controller
             [
                 'access' => [
                     'class' => AdminAccessControl::class,
+                    'permission' => RbacHelper::PERM_MANAGE_REFERENCE_DATA,
                 ],
                 'verbs' => [
                     'class' => VerbFilter::className(),

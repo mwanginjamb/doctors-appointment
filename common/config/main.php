@@ -19,6 +19,11 @@ return [
         'cache' => [
             'class' => \yii\caching\FileCache::class,
         ],
+        // RBAC tables: php yii migrate --migrationPath=@yii/rbac/migrations
+        // Seed roles/permissions: php yii rbac/init
+        'authManager' => [
+            'class' => \yii\rbac\DbManager::class,
+        ],
         'utility' => [
             'class' => \common\Library\UtilityComponent::class
         ],

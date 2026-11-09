@@ -4,26 +4,29 @@ namespace frontend\components;
 
 use Yii;
 use yii\filters\AccessControl;
+use common\components\RbacHelper;
 
 /**
- * Access filter that only lets users with the admin role through.
+ * Access filter backed by RBAC. By default only users holding the consultancy-admin role pass;
+ * set {@see $permission} to gate on a finer-grained permission instead, e.g.
  *
- * The admin role is not offered at signup; promote a user by setting
- * `user.role = 'admin'` in the database.
+ *   'access' => ['class' => AdminAccessControl::class, 'permission' => RbacHelper::PERM_MANAGE_REFERENCE_DATA]
+ *
+ * Grant the admin role with `php yii rbac/assign-admin <username>`.
  */
 class AdminAccessControl extends AccessControl
 {
-    const ROLE_ADMIN = 'admin';
+    const ROLE_ADMIN = RbacHelper::ROLE_ADMIN;
+
+    /** @var string RBAC role or permission required */
+    public $permission = RbacHelper::ROLE_ADMIN;
 
     public function init()
     {
         $this->rules = [
             [
                 'allow' => true,
-                'roles' => ['@'],
-                'matchCallback' => function () {
-                    return self::isAdmin();
-                },
+                'roles' => [$this->permission],
             ],
         ];
         parent::init();
@@ -31,7 +34,6 @@ class AdminAccessControl extends AccessControl
 
     public static function isAdmin()
     {
-        $identity = Yii::$app->user->identity;
-        return $identity !== null && $identity->role === self::ROLE_ADMIN;
+        return !Yii::$app->user->isGuest && Yii::$app->user->can(self::ROLE_ADMIN);
     }
 }

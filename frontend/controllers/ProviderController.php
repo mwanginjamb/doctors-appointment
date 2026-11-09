@@ -8,12 +8,15 @@ use yii\web\Controller;
 use yii\web\NotFoundHttpException;
 use yii\filters\VerbFilter;
 use frontend\components\AdminAccessControl;
+use common\components\RbacHelper;
 
 /**
  * ProviderController implements the CRUD actions for Provider model.
  */
 class ProviderController extends Controller
 {
+    public $layout = 'admin';
+
     /**
      * @inheritDoc
      */
@@ -24,6 +27,7 @@ class ProviderController extends Controller
             [
                 'access' => [
                     'class' => AdminAccessControl::class,
+                    'permission' => RbacHelper::PERM_MANAGE_REFERENCE_DATA,
                 ],
                 'verbs' => [
                     'class' => VerbFilter::className(),

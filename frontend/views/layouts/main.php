@@ -88,7 +88,12 @@ $username = Yii::$app->user->identity->username ?? 'User';
                     'label' => 'Consultant Practice',
                     'url' => ['/consultant/index'],
                     'visible' => !Yii::$app->user->isGuest && Yii::$app->user->identity->role == 'consultant',
-                ]
+                ],
+                [
+                    'label' => 'Administration',
+                    'url' => ['/site/settings'],
+                    'visible' => \frontend\components\AdminAccessControl::isAdmin(),
+                ],
             ],
         ]);
 
