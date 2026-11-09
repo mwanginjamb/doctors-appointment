@@ -11,6 +11,13 @@ $this->title = 'Profile for :' . $model->user->full_name;
 $this->params['breadcrumbs'][] = ['label' => Yii::t('app', 'Consultants'), 'url' => ['index']];
 $this->params['breadcrumbs'][] = $this->title;
 \yii\web\YiiAsset::register($this);
+$this->registerCss(<<<CSS
+.reminder-plan summary { cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: .35rem; }
+.reminder-plan summary::-webkit-details-marker { display: none; }
+.reminder-plan summary::before { content: '\\203A'; display: inline-block; transition: transform .15s ease-in-out; }
+.reminder-plan[open] summary::before { transform: rotate(90deg); }
+.reminder-plan summary:hover { color: var(--bs-primary) !important; }
+CSS);
 ?>
 <div class="consultant-view">
 
@@ -82,6 +89,33 @@ $this->params['breadcrumbs'][] = $this->title;
                         Notifications will be sent to your email <b> <?= Html::encode($model->user->email) ?></b> and phone number
                         <b> <?= Html::encode($model->phone) ?></b>.
                     </p>
+
+                    <?php if ((int) $model->user_id === (int) Yii::$app->user->id): ?>
+                        <?php $plan = \frontend\models\NotificationSchedules::describeForPatient($model->user_id); ?>
+                        <details class="reminder-plan small">
+                            <summary class="text-muted">When will I be reminded?</summary>
+                            <div class="pt-2">
+                                <?php if ($plan['items']): ?>
+                                    <ul class="list-unstyled mb-2">
+                                        <?php foreach ($plan['items'] as $item): ?>
+                                            <li class="d-flex justify-content-between gap-3 py-1 border-bottom">
+                                                <span class="fw-medium text-nowrap"><?= Html::encode($item['when']) ?></span>
+                                                <span class="text-muted text-end"><?= Html::encode(implode(', ', $item['channels'])) ?></span>
+                                            </li>
+                                        <?php endforeach; ?>
+                                    </ul>
+                                    <p class="text-muted mb-0">
+                                        <?= $plan['isDefault']
+                                            ? 'These are the default reminders; they are set up when you book your first appointment.'
+                                            : 'Times are counted back from the start of each appointment.' ?>
+                                        Your consultant may add reminders of their own.
+                                    </p>
+                                <?php else: ?>
+                                    <p class="text-muted mb-0">No automatic reminders are currently scheduled for you.</p>
+                                <?php endif; ?>
+                            </div>
+                        </details>
+                    <?php endif; ?>
 
                     <hr class="my-4" />
                     <h3 class="h6 fw-bold mb-3">Accepted Medical Covers</h3>
