@@ -37,6 +37,11 @@ class SiteController extends Controller
                 'class' => AdminAccessControl::class,
                 'only' => ['settings'],
             ],
+            'usersAccess' => [
+                'class' => AdminAccessControl::class,
+                'only' => ['users'],
+                'permission' => \common\components\RbacHelper::PERM_MANAGE_USERS,
+            ],
             'access' => [
                 'class' => AccessControl::class,
                 'only' => ['logout', 'signup'],
@@ -370,6 +375,34 @@ class SiteController extends Controller
     {
         $this->layout = 'admin';
         return $this->render('settings');
+    }
+
+    /**
+     * Lists all system users (consultancy admin).
+     */
+    public function actionUsers($q = null, $type = null)
+    {
+        $this->layout = 'admin';
+
+        $query = \frontend\models\User::find()->orderBy(['id' => SORT_DESC]);
+        if ($q !== null && $q !== '') {
+            $query->andWhere(['or', ['like', 'username', $q], ['like', 'email', $q], ['like', 'full_name', $q], ['like', 'phone_number', $q]]);
+        }
+        if ($type !== null && $type !== '') {
+            $query->andWhere(['role' => $type]);
+        }
+
+        $dataProvider = new \yii\data\ActiveDataProvider([
+            'query' => $query,
+            'pagination' => ['pageSize' => 20],
+            'sort' => ['attributes' => ['id', 'username', 'email', 'role', 'status', 'created_at']],
+        ]);
+
+        return $this->render('users', [
+            'dataProvider' => $dataProvider,
+            'q' => $q,
+            'type' => $type,
+        ]);
     }
 
     public function actionTemplate()
