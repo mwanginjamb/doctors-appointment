@@ -141,13 +141,18 @@ class SiteController extends Controller
         $model = new SearchForm();
         $request = Yii::$app->request;
         $results = [];
-        if ($request->isPost) {
-            $results = $model->findConsultants($request->post(), $model->formName());
+        $searched = false;
+        // Load the form so the chosen filters stay filled in after searching
+        if ($model->load($request->post()) && $model->validate()) {
+            $searched = true;
+            $results = $model->findConsultants([$model->formName() => $model->getAttributes(['speciality', 'sub_speciality', 'physical_address'])], $model->formName());
         }
 
         return $this->render('index', [
             'model' => $model,
-            'results' => $results
+            'results' => $results,
+            'searched' => $searched,
+            'catalogue' => \frontend\models\Specialization::catalogue(),
         ]);
     }
 

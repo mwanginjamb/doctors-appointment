@@ -6,6 +6,17 @@ use yii\bootstrap5\Html;
 use yii\helpers\Url;
 
 /** @var yii\web\View $this */
+/** @var frontend\models\SearchForm $model */
+/** @var frontend\models\Consultant[] $results */
+/** @var bool $searched */
+/** @var array $catalogue from Specialization::catalogue() */
+
+[$mainItems, $mainOptions] = \frontend\components\SpecializationPicker::mainOptions($catalogue, $model->speciality);
+[$subItems, $subOptions] = \frontend\components\SpecializationPicker::subOptions($catalogue, $model->sub_speciality);
+\frontend\components\SpecializationPicker::register($this, '#searchform-speciality', '#searchform-sub_speciality', [
+    'mainPlaceholder' => 'e.g. Dentistry, heart, skin…',
+    'subPlaceholder' => 'e.g. Orthodontics…',
+]);
 
 $this->title = 'Find a Doctor';
 ?>
@@ -23,10 +34,13 @@ $this->title = 'Find a Doctor';
                         <div class="search g-3">
                             <?php $form = ActiveForm::begin(); ?>
                             <div class="row">
-                                <div class="col-md-6 py-3">
-                                    <?= $form->field($model, 'speciality')->textInput(['placeholder' => 'Enter a speciality']) ?>
+                                <div class="col-md-4 py-3">
+                                    <?= $form->field($model, 'speciality')->dropDownList($mainItems, ['prompt' => '', 'options' => $mainOptions]) ?>
                                 </div>
-                                <div class="col-md-6 py-3">
+                                <div class="col-md-4 py-3">
+                                    <?= $form->field($model, 'sub_speciality')->dropDownList($subItems, ['prompt' => '', 'options' => $subOptions]) ?>
+                                </div>
+                                <div class="col-md-4 py-3">
                                     <?= $form->field($model, 'physical_address')->textInput(['placeholder' => 'County, Town, Building']) ?>
                                 </div>
                             </div>
@@ -67,7 +81,12 @@ $this->title = 'Find a Doctor';
                                             <tr class="border-top">
                                                 <td class=" p-3 align-middle fw-medium"><?= Html::encode(ucwords($res->names)) ?>
                                                 </td>
-                                                <td class="p-3 align-middle text-muted"><?= Html::encode($res->speciality) ?></td>
+                                                <td class="p-3 align-middle text-muted">
+                                                    <?= Html::encode($res->speciality) ?>
+                                                    <?php if ($res->sub_speciality): ?>
+                                                        <small class="d-block"><?= Html::encode($res->sub_speciality) ?></small>
+                                                    <?php endif; ?>
+                                                </td>
                                                 <td class="p-3 align-middle text-muted"><?= Html::encode($res->physical_address) ?></td>
                                                 <!-- <td class="p-3 align-middle">
                                                     <div class="d-flex align-items-center gap-2">
@@ -99,6 +118,10 @@ $this->title = 'Find a Doctor';
                         </div>
                     </div>
 
+                <?php elseif (!empty($searched)): ?>
+                    <div class="alert alert-light border text-center">
+                        No consultants match your search yet. Try a broader area of specialization or clear the sub-speciality.
+                    </div>
                 <?php endif ?>
                 <!-- Results -->
             </div>
