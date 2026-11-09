@@ -26,6 +26,11 @@ $this->params['breadcrumbs'][] = $this->title;
                     <?= $form->field($model, 'specialization')->textInput(['maxlength' => true]) ?>
                 </div>
                 <div class="col-md-12">
+                    <?= $form->field($model, 'parent_id')
+                        ->dropDownList(\frontend\models\Specialization::mainAreaOptions($model->isNewRecord ? null : $model->id), ['prompt' => '— None: this is a main area —'])
+                        ->hint('Choose a main area to make this a sub-specialty of it (e.g. Orthodontics under Dentistry).') ?>
+                </div>
+                <div class="col-md-12">
                     <?= $form->field($model, 'description')->textarea(['rows' => 6]) ?>
                 </div>
                 <div class="col-12">
@@ -51,10 +56,41 @@ $this->params['breadcrumbs'][] = $this->title;
                                 </tr>
                             </thead>
                             <tbody>
+                                <?php
+                                // Main areas alphabetically, each followed by its sub-specialties
+                                $byParent = [];
+                                foreach ($specializations as $s) {
+                                    $byParent[$s->parent_id ?? 0][] = $s;
+                                }
+                                $sortByName = function ($a, $b) {
+                                    return strcasecmp((string) $a->specialization, (string) $b->specialization);
+                                };
+                                $ordered = [];
+                                $mains = $byParent[0] ?? [];
+                                usort($mains, $sortByName);
+                                foreach ($mains as $main) {
+                                    $ordered[] = $main;
+                                    $children = $byParent[$main->id] ?? [];
+                                    usort($children, $sortByName);
+                                    array_push($ordered, ...$children);
+                                    unset($byParent[$main->id]);
+                                }
+                                unset($byParent[0]);
+                                foreach ($byParent as $orphans) { // safety net: parent missing
+                                    array_push($ordered, ...$orphans);
+                                }
+                                $specializations = $ordered;
+                                ?>
                                 <?php if (count($specializations)): ?>
                                     <?php foreach ($specializations as $specialization): ?>
                                         <tr>
-                                            <td class="py-3 px-3 fw-medium"><?= Html::encode($specialization->specialization) ?></td>
+                                            <td class="py-3 px-3 fw-medium">
+                                                <?php if ($specialization->parent_id): ?>
+                                                    <span class="ps-4 fw-normal text-body-secondary">↳ <?= Html::encode($specialization->specialization) ?></span>
+                                                <?php else: ?>
+                                                    <?= Html::encode($specialization->specialization) ?>
+                                                <?php endif; ?>
+                                            </td>
                                             <td class="py-3 px-3 text-muted w-50"><?= Html::encode($specialization->description) ?></td>
                                             <td class="py-3 px-3 text-end">
 

@@ -70,11 +70,10 @@ class ConsultantSearch extends Consultant
         ]);
 
         $this->addSpecialitySearch($query);
+        $this->addSubSpecialitySearch($query);
 
-        $query->andFilterWhere(['like', 'names', $this->names])
+        $query->andFilterWhere(['like', 'consultant.names', $this->names])
             ->andFilterWhere(['like', 'license_number', $this->license_number])
-            //->andFilterWhere(['like', 'speciality', $this->speciality])
-            ->andFilterWhere(['like', 'sub_speciality', $this->sub_speciality])
             ->andFilterWhere(['like', 'kmpdc_registration_number', $this->kmpdc_registration_number])
             ->andFilterWhere(['like', 'facility', $this->facility])
             ->andFilterWhere(['like', 'physical_address', $this->physical_address])
@@ -83,24 +82,45 @@ class ConsultantSearch extends Consultant
         return $dataProvider;
     }
 
+    /**
+     * Area of specialization. A main area also finds consultants filed under any of its
+     * sub-specialties, e.g. "Dentistry" finds an orthodontist whose speciality is "Orthodontics".
+     */
     private function addSpecialitySearch($query)
     {
-        if (!empty($this->speciality)) {
-            $speciality = trim($this->speciality);
-
-            // Multiple keyword search (recommended for better UX)
-            $keywords = preg_split('/\s+/', $speciality);
-            $keywords = array_filter($keywords); // Remove empty elements
-
-            if (!empty($keywords)) {
-                $conditions = ['or'];
-                foreach ($keywords as $keyword) {
-                    // Each keyword should match somewhere in the speciality field
-                    $conditions[] = ['like', 'LOWER(speciality)', strtolower($this->speciality)];
-                }
-                $query->andWhere($conditions);
-            }
-
+        $term = trim((string) $this->speciality);
+        if ($term === '') {
+            return;
         }
+
+        $names = array_merge([$term], Specialization::childNamesOf($term));
+        $onProfile = ['or'];
+        $onLinks = ['or'];
+        foreach ($names as $name) {
+            $onProfile[] = ['like', 'consultant.speciality', $name];
+            $onLinks[] = ['like', 'name', $name];
+        }
+
+        $query->andWhere(['or',
+            $onProfile,
+            ['in', 'consultant.id', ConsultantSubSpeciality::find()->select('consultant_id')->where($onLinks)],
+        ]);
+    }
+
+    /**
+     * Sub-specialty: matches the consultant's sub-specialties, or a speciality saved as that
+     * sub-specialty before sub-specialties existed.
+     */
+    private function addSubSpecialitySearch($query)
+    {
+        $term = trim((string) $this->sub_speciality);
+        if ($term === '') {
+            return;
+        }
+
+        $query->andWhere(['or',
+            ['in', 'consultant.id', ConsultantSubSpeciality::find()->select('consultant_id')->where(['like', 'name', $term])],
+            ['like', 'consultant.speciality', $term],
+        ]);
     }
 }

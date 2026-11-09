@@ -38,6 +38,13 @@ $this->params['breadcrumbs'][] = $this->title;
                                 </div>
                             </div>
                             <p class="text-muted mb-1"><?= Html::encode($model->speciality) ?></p>
+                            <?php if ($model->sub_speciality): ?>
+                                <div class="d-flex flex-wrap gap-1 mb-2">
+                                    <?php foreach (preg_split('/\s*,\s*/', $model->sub_speciality) as $sub): ?>
+                                        <span class="badge rounded-pill text-bg-light border fw-normal"><?= Html::encode($sub) ?></span>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php endif; ?>
                             <p class="text-muted"><?= Html::encode($model->experience) ?> years of experience</p>
                         </div>
                     </div>

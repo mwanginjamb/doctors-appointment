@@ -23,7 +23,7 @@ $model->user_id = Yii::$app->user->id;
                 'model' => $model,
                 'gender' => $gender,
                 'providers' => $providers,
-                'specializations' => $specializations,
+                'catalogue' => $catalogue,
             ]) ?>
 
         </div>

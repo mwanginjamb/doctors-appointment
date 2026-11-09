@@ -6,13 +6,13 @@ use yii\bootstrap5\ActiveForm;
 /** @var yii\web\View $this */
 /** @var frontend\models\Consultant $model */
 /** @var yii\widgets\ActiveForm $form */
-/** @var array $specializations name => name from the Specialization model */
+/** @var array $catalogue from Specialization::catalogue() */
 
-// Keep a saved value that is not (or no longer) in the specialization list selectable
-$specializations = $specializations ?? [];
-if ($model->speciality && !isset($specializations[$model->speciality])) {
-    $specializations[$model->speciality] = $model->speciality;
-}
+use frontend\components\SpecializationPicker;
+
+[$mainItems, $mainOptions] = SpecializationPicker::mainOptions($catalogue, $model->speciality);
+[$subItems, $subOptions] = SpecializationPicker::subOptions($catalogue, $model->sub_specialities);
+SpecializationPicker::register($this, '#consultant-speciality', '#consultant-sub_specialities');
 ?>
 
 <div class="consultant-form">
@@ -30,11 +30,14 @@ if ($model->speciality && !isset($specializations[$model->speciality])) {
     <div class="row">
         <div class="col-md-6">
             <?= $form->field($model, 'speciality')
-                ->dropDownList($specializations, ['prompt' => ''])
-                ->hint('Start typing to search. If yours is not listed, type it and press Enter.') ?>
+                ->dropDownList($mainItems, ['prompt' => '', 'options' => $mainOptions])
+                ->label('Area of Specialization')
+                ->hint('Start typing to search. If yours is not listed, type it and choose "Use …".') ?>
         </div>
         <div class="col-md-6">
-            <?= $form->field($model, 'sub_speciality')->textInput(['rows' => 6]) ?>
+            <?= $form->field($model, 'sub_specialities')
+                ->dropDownList($subItems, ['multiple' => true, 'options' => $subOptions])
+                ->hint('Pick as many as apply. Suggestions follow the area you chose; you can also type your own.') ?>
         </div>
     </div>
     <div class="row">
@@ -113,14 +116,6 @@ if ($model->speciality && !isset($specializations[$model->speciality])) {
 $script = <<<JS
     $(document).ready(function() {
         $('#consultant-covers_supported').select2();
-
-        // Searchable list of specializations; tags lets a consultant enter one that is not listed yet
-        $('#consultant-speciality').select2({
-            tags: true,
-            width: '100%',
-            placeholder: 'Search specializations...',
-            allowClear: true
-        });
     });
 JS;
 $this->registerJs($script);

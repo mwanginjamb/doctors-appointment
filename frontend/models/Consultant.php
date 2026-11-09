@@ -46,6 +46,12 @@ class Consultant extends \yii\db\ActiveRecord
 {
     public $covers_supported_names;
 
+    /**
+     * @var string[]|null sub-specialty names for the form. NULL means "not loaded / not submitted",
+     * in which case saving leaves the stored sub-specialties untouched.
+     */
+    public $sub_specialities;
+
     const DEVICE_TYPE_ANDROID = 'android';
     const DEVICE_TYPE_IOS = 'ios';
     const DEVICE_TYPE_WEB = 'web';
@@ -95,6 +101,16 @@ class Consultant extends \yii\db\ActiveRecord
             [['covers_supported'], 'each', 'rule' => ['string']],
             ['covers_supported', 'required'],
 
+            // Names typed in a different case are matched to the catalogue spelling
+            ['speciality', 'filter', 'filter' => function ($value) {
+                return $value === null ? null : (self::canonicalNames([$value])[0] ?? null);
+            }],
+            ['speciality', 'required'], // again, in case the filter reduced whitespace to nothing
+            ['sub_specialities', 'filter', 'filter' => [self::class, 'canonicalNames'], 'skipOnEmpty' => false, 'when' => function ($model) {
+                return $model->sub_specialities !== null;
+            }],
+            ['sub_specialities', 'each', 'rule' => ['string', 'max' => 250]],
+
             // Device token validation
             ['device_token', 'string', 'max' => 255],
             ['device_token', 'trim'],
@@ -125,7 +141,8 @@ class Consultant extends \yii\db\ActiveRecord
     {
         $scenarios = parent::scenarios();
         // Ownership, audit and device fields are set by the system, never from form input
-        $protected = ['user_id', 'consultant_id', 'created_at', 'updated_at', 'created_by', 'updated_by', 'device_token', 'device_type', 'token_updated_at'];
+        // sub_speciality is the text copy of $sub_specialities, kept in sync on save
+        $protected = ['user_id', 'consultant_id', 'created_at', 'updated_at', 'created_by', 'updated_by', 'device_token', 'device_type', 'token_updated_at', 'sub_speciality'];
         $scenarios[self::SCENARIO_DEFAULT] = array_map(function ($attribute) use ($protected) {
             return in_array($attribute, $protected, true) ? '!' . $attribute : $attribute;
         }, $scenarios[self::SCENARIO_DEFAULT]);
@@ -144,6 +161,7 @@ class Consultant extends \yii\db\ActiveRecord
             'license_number' => Yii::t('app', 'License Number'),
             'speciality' => Yii::t('app', 'Speciality'),
             'sub_speciality' => Yii::t('app', 'Sub Speciality'),
+            'sub_specialities' => Yii::t('app', 'Sub-specialities'),
             'kmpdc_registration_number' => Yii::t('app', 'Kmpdc Registration Number'),
             'user_id' => Yii::t('app', 'User ID'),
             'facility' => Yii::t('app', 'Facility'),
@@ -226,7 +244,88 @@ class Consultant extends \yii\db\ActiveRecord
         if (is_array($this->covers_supported)) {
             $this->covers_supported = implode(',', $this->covers_supported);
         }
+        if ($this->sub_specialities !== null) {
+            $this->sub_speciality = $this->sub_specialities ? implode(', ', $this->sub_specialities) : null;
+        }
         return parent::beforeSave($insert);
+    }
+
+    public function afterSave($insert, $changedAttributes)
+    {
+        parent::afterSave($insert, $changedAttributes);
+        if ($this->sub_specialities !== null) {
+            $this->syncSubSpecialities($this->sub_specialities);
+        }
+    }
+
+    public function getSubSpecialityLinks()
+    {
+        return $this->hasMany(ConsultantSubSpeciality::class, ['consultant_id' => 'id'])->orderBy(['name' => SORT_ASC]);
+    }
+
+    /**
+     * Fills $sub_specialities from the stored links, for editing.
+     * @return $this
+     */
+    public function loadSubSpecialities()
+    {
+        $this->sub_specialities = $this->isNewRecord ? [] : $this->getSubSpecialityLinks()->select('name')->column();
+        return $this;
+    }
+
+    /**
+     * Replaces this consultant's sub-specialties with $names, linking catalogue entries by name.
+     * @param string[] $names
+     */
+    protected function syncSubSpecialities(array $names)
+    {
+        $ids = [];
+        if ($names) {
+            foreach (Specialization::find()->select(['id', 'specialization'])->where(['specialization' => $names])->asArray()->all() as $row) {
+                $ids[mb_strtolower($row['specialization'])] = (int) $row['id'];
+            }
+        }
+
+        $transaction = static::getDb()->beginTransaction();
+        try {
+            ConsultantSubSpeciality::deleteAll(['consultant_id' => $this->id]);
+            foreach ($names as $name) {
+                $link = new ConsultantSubSpeciality([
+                    'consultant_id' => $this->id,
+                    'specialization_id' => $ids[mb_strtolower($name)] ?? null,
+                    'name' => $name,
+                ]);
+                $link->save(false);
+            }
+            $transaction->commit();
+        } catch (\Throwable $e) {
+            $transaction->rollBack();
+            throw $e;
+        }
+    }
+
+    /**
+     * Trims, de-duplicates (case-insensitive) and swaps in the catalogue spelling of each name.
+     * @param mixed $value array or comma-separated string
+     * @return string[]
+     */
+    public static function canonicalNames($value)
+    {
+        $names = is_array($value) ? $value : preg_split('/\s*,\s*/', (string) $value);
+        $clean = [];
+        foreach ($names as $name) {
+            $name = trim((string) $name);
+            if ($name !== '' && !isset($clean[mb_strtolower($name)])) {
+                $clean[mb_strtolower($name)] = $name;
+            }
+        }
+        if (!$clean) {
+            return [];
+        }
+        foreach (Specialization::find()->select('specialization')->where(['specialization' => array_values($clean)])->column() as $catalogueName) {
+            $clean[mb_strtolower($catalogueName)] = $catalogueName;
+        }
+        return array_values($clean);
     }
 
     public function afterFind()
