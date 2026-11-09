@@ -102,6 +102,79 @@ class NotificationSchedules extends \yii\db\ActiveRecord
     }
 
     /**
+     * Reminder plan a patient receives, grouped by timing, for display.
+     *
+     * Uses the patient's own active schedules that reach patients (method patient/both). A patient
+     * without any yet gets the configured defaults when their first appointment is booked
+     * (see NotificationService::ensureDefaultSchedulesExist()), so those are shown instead.
+     *
+     * @param int $userId
+     * @return array{isDefault: bool, items: array<int, array{when: string, channels: string[]}>}
+     */
+    public static function describeForPatient($userId)
+    {
+        $hasOwn = self::find()->where(['user_id' => $userId])->exists();
+        if ($hasOwn) {
+            $rows = self::find()
+                ->select(['notification_type', 'minutes_before'])
+                ->where([
+                    'user_id' => $userId,
+                    'is_active' => 1,
+                    'notification_method' => [self::METHOD_PATIENT, self::METHOD_BOTH],
+                ])
+                ->asArray()
+                ->all();
+        } else {
+            $rows = array_filter(Yii::$app->params['defaultNotificationSchedules'] ?? [], function ($s) {
+                return !empty($s['is_active'])
+                    && in_array($s['notification_method'] ?? self::METHOD_BOTH, [self::METHOD_PATIENT, self::METHOD_BOTH], true);
+            });
+        }
+
+        $byMinutes = [];
+        foreach ($rows as $row) {
+            $label = self::channelLabel($row['notification_type']);
+            $byMinutes[(int) $row['minutes_before']][$label] = $label;
+        }
+        krsort($byMinutes);
+
+        $items = [];
+        foreach ($byMinutes as $minutes => $channels) {
+            $items[] = ['when' => self::humanizeMinutes($minutes) . ' before', 'channels' => array_values($channels)];
+        }
+
+        return ['isDefault' => !$hasOwn, 'items' => $items];
+    }
+
+    public static function channelLabel($type)
+    {
+        $labels = [
+            self::TYPE_EMAIL => 'Email',
+            self::TYPE_SMS => 'SMS',
+            self::TYPE_PUSH => 'Push notification',
+            self::TYPE_META => 'WhatsApp',
+        ];
+        return $labels[$type] ?? ucfirst((string) $type);
+    }
+
+    /**
+     * 1440 => "1 day", 90 => "1 hour 30 minutes", 30 => "30 minutes"
+     */
+    public static function humanizeMinutes($minutes)
+    {
+        $minutes = (int) $minutes;
+        $parts = [];
+        foreach (['day' => 1440, 'hour' => 60, 'minute' => 1] as $unit => $size) {
+            if ($minutes >= $size) {
+                $n = intdiv($minutes, $size);
+                $minutes -= $n * $size;
+                $parts[] = $n . ' ' . $unit . ($n === 1 ? '' : 's');
+            }
+        }
+        return $parts ? implode(' ', $parts) : '0 minutes';
+    }
+
+    /**
      * Get all unique notification times across all active schedules
      */
     public static function getAllActiveNotificationTimes()
