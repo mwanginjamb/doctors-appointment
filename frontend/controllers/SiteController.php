@@ -309,11 +309,16 @@ class SiteController extends Controller
     }
 
     /**
-     * Verify email address
+     * Verify email address.
+     *
+     * GET only renders a confirmation page; the account is activated on POST.
+     * Email security scanners and link prefetchers (e.g. Outlook Safe Links)
+     * issue GET requests to every link in a message, which previously consumed
+     * the token before the user ever clicked it. They do not submit forms.
      *
      * @param string $token
      * @throws BadRequestHttpException
-     * @return yii\web\Response
+     * @return yii\web\Response|string
      */
     public function actionVerifyEmail($token)
     {
@@ -322,6 +327,12 @@ class SiteController extends Controller
         } catch (InvalidArgumentException $e) {
             throw new BadRequestHttpException($e->getMessage());
         }
+
+        if (!Yii::$app->request->isPost) {
+            $this->layout = 'guest';
+            return $this->render('verifyEmail', ['token' => $token]);
+        }
+
         if (($user = $model->verifyEmail()) && Yii::$app->user->login($user)) {
             Yii::$app->session->setFlash('success', 'Your email has been confirmed!');
             return $this->goHome();

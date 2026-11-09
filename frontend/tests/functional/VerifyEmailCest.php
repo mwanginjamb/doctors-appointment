@@ -35,7 +35,7 @@ class VerifyEmailCest
     {
         $I->amOnRoute('site/verify-email', ['token' => 'wrong_token']);
         $I->canSee('Bad Request', 'h1');
-        $I->canSee('Wrong verify email token.');
+        $I->canSee('This verification link is invalid or has already been used.');
     }
 
     public function checkNoToken(FunctionalTester $I)
@@ -49,15 +49,27 @@ class VerifyEmailCest
     {
         $I->amOnRoute('site/verify-email', ['token' => 'already_used_token_1548675330']);
         $I->canSee('Bad Request', 'h1');
-        $I->canSee('Wrong verify email token.');
+        $I->canSee('This verification link is invalid or has already been used.');
+    }
+
+    public function checkGetDoesNotActivate(FunctionalTester $I)
+    {
+        // Simulates an email link scanner / prefetcher following the link.
+        $I->amOnRoute('site/verify-email', ['token' => '4ch0qbfhvWwkcuWqjN8SWRq72SOw1KYT_1548675330']);
+        $I->amOnRoute('site/verify-email', ['token' => '4ch0qbfhvWwkcuWqjN8SWRq72SOw1KYT_1548675330']);
+        $I->see('Confirm email', 'button');
+        $I->seeRecord('common\models\User', [
+            'username' => 'test.test',
+            'status' => \common\models\User::STATUS_INACTIVE,
+        ]);
     }
 
     public function checkSuccessVerification(FunctionalTester $I)
     {
         $I->amOnRoute('site/verify-email', ['token' => '4ch0qbfhvWwkcuWqjN8SWRq72SOw1KYT_1548675330']);
+        $I->click('Confirm email');
         $I->canSee('Your email has been confirmed!');
-        $I->canSee('Congratulations!', 'h1');
-        $I->see('Logout (test.test)', 'form button[type=submit]');
+        $I->see('Logout', 'form button[type=submit]');
 
         $I->seeRecord('common\models\User', [
            'username' => 'test.test',
