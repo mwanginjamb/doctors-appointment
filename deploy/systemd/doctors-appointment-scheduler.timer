@@ -1,0 +1,18 @@
+# Fires doctors-appointment-scheduler.service at the start of every minute.
+# If the previous run is still going, systemd skips that tick (no overlapping runs).
+#
+#   systemctl list-timers doctors-appointment-scheduler.timer   # last / next run
+
+[Unit]
+Description=Run the doctor appointments reminder scheduler every minute
+PartOf=doctors-appointment.target
+
+[Timer]
+OnCalendar=*-*-* *:*:00
+AccuracySec=1s
+# Missed ticks (e.g. while the server was off) need no catch-up: each run picks up everything already due
+Persistent=false
+Unit=doctors-appointment-scheduler.service
+
+[Install]
+WantedBy=doctors-appointment.target

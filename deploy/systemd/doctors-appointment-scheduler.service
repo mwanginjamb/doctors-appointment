@@ -1,0 +1,31 @@
+# One run of the reminder scheduler: moves appointment notifications that are now due
+# onto the queue (php yii notification/process). Started every minute by
+# doctors-appointment-scheduler.timer; replaces the old cron line.
+#
+# Run it by hand:   sudo systemctl start doctors-appointment-scheduler
+# Logs:             journalctl -u doctors-appointment-scheduler
+#
+# Same path / PHP / user assumptions as doctors-appointment-queue.service.
+
+[Unit]
+Description=Doctor appointments reminder scheduler (one run)
+After=network-online.target mysql.service mariadb.service
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/html/doctors-appointment
+ExecStart=/usr/bin/php /var/www/html/doctors-appointment/yii notification/process --color=0
+
+# A run should take seconds; stop a stuck one before the next minute's tick
+TimeoutStartSec=55
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=doctors-scheduler
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
