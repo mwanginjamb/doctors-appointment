@@ -283,4 +283,21 @@ class User extends ActiveRecord implements IdentityInterface
     {
         return $this->hasOne(\frontend\models\Consultant::class, ['user_id' => 'id']);
     }
+
+    /**
+     * New users get the RBAC role matching their `role` column (consultant / patient / consultancy-admin),
+     * and the assignment follows the column when it changes.
+     */
+    public function afterSave($insert, $changedAttributes)
+    {
+        parent::afterSave($insert, $changedAttributes);
+
+        if ($insert || array_key_exists('role', $changedAttributes)) {
+            \common\components\RbacHelper::syncNativeRole(
+                $this->id,
+                $this->role,
+                $insert ? null : $changedAttributes['role']
+            );
+        }
+    }
 }
