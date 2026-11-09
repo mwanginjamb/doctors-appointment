@@ -33,12 +33,9 @@ class SendReminderWhatsappJob extends BaseObject implements \yii\queue\JobInterf
                 throw new \Exception('No valid recipients found');
             }
 
-            $message = $this->getWhatsappMessage($appointment);
-
-            // Send WhatsApp to recipients
-            foreach ($recipients as $phone => $name) {
-                $personalizedMessage = str_replace('{recipient_name}', $name, $message);
-                $this->sendWhatsapp($phone, $personalizedMessage, $appointment);
+            // Patients and consultants get differently worded messages
+            foreach ($recipients as $phone => $role) {
+                $this->sendWhatsapp($phone, $this->getWhatsappMessage($appointment, $role), $appointment);
             }
 
             AppointmentNotifications::markAsSentById($this->notificationId);
@@ -50,43 +47,29 @@ class SendReminderWhatsappJob extends BaseObject implements \yii\queue\JobInterf
     }
 
     /**
-     * Get WhatsApp recipients based on recipient type
+     * Get WhatsApp recipients based on recipient type, as phone => role (patient|consultant)
      */
     private function getRecipients($appointment)
     {
+        $toPatient = $this->recipientType !== NotificationSchedules::METHOD_CONSULTANT;
+        $toConsultant = $this->recipientType !== NotificationSchedules::METHOD_PATIENT;
+
         $recipients = [];
 
-        switch ($this->recipientType) {
-            case NotificationSchedules::METHOD_PATIENT:
-                if ($appointment->patient && $appointment->patient->phone_number) {
-                    $recipients[$appointment->patient->phone_number] = $appointment->patient->full_name ?? 'Patient';
-                }
-                break;
-
-            case NotificationSchedules::METHOD_CONSULTANT:
-                if ($appointment->consultant && $appointment->consultant->consultant_phone_number) {
-                    $recipients[$appointment->consultant->consultant_phone_number] = $appointment->consultant->names ?? 'Doctor';
-                }
-                break;
-
-            case NotificationSchedules::METHOD_BOTH:
-            default:
-                if ($appointment->patient && $appointment->patient->phone_number) {
-                    $recipients[$appointment->patient->phone_number] = $appointment->patient->full_name ?? 'Patient';
-                }
-                if ($appointment->consultant && $appointment->consultant->consultant_phone_number) {
-                    $recipients[$appointment->consultant->consultant_phone_number] = $appointment->consultant->names ?? 'Doctor';
-                }
-                break;
+        if ($toPatient && $appointment->patient && $appointment->patient->phone_number) {
+            $recipients[$appointment->patient->phone_number] = 'patient';
+        }
+        if ($toConsultant && $appointment->consultant && $appointment->consultant->consultant_phone_number) {
+            $recipients[$appointment->consultant->consultant_phone_number] = 'consultant';
         }
 
         return $recipients;
     }
 
     /**
-     * Get WhatsApp message
+     * Get the WhatsApp message worded for the recipient's role
      */
-    private function getWhatsappMessage($appointment)
+    private function getWhatsappMessage($appointment, $role)
     {
         $minutes = (int) str_replace('-minute', '', $this->reminderType);
 
@@ -102,6 +85,10 @@ class SendReminderWhatsappJob extends BaseObject implements \yii\queue\JobInterf
 
         $patientName = $appointment->patient->full_name ?? 'Patient';
         $consultantName = $appointment->consultant->names ?? 'Doctor';
+
+        if ($role === 'consultant') {
+            return "Hello {$consultantName}, this is a reminder that you have an appointment with {$patientName} scheduled for {$appointmentDate} at {$appointmentTime} (in {$timeUnit}).";
+        }
 
         return "Hello {$patientName}, this is a reminder that your appointment with {$consultantName} is scheduled for {$appointmentDate} at {$appointmentTime} (in {$timeUnit}). Please arrive 15 minutes early.";
     }
