@@ -1,7 +1,7 @@
 # systemd unit for the doctor-appointments queue worker (yii2-queue, db driver)
 #
 # Sends the emails / WhatsApp / push / SMS jobs that `php yii notification/process`
-# (cron, every minute) and appointment bookings put on the queue.
+# (doctors-appointment-scheduler.timer, every minute) and appointment bookings put on the queue.
 #
 # Part of doctors-appointment.target — install and operate it through the target;
 # see deploy/systemd/README.md.

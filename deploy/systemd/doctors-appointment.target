@@ -1,5 +1,5 @@
 # Groups the doctor-appointments background services:
-#   * doctors-appointment-queue.service      — queue worker that sends emails / WhatsApp / push
+#   * doctors-appointment-queue.service      — queue worker that sends emails / SMS / WhatsApp / push
 #   * doctors-appointment-scheduler.timer    — queues due reminders every minute
 #
 #   sudo systemctl restart doctors-appointment.target   # after every deploy
