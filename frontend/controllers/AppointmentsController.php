@@ -9,6 +9,8 @@ use yii\filters\VerbFilter;
 use frontend\models\Appointments;
 use yii\filters\AccessControl;
 use frontend\models\AppointmentsSearch;
+use frontend\models\CalendarViewModel;
+use frontend\services\BookingService;
 use frontend\components\FrontDesk;
 use yii\web\ForbiddenHttpException;
 use yii\web\NotFoundHttpException;
@@ -109,7 +111,7 @@ class AppointmentsController extends Controller
         }
 
         if ($this->request->isPost) {
-            if ($model->load($this->request->post()) && $model->saveBooking()) {
+            if ($model->load($this->request->post()) && Yii::createObject(BookingService::class)->book($model)) {
                 return $this->redirect(['view', 'id' => $model->id]);
             }
         } else {
@@ -132,7 +134,8 @@ class AppointmentsController extends Controller
     {
         $model = $this->findModel($id);
 
-        if ($this->request->isPost && $model->load($this->request->post()) && $model->saveBooking()) {
+        // The form can change the time as well as the details: saved through the booking rules and lock
+        if ($this->request->isPost && $model->load($this->request->post()) && Yii::createObject(BookingService::class)->save($model)) {
             return $this->redirect(['view', 'id' => $model->id]);
         }
 
@@ -202,12 +205,16 @@ class AppointmentsController extends Controller
                 throw new ForbiddenHttpException(Yii::t('app', 'You can only open the calendars of the consultants assigned to you.'));
             }
         }
+        $calendar = new CalendarViewModel(['viewer' => Yii::$app->user->identity, 'consultant' => $consultant]);
+        if ($calendar->needsConsultant()) {
+            throw new NotFoundHttpException(Yii::t('app', 'Open a consultant from the appointments board to see their calendar.'));
+        }
         $user = Yii::$app->user->id;
         $booking_session = 'booking_session_' . $user;
         Yii::$app->session->set($booking_session, $cid); // carries relevant consultant id
         return $this->render('calendar', [
             'model' => $model,
-            'consultant' => $consultant
+            'calendar' => $calendar,
         ]);
     }
 

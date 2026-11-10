@@ -98,7 +98,8 @@ class TimeOffAndHolidaysCest
         $I->amLoggedInAs($this->client);
         $I->amOnRoute('appointments/calendar', ['cid' => $this->consultant->id]);
 
-        $I->seeInSource('if (!info.event.id)');
+        $I->seeInSource('Js/booking-calendar.js');
+        $I->assertStringContainsString('if (!info.event.id)', file_get_contents(\Yii::getAlias('@frontend/web/Js/booking-calendar.js')));
         $I->seeInSource('"reason":"Dr. Test is away');
         $I->dontSeeInSource('"blocked":[{"id"');
 

@@ -5,6 +5,7 @@ namespace frontend\controllers;
 use frontend\components\ThrottlesByIp;
 use frontend\models\Appointments;
 use frontend\models\SlotFinder;
+use frontend\services\BookingService;
 use frontend\services\SelfServiceLink;
 use Yii;
 use yii\filters\VerbFilter;
@@ -86,10 +87,8 @@ class ManageController extends Controller
             return $this->redirect(['index', 'id' => $id, 'sig' => $sig]);
         }
 
-        $appointment->date = $date;
-        $appointment->time = $time . ':00';
-        $appointment->changedByPatient = true; // the consultant is told (F1)
-        if (!$appointment->saveBooking()) {
+        // Moved by the patient: the consultant is told (F1)
+        if (!Yii::createObject(BookingService::class)->reschedule($appointment, $date, $time . ':00', true)) {
             $errors = $appointment->getFirstErrors();
             Yii::$app->session->setFlash('error', $errors ? reset($errors) : Yii::t('app', 'The appointment could not be moved.'));
             return $this->redirect(['index', 'id' => $id, 'sig' => $sig]);
