@@ -56,7 +56,8 @@ class AppointmentChangeNotifier
             // The clinic changed it: tell the patient
             $name = $patientName;
             $email = $patient->email ?? null;
-            $phone = $patient->phone_number ?? null;
+            // F11: WhatsApp only with the patient's consent
+            $phone = $patient && \common\models\Consent::remindersAllowed($patient->id) ? ($patient->phone_number ?? null) : null;
             $subject = $change === self::CANCELLED ? "Your appointment with {$doctor} is cancelled" : "Your appointment with {$doctor} has moved";
             $text = $change === self::CANCELLED
                 ? "Hello {$patientName},\n\nYour appointment with {$doctor} at {$clinic} on {$when} has been cancelled. "

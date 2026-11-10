@@ -55,6 +55,8 @@ class SignupCest
             'SignupForm[phone_number]' => '0712345678',
             'SignupForm[password]' => 'tester_password',
             'SignupForm[confirmPassword]' => 'tester_password',
+            'SignupForm[consent_data]' => '1',
+            'SignupForm[consent_reminders]' => '0',
         ]);
 
         $I->seeRecord('common\models\User', [

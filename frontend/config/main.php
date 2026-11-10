@@ -12,6 +12,8 @@ return [
     'basePath' => dirname(__DIR__),
     'bootstrap' => ['log'],
     'controllerNamespace' => 'frontend\controllers',
+    // F11: signed-in patients must agree to the current privacy notice before using the app
+    'as consentGate' => ['class' => 'frontend\components\ConsentGate'],
     'components' => [
         'request' => [
             'csrfParam' => '_csrf-frontend',

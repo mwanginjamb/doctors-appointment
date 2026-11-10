@@ -61,6 +61,8 @@ class SignupFormMailFailureTest extends \Codeception\Test\Unit
             'full_name' => 'Mail Fail',
             'phone_number' => '0712345678',
             'role' => 'client',
+            'consent_data' => '1',
+            'consent_reminders' => '1',
         ]);
 
         verify($model->signup())->false();

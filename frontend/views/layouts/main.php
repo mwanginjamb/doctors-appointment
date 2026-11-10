@@ -159,6 +159,11 @@ $username = Yii::$app->user->identity->username ?? 'User';
                                 : ['/account/index'],
                             ['class' => 'dropdown-item']
                         )) .
+                        (Yii::$app->user->identity->isPatientAccount() && \common\models\Consent::isEnabled() ? Html::tag('li', Html::a(
+                            Html::tag('i', '', ['class' => 'bi bi-shield-lock me-2']) . 'Privacy &amp; messages',
+                            ['/consent/settings'],
+                            ['class' => 'dropdown-item']
+                        )) : '') .
                         (\frontend\components\AdminAccessControl::isAdmin() ? Html::tag('li', Html::a(
                             Html::tag('i', '', ['class' => 'bi bi-gear me-2']) . 'Settings',
                             ['/site/settings'],
@@ -214,7 +219,8 @@ $username = Yii::$app->user->identity->username ?? 'User';
 
     <footer class="footer mt-auto bg-white border-top">
         <div class="container py-3 text-center text-muted">
-            <p class="mb-0">&copy; <?= date('Y') ?> HealthFirst. <?= Yii::t('app', 'All rights reserved.') ?></p>
+            <p class="mb-0">&copy; <?= date('Y') ?> HealthFirst. <?= Yii::t('app', 'All rights reserved.') ?>
+                · <?= Html::a(Yii::t('app', 'Privacy notice'), ['/site/privacy'], ['class' => 'link-secondary']) ?></p>
         </div>
     </footer>
 

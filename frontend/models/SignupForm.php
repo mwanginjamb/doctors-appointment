@@ -24,6 +24,12 @@ class SignupForm extends Model
 
     public $role;
 
+    /** @var string|null F11: agrees to the privacy notice (patients only) */
+    public $consent_data;
+
+    /** @var string|null F11: WhatsApp/SMS reminders, '1' or '0' (patients only) */
+    public $consent_reminders;
+
     public const LOG_CATEGORY = 'signup';
 
     public const FAILURE_VALIDATION = 'validation';
@@ -62,6 +68,11 @@ class SignupForm extends Model
 
             ['role', 'default', 'value' => 'client'],
             ['role', 'in', 'range' => ['client', 'consultant'], 'message' => 'Please select a valid role'],
+
+            // F11: patients agree to the privacy notice and answer the reminders question
+            ['consent_data', 'required', 'requiredValue' => '1', 'when' => [$this, 'asksConsent'], 'message' => 'Please agree to the privacy notice to sign up.'],
+            ['consent_reminders', 'required', 'when' => [$this, 'asksConsent'], 'message' => 'Choose whether you want WhatsApp/SMS reminders.'],
+            ['consent_reminders', 'in', 'range' => ['0', '1']],
 
         ];
     }
@@ -116,6 +127,11 @@ class SignupForm extends Model
                 return false;
             }
 
+            if ($this->asksConsent()) {
+                $consent = new ConsentForm(['data' => $this->consent_data, 'reminders' => (string) $this->consent_reminders]);
+                $consent->save($user->id, \common\models\Consent::METHOD_ONLINE);
+            }
+
             if (!$this->sendEmail($user)) {
                 $transaction->rollBack();
                 $this->failureReason = self::FAILURE_MAIL;
@@ -147,6 +163,26 @@ class SignupForm extends Model
 
         Yii::info(['event' => 'signup.succeeded', 'user_id' => $user->id] + $log, self::LOG_CATEGORY);
         return true;
+    }
+
+    /** Patients (not consultants) are asked for consent. */
+    public function isPatient()
+    {
+        return ($this->role ?: 'client') === 'client';
+    }
+
+    /** Patients are asked for consent while consent recording is on (CONSENT_ENABLED). */
+    public function asksConsent()
+    {
+        return $this->isPatient() && \common\models\Consent::isEnabled();
+    }
+
+    public function attributeLabels()
+    {
+        return [
+            'consent_data' => (new ConsentForm())->getAttributeLabel('data'),
+            'consent_reminders' => (new ConsentForm())->getAttributeLabel('reminders'),
+        ];
     }
 
     /**

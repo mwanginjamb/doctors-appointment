@@ -13,6 +13,14 @@ $this->params['breadcrumbs'][] = $this->title;
     <div class="row justify-content-center">
         <div class="col-lg-10">
             <h1 class="h3 fw-bold mb-3">Dashboard</h1>
+            <?php if (!\common\models\Consent::isEnabled()): ?>
+                <!-- F11 switched off with CONSENT_ENABLED=false -->
+                <div class="alert alert-warning" id="consent-off-warning">
+                    <strong>Consent recording is off</strong> (<code>CONSENT_ENABLED=false</code>). Patients are not asked
+                    to agree to the privacy notice and staff are not asked to confirm verbal consent. Clinics in Kenya need
+                    it on to comply with the Data Protection Act, 2019. Answers recorded earlier are kept.
+                </div>
+            <?php endif; ?>
             <?= $this->render('_clinic_stats', ['stats' => $stats, 'scopeLabel' => 'the whole clinic']) ?>
 
             <!-- content -->
@@ -34,6 +42,7 @@ $this->params['breadcrumbs'][] = $this->title;
                                 <?= Html::a('Insurance Providers', Url::toRoute(['provider/index']), ['class' => 'link-secondary text-decoration-none fw-semibold']) ?>
                                 <?= Html::a('Public Holidays', Url::toRoute(['holiday/index']), ['class' => 'link-secondary text-decoration-none fw-semibold']) ?>
                                 <?= Html::a('Audit Log', Url::toRoute(['audit/index']), ['class' => 'link-secondary text-decoration-none fw-semibold']) ?>
+                                <?= Html::a('Closure Requests', Url::toRoute(['closure-request/index']), ['class' => 'link-secondary text-decoration-none fw-semibold']) ?>
                             </div>
                         </div>
                     </div>

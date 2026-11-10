@@ -3,6 +3,7 @@
 namespace frontend\models;
 
 use common\jobs\SendWhatsappTextJob;
+use common\models\Consent;
 use common\models\User;
 use frontend\services\BookingService;
 use Yii;
@@ -22,6 +23,12 @@ class RemoteWalkInForm extends Model
     public $phone;
     public $email;
     public $reason;
+
+    /** @var string|null F11: agrees to the privacy notice */
+    public $consent_data;
+
+    /** @var string|null F11: WhatsApp/SMS reminders, '1' or '0' */
+    public $consent_reminders;
 
     /** @var BookingLink */
     private $link;
@@ -53,6 +60,10 @@ class RemoteWalkInForm extends Model
             [['email'], 'email'],
             [['email'], 'string', 'max' => 255],
             [['reason'], 'string', 'max' => 500],
+            // F11: the person booking agrees to the privacy notice and answers the reminders question
+            [['consent_data'], 'required', 'requiredValue' => '1', 'when' => function () { return Consent::isEnabled(); }, 'message' => Yii::t('app', 'Please agree to the privacy notice to book.')],
+            [['consent_reminders'], 'required', 'when' => function () { return Consent::isEnabled(); }, 'message' => Yii::t('app', 'Choose whether you want WhatsApp/SMS reminders.')],
+            [['consent_reminders'], 'in', 'range' => ['0', '1']],
         ];
     }
 
@@ -63,6 +74,8 @@ class RemoteWalkInForm extends Model
             'phone' => Yii::t('app', 'Phone'),
             'email' => Yii::t('app', 'Email (optional, for the confirmation)'),
             'reason' => Yii::t('app', 'Reason for the visit (optional)'),
+            'consent_data' => (new ConsentForm())->getAttributeLabel('data'),
+            'consent_reminders' => (new ConsentForm())->getAttributeLabel('reminders'),
         ];
     }
 
@@ -116,6 +129,10 @@ class RemoteWalkInForm extends Model
             if ($patient === null) {
                 $transaction->rollBack();
                 return false;
+            }
+            if (Consent::isEnabled()) {
+                (new ConsentForm(['data' => '1', 'reminders' => (string) $this->consent_reminders]))
+                    ->save($patient->id, Consent::METHOD_BOOKING_LINK);
             }
 
             $appointment = new Appointments();
@@ -179,7 +196,10 @@ class RemoteWalkInForm extends Model
             'phone' => $this->phone,
             'email' => $this->email,
             'confirm_new' => true,
+            'consent' => $this->consent_data,
+            'reminders' => $this->consent_reminders,
         ]);
+        $register->consentMethod = Consent::METHOD_BOOKING_LINK;
         $user = $register->register();
         if ($user === null) {
             foreach ($register->getFirstErrors() as $attribute => $message) {
@@ -197,7 +217,8 @@ class RemoteWalkInForm extends Model
     private function confirmByWhatsapp(User $patient)
     {
         $phone = $this->link->recipient_phone ?: $this->phone;
-        if (!$phone) {
+        // F11: only with consent to WhatsApp/SMS
+        if (!$phone || !Consent::remindersAllowed($patient->id)) {
             return;
         }
         $doctor = $this->link->consultant->names;

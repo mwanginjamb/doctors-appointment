@@ -66,12 +66,39 @@ $this->title = $calendar->title;
                         </div>
                         <div id="patient-lookup-results" class="list-group mt-2"></div>
                         <div id="patient-selected" class="form-text fw-semibold"></div>
+                        <?php if (\common\models\Consent::isEnabled()): ?>
+                        <!-- F11: shown when the chosen patient has no consent on record -->
+                        <div id="patient-consent" class="border border-warning rounded p-2 mt-2 d-none">
+                            <div class="small fw-semibold mb-1"><?= Yii::t('app', 'Consent not recorded: ask the patient before booking.') ?></div>
+                            <div class="form-check mb-1">
+                                <input class="form-check-input" type="checkbox" id="patient-consent-given">
+                                <label class="form-check-label small" for="patient-consent-given"><?= Yii::t('app', 'The patient agreed to the privacy notice and to the clinic using their information, including health details') ?></label>
+                            </div>
+                            <div class="small">
+                                <?= Yii::t('app', 'WhatsApp/SMS reminders:') ?>
+                                <label class="ms-2"><input type="radio" name="patient-consent-reminders" value="1"> <?= Yii::t('app', 'Yes') ?></label>
+                                <label class="ms-2"><input type="radio" name="patient-consent-reminders" value="0"> <?= Yii::t('app', 'No') ?></label>
+                            </div>
+                        </div>
+                        <?php endif; ?>
                         <button type="button" class="btn btn-link btn-sm px-0" id="walk-in-toggle"><?= Yii::t('app', 'Not registered? Register a walk-in patient') ?></button>
                         <div id="walk-in-form" class="border rounded p-2 mt-1 d-none">
                             <input type="text" id="walk-in-name" class="form-control form-control-sm mb-2" maxlength="150" placeholder="<?= Yii::t('app', 'Full name') ?>">
                             <input type="tel" id="walk-in-phone" class="form-control form-control-sm mb-2" maxlength="20" placeholder="<?= Yii::t('app', 'Phone, e.g. 0712 345 678') ?>">
                             <input type="email" id="walk-in-email" class="form-control form-control-sm mb-2" maxlength="255" placeholder="<?= Yii::t('app', 'Email (optional)') ?>">
                             <div class="form-text mb-2"><?= Yii::t('app', 'Without an email the patient gets reminders by SMS/WhatsApp only, and cannot sign in until an email is added.') ?></div>
+                            <?php if (\common\models\Consent::isEnabled()): ?>
+                            <!-- F11: read the privacy notice summary to the patient and record their answers -->
+                            <div class="form-check mb-1">
+                                <input class="form-check-input" type="checkbox" id="walk-in-consent">
+                                <label class="form-check-label small" for="walk-in-consent"><?= Yii::t('app', 'The patient agreed to the privacy notice and to the clinic using their information, including health details') ?></label>
+                            </div>
+                            <div class="small mb-2">
+                                <?= Yii::t('app', 'WhatsApp/SMS reminders:') ?>
+                                <label class="ms-2"><input type="radio" name="walk-in-reminders" value="1"> <?= Yii::t('app', 'Yes') ?></label>
+                                <label class="ms-2"><input type="radio" name="walk-in-reminders" value="0"> <?= Yii::t('app', 'No') ?></label>
+                            </div>
+                            <?php endif; ?>
                             <button type="button" class="btn btn-sm btn-outline-primary" id="walk-in-register"><?= Yii::t('app', 'Register and choose') ?></button>
                         </div>
                     </div>

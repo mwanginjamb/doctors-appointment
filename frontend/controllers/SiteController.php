@@ -228,6 +228,14 @@ class SiteController extends Controller
     }
 
     /**
+     * The privacy notice (F11). Public: patients read it before signing up or booking through a link.
+     */
+    public function actionPrivacy()
+    {
+        return $this->render('privacy', ['version' => \common\models\Consent::noticeVersion()]);
+    }
+
+    /**
      * Signs user up.
      *
      * @return mixed

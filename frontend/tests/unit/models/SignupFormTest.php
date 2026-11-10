@@ -31,6 +31,8 @@ class SignupFormTest extends \Codeception\Test\Unit
             'password' => 'some_password',
             'full_name' => 'Some Name',
             'phone_number' => '0712345678',
+            'consent_data' => '1',
+            'consent_reminders' => '1',
         ]);
 
         $user = $model->signup();

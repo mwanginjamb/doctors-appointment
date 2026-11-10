@@ -29,6 +29,14 @@ $this->params['breadcrumbs'][] = $this->title;
             <?= $form->field($model, 'confirmPassword')->passwordInput() ?>
             <?= $form->field($model, 'role')->textInput(['readonly' => true]) ?>
 
+            <?php if ($model->asksConsent()): ?>
+                <!-- F11: consent, recorded with the account -->
+                <p class="mb-2"><?= Html::a('Read the privacy notice', ['/site/privacy'], ['target' => '_blank']) ?> (opens in a new tab)</p>
+                <?= $form->field($model, 'consent_data')->checkbox() ?>
+                <?= $form->field($model, 'consent_reminders')->radioList(\frontend\models\ConsentForm::reminderChoices())
+                    ->hint('Emails are sent either way; you can change this later.') ?>
+            <?php endif; ?>
+
             <div class="form-group">
                 <?= Html::submitButton('Signup', ['class' => 'btn btn-primary', 'name' => 'signup-button']) ?>
             </div>

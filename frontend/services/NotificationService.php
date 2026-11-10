@@ -184,6 +184,16 @@ class NotificationService
                 $notification->save(false);
                 continue;
             }
+            // F11: WhatsApp/SMS to a patient only with their consent (patients from before consent was
+            // recorded keep them until they answer)
+            if (in_array($notification->notification_type, [NotificationSchedules::TYPE_META, NotificationSchedules::TYPE_SMS], true)
+                && self::getRecipientType($notification) === NotificationSchedules::METHOD_PATIENT
+                && !\common\models\Consent::remindersAllowed($appointment->patient_id)) {
+                $notification->status = AppointmentNotifications::STATUS_CANCELLED;
+                $notification->error_message = 'Not sent: the patient has not agreed to WhatsApp/SMS reminders.';
+                $notification->save(false);
+                continue;
+            }
             // Queue the appropriate job based on notification type; the job records delivery
             try {
                 self::queueNotificationJob($notification);

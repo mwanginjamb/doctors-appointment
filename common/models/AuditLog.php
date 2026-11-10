@@ -43,6 +43,8 @@ class AuditLog extends ActiveRecord
     const ACTION_ROLES_CHANGED = 'roles_changed';
     const ACTION_RBAC_CHANGED = 'rbac_changed';
     const ACTION_PURGED = 'purged';
+    const ACTION_CONSENT_GRANTED = 'consent_granted';
+    const ACTION_CONSENT_WITHDRAWN = 'consent_withdrawn';
 
     /** Written in place of a value that must not be kept (password hashes, health details). */
     const MASKED = '[changed]';
@@ -98,6 +100,8 @@ class AuditLog extends ActiveRecord
             self::ACTION_ROLES_CHANGED => 'Roles changed',
             self::ACTION_RBAC_CHANGED => 'Roles/permissions edited',
             self::ACTION_PURGED => 'Old entries purged',
+            self::ACTION_CONSENT_GRANTED => 'Consent given',
+            self::ACTION_CONSENT_WITHDRAWN => 'Consent withdrawn',
         ];
     }
 
@@ -112,6 +116,7 @@ class AuditLog extends ActiveRecord
             'booking_link' => 'Booking link',
             'rbac' => 'Role / permission',
             'audit_log' => 'Audit log',
+            'closure_request' => 'Account closure request',
         ];
     }
 
