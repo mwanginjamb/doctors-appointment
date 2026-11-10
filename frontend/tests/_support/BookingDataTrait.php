@@ -23,12 +23,12 @@ trait BookingDataTrait
     protected $consultant;
     /** @var User */
     protected $admin;
-    /** @var string a future weekday-independent booking date */
+    /** @var string a Monday 1-7 days ahead: open in the default week, inside the booking window */
     protected $date;
 
     protected function createParticipants()
     {
-        $this->date = date('Y-m-d', strtotime('+7 days'));
+        $this->date = date('Y-m-d', strtotime('next monday'));
 
         $this->client = $this->createUser('client', 'client');
         $this->otherClient = $this->createUser('other.client', 'client');

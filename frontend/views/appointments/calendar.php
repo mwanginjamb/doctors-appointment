@@ -25,6 +25,38 @@ if ($role == 'client') {
 $this->title = $title;
 $isConsultant = json_encode($role === 'consultant');
 
+// What the calendar may offer. The server re-checks every booking (Appointments::validateSlot).
+$params = Yii::$app->params;
+$availability = null;
+if (!empty($consultant)) {
+    $ranges = [];
+    foreach ($consultant->getWeek() as $isoDay => $dayRanges) {
+        foreach ($dayRanges as [$start, $end]) {
+            // FullCalendar counts days from Sunday = 0; ISO Sunday is 7
+            $ranges[] = ['daysOfWeek' => [$isoDay % 7], 'startTime' => substr($start, 0, 5), 'endTime' => substr($end, 0, 5)];
+        }
+    }
+    $openDays = array_unique(array_map(function ($r) {
+        return $r['daysOfWeek'][0];
+    }, $ranges));
+    $availability = [
+        'businessHours' => $ranges,
+        // Hide closed days, but never all seven (FullCalendar cannot render that)
+        'hiddenDays' => $openDays ? array_values(array_diff(range(0, 6), $openDays)) : [],
+        'slotMinTime' => $ranges ? min(array_column($ranges, 'startTime')) : '08:00',
+        'slotMaxTime' => $ranges ? max(array_column($ranges, 'endTime')) : '17:00',
+        'duration' => (new \frontend\models\Appointments(['consultant_id' => $consultant->user_id]))->getDurationMinutes(),
+        'doctor' => $consultant->names,
+        'summary' => $consultant->getHoursSummary(),
+    ];
+}
+$bookingRules = json_encode([
+    'availability' => $availability,
+    // Consultants book walk-ins into their own calendar without notice
+    'noticeMinutes' => $role === 'consultant' ? 0 : (int) ($params['booking.minNoticeMinutes'] ?? 0),
+    'maxDaysAhead' => (int) ($params['booking.maxDaysAhead'] ?? 90),
+]);
+
 ?>
 <div class="container mt-4">
     <div class="calendar-header text-center py-3">
@@ -90,18 +122,50 @@ $isConsultant = json_encode($role === 'consultant');
 $script = <<<JS
 
     var calendarEl = document.getElementById('calendar');
-    var lastClickTime = 0;
-    var doubleClickThreshold = 300; // milliseconds
-    
+    var rules = {$bookingRules};
+    var avail = rules.availability;
+
+    function pad(n) { return (n < 10 ? '0' : '') + n; }
+    // Local date/time; toISOString() would give the UTC date, a day early just after midnight
+    function localDate(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+    function localTime(d) { return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':00'; }
+    function minutesOf(hhmm) { var p = hhmm.split(':'); return p[0] * 60 + +p[1]; }
+
+    // Why a session starting at date cannot be booked, or null when it can
+    function slotProblem(date) {
+        if (date.getTime() < Date.now() + rules.noticeMinutes * 60000) {
+            return rules.noticeMinutes
+                ? 'Please book at least ' + (rules.noticeMinutes === 60 ? '1 hour' : rules.noticeMinutes + ' minutes') + ' ahead.'
+                : 'Please choose a time in the future.';
+        }
+        if (!avail) {
+            return null;
+        }
+        var start = date.getHours() * 60 + date.getMinutes();
+        var fits = avail.businessHours.some(function (r) {
+            return r.daysOfWeek[0] === date.getDay()
+                && start >= minutesOf(r.startTime)
+                && start + avail.duration <= minutesOf(r.endTime);
+        });
+        return fits ? null : 'That time is outside ' + (avail.doctor || "the doctor") + "'s hours ("
+            + (avail.summary || 'none set') + '). A ' + avail.duration + '-minute session must fit within them.';
+    }
+
     var calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'timeGridWeek', // Day view - Default View
         validRange: function() {
             let nowDate = new Date(); // Get current date
             return {
                 start: new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate() - 5),
-                end: new Date(nowDate.getFullYear(), nowDate.getMonth() + 3, nowDate.getDate())
+                end: new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate() + rules.maxDaysAhead + 1)
             };
         },
+        // Grey out closed hours and breaks; drag-and-drop stays inside them
+        businessHours: avail ? avail.businessHours : false,
+        eventConstraint: avail ? 'businessHours' : undefined,
+        hiddenDays: avail ? avail.hiddenDays : [],
+        slotMinTime: avail ? avail.slotMinTime : '00:00',
+        slotMaxTime: avail ? avail.slotMaxTime : '24:00',
         headerToolbar: {
             left: 'prev,next today',
             center: 'title',
@@ -113,20 +177,21 @@ $script = <<<JS
         eventDurationEditable: true,
         height: 600,
         dateClick: function(info) {
-            var now = new Date().getTime();
-            // On double-click, open modal with the selected date/time.
-           // if (now - lastClickTime < doubleClickThreshold) {
-                // Get Date and time
-                 var selectedDate = info.date.toISOString().split('T')[0];
-                 var selectedTime = info.date.toTimeString().split(' ')[0];
-                // Show modal                
-                $('#appointments-date').val(selectedDate); // YYYY-MM-DD
-                $('#appointments-time').val(selectedTime); // HH:MM:SS
-                $('#appointmentModal')
+            // A day in month view has no time yet: open that day to pick one
+            if (info.allDay) {
+                calendar.changeView('timeGridDay', info.date);
+                return;
+            }
+            var problem = slotProblem(info.date);
+            if (problem) {
+                alert(problem);
+                return;
+            }
+            $('#appointments-date').val(localDate(info.date)); // YYYY-MM-DD
+            $('#appointments-time').val(localTime(info.date)); // HH:MM:SS
+            $('#appointmentModal')
                 .on('hidden.bs.modal', () => location.reload())
                 .modal('show');
-           // }
-          //  lastClickTime = now;
         },
 
          // Handle event drag-and-drop
@@ -159,8 +224,8 @@ $script = <<<JS
    function updateEvent(event) {
         var eventData = {
             id: event.id,
-            date: event.start.toISOString().split('T')[0], // YYYY-MM-DD
-            time: event.start.toTimeString().split(' ')[0] // HH:MM:SS
+            date: localDate(event.start), // YYYY-MM-DD
+            time: localTime(event.start) // HH:MM:SS
         };
 
         $.ajax({

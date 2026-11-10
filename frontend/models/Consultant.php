@@ -27,15 +27,15 @@ use yii\helpers\ArrayHelper;
  * @property int|null $updated_by
  * @property int|null $consultant_id
  * @property int|null $appointment_session_duration
- * @property string|null $working_start_time
- * @property string|null $working_end_time
+ * @property string|null $working_start_time unused; see ConsultantWorkingHours
+ * @property string|null $working_end_time unused; see ConsultantWorkingHours
  * @property string|null $practice_type
  * @property string|null $consultant_email
  * @property string|null $consultant_phone_number
  * @property string|null $gender
  * @property string|null $consultant_phone_number
  * @property string|null $practice_name
- * @property string|null $working_hours
+ * @property string|null $working_hours unused free text; see ConsultantWorkingHours
  * @property string|null $covers_supported
  * @property string|null $device_token
  * @property string|null $device_type
@@ -256,6 +256,62 @@ class Consultant extends \yii\db\ActiveRecord
         if ($this->sub_specialities !== null) {
             $this->syncSubSpecialities($this->sub_specialities);
         }
+        // A new consultant starts with the default week; they change it on the Availability page
+        if ($insert) {
+            ConsultantWorkingHours::replaceWeek($this->id, ConsultantWorkingHours::DEFAULT_WEEK);
+        }
+    }
+
+    public function getWorkingHours()
+    {
+        return $this->hasMany(ConsultantWorkingHours::class, ['consultant_id' => 'id'])
+            ->orderBy(['day_of_week' => SORT_ASC, 'start_time' => SORT_ASC]);
+    }
+
+    /**
+     * The weekly schedule as ISO day (1 = Monday) => list of [start, end] (HH:MM:SS).
+     * Closed days are missing.
+     */
+    public function getWeek()
+    {
+        $week = [];
+        foreach ($this->workingHours as $range) {
+            $week[(int) $range->day_of_week][] = [$range->start_time, $range->end_time];
+        }
+
+        return $week;
+    }
+
+    /**
+     * Opening ranges on a given date (Y-m-d), as [start, end] pairs.
+     */
+    public function getRangesFor($date)
+    {
+        return $this->getWeek()[(int) date('N', strtotime($date))] ?? [];
+    }
+
+    /**
+     * Whether a session of $minutes starting at $date $time fits entirely inside one opening range.
+     */
+    public function isOpenFor($date, $time, $minutes)
+    {
+        $start = strtotime($date . ' ' . $time);
+        $end = $start + $minutes * 60;
+        foreach ($this->getRangesFor($date) as [$open, $close]) {
+            if ($start >= strtotime($date . ' ' . $open) && $end <= strtotime($date . ' ' . $close)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * e.g. "Mon–Sat 08:00–13:00, 14:00–17:00", or null when every day is closed.
+     */
+    public function getHoursSummary()
+    {
+        return ConsultantWorkingHours::summarize($this->getWeek());
     }
 
     public function getSubSpecialityLinks()

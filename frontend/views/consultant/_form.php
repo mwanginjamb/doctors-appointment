@@ -75,7 +75,13 @@ SpecializationPicker::register($this, '#consultant-speciality', '#consultant-sub
     </div>
     <div class="row">
         <div class="col-md-6">
-            <?= $form->field($model, 'working_hours')->textInput(['maxlength' => true, 'placeholder' => \frontend\models\Consultant::DEFAULT_WORKING_HOURS]) ?>
+            <!-- Working hours are set on the Availability page -->
+            <p class="form-label mb-1"><?= Yii::t('app', 'Working Hours') ?></p>
+            <p class="form-text mt-0">
+                <?= $model->isNewRecord
+                    ? Yii::t('app', 'You start with Mon–Sat 08:00–13:00, 14:00–17:00. Change it on the Availability page after saving.')
+                    : \yii\helpers\Html::encode($model->getHoursSummary() ?? Yii::t('app', 'Not taking bookings')) . ' · ' . \yii\helpers\Html::a(Yii::t('app', 'Change'), ['availability/index']) ?>
+            </p>
         </div>
         <div class="col-md-6">
             <?= $form->field($model, 'covers_supported')->dropDownList($providers, ['prompt' => 'Select ...', 'multiple' => true]) ?>

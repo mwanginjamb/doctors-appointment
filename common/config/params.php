@@ -6,6 +6,9 @@ return [
     'senderName' => 'Appointment Mailer',
     'user.passwordResetTokenExpire' => 3600,
     'user.passwordMinLength' => 8,
+    // Booking window, enforced by Appointments::validateSlot(). Consultants booking for a patient skip the notice.
+    'booking.minNoticeMinutes' => 60,
+    'booking.maxDaysAhead' => 90,
     // Default notification schedules to create for new users
     'defaultNotificationSchedules' => [
         [
