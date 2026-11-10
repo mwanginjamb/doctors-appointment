@@ -23,6 +23,8 @@ $this->params['breadcrumbs'][] = $this->title;
                             <div
                                 class="d-flex gap-4 flex-column flex-md-row align-items-center justify-content-evenly my-5">
                                 <?= Html::a('Appointments Board', Url::toRoute(['board/index']), ['class' => 'link-secondary text-decoration-none fw-semibold']) ?>
+                                <?= Html::a('Consultants', Url::toRoute(['manage-consultants/index']), ['class' => 'link-secondary text-decoration-none fw-semibold']) ?>
+                                <?= Html::a('Front Desk Staff', Url::toRoute(['front-desk/index']), ['class' => 'link-secondary text-decoration-none fw-semibold']) ?>
                                 <?= Html::a('RBAC', Url::toRoute(['rbac/index']), ['class' => 'link-secondary text-decoration-none fw-semibold']) ?>
                                 <?= Html::a('System Users', Url::toRoute(['site/users']), ['class' => 'link-secondary text-decoration-none fw-semibold']) ?>
                                 <?= Html::a('Gender', Url::toRoute(['gender/index']), ['class' => 'link-secondary text-decoration-none fw-semibold']) ?>

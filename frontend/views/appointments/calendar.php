@@ -28,6 +28,10 @@ $booksForPatients = in_array($role, ['consultant', \frontend\components\FrontDes
 
 // Admins open a consultant's calendar from the appointments board; it is read-only for them
 $readOnly = !in_array($role, ['client', 'consultant', \frontend\components\FrontDesk::ROLE], true);
+
+// A deactivated consultant's calendar stays viewable as history but takes no bookings
+$deactivated = !empty($consultant) && !$consultant->isTakingBookings();
+$readOnly = $readOnly || $deactivated;
 if ($readOnly) {
     $consultant = $consultant ?? null;
     if ($consultant === null && \frontend\components\AdminAccessControl::isAdmin()) {
@@ -108,9 +112,13 @@ $bookingRules = json_encode([
     <div class="calendar-header text-center py-3">
         <h1 class="fw-bold display-5 text-primary"><?= Html::encode(ucwords($title)) ?> </h1>
         <p class="lead text-muted">
-            <?= $readOnly
-                ? 'View only. Click an appointment to open it; cancel it from there or from the appointments board.'
-                : 'Please click on any available time slot to enter your appointment.' ?>
+            <?php if ($deactivated): ?>
+                <?= Html::encode($consultant->names) ?> is no longer taking appointments.
+            <?php elseif ($readOnly): ?>
+                View only. Click an appointment to open it; cancel it from there or from the appointments board.
+            <?php else: ?>
+                Please click on any available time slot to enter your appointment.
+            <?php endif; ?>
         </p>
     </div>
 </div>

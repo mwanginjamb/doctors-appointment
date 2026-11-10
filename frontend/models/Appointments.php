@@ -190,6 +190,12 @@ class Appointments extends \yii\db\ActiveRecord
         $consultant = $this->consultant;
         $doctor = $consultant->names ?? Yii::t('app', 'The doctor');
 
+        // A deactivated consultant keeps their history but takes no new bookings or reschedules
+        if ($consultant && !$consultant->isTakingBookings()) {
+            $this->addError($attribute, Yii::t('app', '{doctor} is no longer taking appointments.', ['doctor' => $doctor]));
+            return;
+        }
+
         // The clinic is closed on public holidays, for every consultant
         if ($holiday = PublicHoliday::findOnDate($this->date)) {
             $this->addError($attribute, Yii::t('app', '{date} is a public holiday ({name}); the clinic is closed.', [

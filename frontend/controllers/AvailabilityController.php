@@ -2,6 +2,7 @@
 
 namespace frontend\controllers;
 
+use frontend\components\AdminAccessControl;
 use frontend\models\Consultant;
 use frontend\models\ConsultantTimeOff;
 use frontend\models\TimeOffForm;
@@ -27,7 +28,7 @@ class AvailabilityController extends Controller
                         'allow' => true,
                         'roles' => ['@'],
                         'matchCallback' => function () {
-                            return Yii::$app->user->identity->role === 'consultant';
+                            return Yii::$app->user->identity->role === 'consultant' || AdminAccessControl::isAdmin();
                         },
                     ],
                 ],
@@ -51,7 +52,23 @@ class AvailabilityController extends Controller
         if (!parent::beforeAction($action)) {
             return false;
         }
+
+        // Admins manage any consultant's availability with ?cid=<consultant.id>
+        $cid = $this->request->get('cid');
+        if ($cid !== null && AdminAccessControl::isAdmin()) {
+            $this->consultant = Consultant::findOne($cid);
+            if ($this->consultant === null) {
+                throw new NotFoundHttpException(Yii::t('app', 'Consultant not found.'));
+            }
+            $this->managedCid = (int) $this->consultant->id;
+            return true;
+        }
+
         $this->consultant = Consultant::findOne(['user_id' => Yii::$app->user->id]);
+        if ($this->consultant === null && AdminAccessControl::isAdmin()) {
+            $this->redirect(['manage-consultants/index']);
+            return false;
+        }
         if ($this->consultant === null) {
             Yii::$app->session->setFlash('info', Yii::t('app', 'Create your consultant profile first, then set your working hours.'));
             $this->redirect(['consultant/create']);
@@ -61,8 +78,19 @@ class AvailabilityController extends Controller
         return true;
     }
 
-    /** @var Consultant the logged-in consultant's profile */
+    /** @var Consultant the logged-in consultant's profile, or the one an admin is managing */
     private $consultant;
+
+    /** @var int|null consultant.id when an admin manages someone else's availability */
+    private $managedCid;
+
+    /**
+     * A route on this page, keeping ?cid= while an admin manages another consultant.
+     */
+    private function route($action, array $params = [])
+    {
+        return array_merge([$action], $params, $this->managedCid ? ['cid' => $this->managedCid] : []);
+    }
 
     public function actionIndex()
     {
@@ -79,7 +107,7 @@ class AvailabilityController extends Controller
                 if ($outside > 0) {
                     $session->addFlash('warning', Yii::t('app', '{n} upcoming appointment(s) now fall outside your hours. They are kept; reschedule or cancel them from My Appointments if needed.', ['n' => $outside]));
                 }
-                return $this->redirect(['index']);
+                return $this->redirect($this->route('index'));
             }
         }
 
@@ -100,7 +128,7 @@ class AvailabilityController extends Controller
             if ($clashes > 0) {
                 $session->addFlash('warning', Yii::t('app', '{n} appointment(s) are already booked during this time. They are listed under Time off; reschedule or cancel each one.', ['n' => $clashes]));
             }
-            return $this->redirect(['index', '#' => 'time-off']);
+            return $this->redirect($this->route('index', ['#' => 'time-off']));
         }
 
         return $this->renderIndex(new WeeklyScheduleForm($this->consultant), $timeOff);
@@ -116,7 +144,7 @@ class AvailabilityController extends Controller
         $timeOff->delete();
         Yii::$app->session->setFlash('success', Yii::t('app', 'Time off removed: {period}.', ['period' => $label]));
 
-        return $this->redirect(['index', '#' => 'time-off']);
+        return $this->redirect($this->route('index', ['#' => 'time-off']));
     }
 
     private function renderIndex(WeeklyScheduleForm $form, TimeOffForm $timeOffForm)
@@ -131,6 +159,7 @@ class AvailabilityController extends Controller
         return $this->render('index', [
             'form' => $form,
             'consultant' => $this->consultant,
+            'cid' => $this->managedCid,
             'timeOffForm' => $timeOffForm,
             'timeOff' => $timeOff,
         ]);

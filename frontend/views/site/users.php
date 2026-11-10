@@ -15,7 +15,7 @@ $this->params['breadcrumbs'][] = $this->title;
 $statuses = [
     Identity::STATUS_ACTIVE => ['Active', 'text-bg-success'],
     Identity::STATUS_INACTIVE => ['Unverified', 'text-bg-warning'],
-    Identity::STATUS_DELETED => ['Deleted', 'text-bg-secondary'],
+    Identity::STATUS_DELETED => ['Deactivated', 'text-bg-secondary'],
 ];
 $canAssign = Yii::$app->user->can(\common\components\RbacHelper::PERM_MANAGE_RBAC);
 ?>
@@ -76,10 +76,25 @@ $canAssign = Yii::$app->user->can(\common\components\RbacHelper::PERM_MANAGE_RBA
                     [
                         'label' => '',
                         'format' => 'raw',
-                        'visible' => $canAssign,
-                        'contentOptions' => ['class' => 'text-end'],
-                        'value' => function ($user) {
-                            return Html::a('Roles', ['/rbac/assign-role', 'userId' => $user->id], ['class' => 'btn btn-sm btn-outline-primary']);
+                        'contentOptions' => ['class' => 'text-end text-nowrap'],
+                        'value' => function ($user) use ($canAssign) {
+                            $buttons = $canAssign
+                                ? Html::a('Roles', ['/rbac/assign-role', 'userId' => $user->id], ['class' => 'btn btn-sm btn-outline-primary'])
+                                : '';
+                            if ((int) $user->id === (int) Yii::$app->user->id) {
+                                return $buttons;
+                            }
+                            $name = $user->full_name ?: $user->username; // Html::a() escapes attribute values
+                            if ((int) $user->status === Identity::STATUS_DELETED) {
+                                return $buttons . ' ' . Html::a('Reactivate', ['/site/reactivate-user', 'id' => $user->id], [
+                                    'class' => 'btn btn-sm btn-outline-success',
+                                    'data' => ['method' => 'post', 'confirm' => "Reactivate $name? They can sign in again" . ($user->role === 'consultant' ? ' and be booked.' : '.')],
+                                ]);
+                            }
+                            return $buttons . ' ' . Html::a('Deactivate', ['/site/deactivate-user', 'id' => $user->id], [
+                                'class' => 'btn btn-sm btn-outline-danger',
+                                'data' => ['method' => 'post', 'confirm' => "Deactivate $name? They will be signed out and cannot sign in" . ($user->role === 'consultant' ? ', and patients can no longer book them. Their booked appointments are kept.' : '.')],
+                            ]);
                         },
                     ],
                 ],
