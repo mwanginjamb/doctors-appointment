@@ -41,7 +41,8 @@ class ResendVerificationEmailCest
 
     public function checkPage(FunctionalTester $I)
     {
-        $I->see('Resend verification email', 'h1');
+        // The view's own <h1> is commented out; the layout shows the page title
+        $I->seeInTitle('Resend verification email');
         $I->see('Please fill out your email. A verification email will be sent there.');
     }
 
