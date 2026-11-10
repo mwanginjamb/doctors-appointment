@@ -59,7 +59,7 @@ class AccountController extends Controller
 
     private function renderPage(User $user, AccountForm $account, ChangePasswordForm $password)
     {
-        $consultants = $user->role === FrontDesk::ROLE
+        $consultants = $user->isFrontDeskAccount()
             ? Consultant::find()->where(['id' => FrontDeskAssignment::consultantIdsFor($user->id)])->orderBy(['names' => SORT_ASC])->all()
             : [];
 

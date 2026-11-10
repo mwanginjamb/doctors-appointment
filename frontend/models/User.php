@@ -25,7 +25,7 @@ use Yii;
  */
 class User extends \yii\db\ActiveRecord
 {
-
+    use \common\models\AccountTypeTrait;
 
     /**
      * {@inheritdoc}

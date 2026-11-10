@@ -33,7 +33,7 @@ $roleLabels = [
                 <dd class="col-sm-8"><?= Html::encode($user->email ?: '—') ?></dd>
                 <dt class="col-sm-4">Account type</dt>
                 <dd class="col-sm-8"><?= Html::encode($roleLabels[$user->role] ?? $user->role) ?></dd>
-                <?php if ($user->role === FrontDesk::ROLE): ?>
+                <?php if ($user->isFrontDeskAccount()): ?>
                     <dt class="col-sm-4">Books for</dt>
                     <dd class="col-sm-8">
                         <?php if ($consultants): ?>

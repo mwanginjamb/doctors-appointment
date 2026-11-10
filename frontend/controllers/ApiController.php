@@ -3,7 +3,7 @@
 namespace frontend\controllers;
 
 use common\models\User;
-use frontend\components\AdminAccessControl;
+use common\components\RbacHelper;
 use frontend\components\FrontDesk;
 use frontend\models\RegisterPatientForm;
 use frontend\models\Appointments;
@@ -57,7 +57,8 @@ class ApiController extends Controller
         $appointments = [];
         $otherAppointments = [];
 
-        if ($user->role === 'client') {
+        // Which calendar this is depends on the account type; who may see a staff calendar, on permissions
+        if ($user->isPatientAccount()) {
             $appointments = Appointments::find()->where(['patient_id' => $user->id])->with('consultant')->all();
 
             // The consultant being booked (stored by appointments/calendar), else the patient's latest consultant
@@ -78,7 +79,7 @@ class ApiController extends Controller
                     ->with('consultant')
                     ->all();
             }
-        } elseif ($user->role === 'consultant') {
+        } elseif ($user->isConsultantAccount()) {
             $appointments = Appointments::find()
                 ->where(['or', ['consultant_id' => $user->id], ['created_by' => $user->id]])
                 ->with(['consultant', 'patient'])
@@ -86,7 +87,7 @@ class ApiController extends Controller
         } elseif (FrontDesk::isStaff()) {
             // The consultant whose calendar staff opened from the appointments board
             $consultant = Consultant::findOne(Yii::$app->session->get('booking_session_' . $user->id));
-            if ($consultant && (AdminAccessControl::isAdmin() || FrontDesk::canBookFor($consultant->user_id))) {
+            if ($consultant && (Yii::$app->user->can(RbacHelper::PERM_VIEW_ALL_APPOINTMENTS) || FrontDesk::canBookFor($consultant->user_id))) {
                 $appointments = Appointments::find()
                     ->where(['consultant_id' => $consultant->user_id])
                     ->with(['consultant', 'patient'])
@@ -137,11 +138,14 @@ class ApiController extends Controller
         $model->symptoms_brief = $data['brief'] ?? null;
         // The logged-in user's own side of the booking always comes from the session
         $patient = $data['patient'] ?? null;
-        if ($user->role === 'consultant') {
+        if ($user->isConsultantAccount()) {
             // A consultant books into their own calendar, for a patient found with api/find-patient
+            if (!FrontDesk::canBookFor($user->id)) {
+                return ['status' => 'error', 'message' => 'You are not allowed to book in this calendar.'];
+            }
             $model->consultant_id = $user->id;
             $model->patient_id = ctype_digit((string) $patient) ? (int) $patient : null;
-        } elseif (FrontDesk::isFrontDesk()) {
+        } elseif ($user->isFrontDeskAccount()) {
             // Front desk books for a patient into the calendar of a consultant assigned to them
             if (!FrontDesk::canBookFor($data['consultant'] ?? 0)) {
                 return ['status' => 'error', 'message' => 'You can only book for the consultants assigned to you.'];
@@ -255,7 +259,7 @@ class ApiController extends Controller
      */
     private function requireBookingStaff()
     {
-        if (Yii::$app->user->identity->role !== 'consultant' && !FrontDesk::isFrontDesk()) {
+        if (!Yii::$app->user->can(RbacHelper::PERM_LOOK_UP_PATIENTS)) {
             throw new ForbiddenHttpException('Only consultants and front desk can look up or register patients.');
         }
     }

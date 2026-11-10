@@ -46,7 +46,7 @@ AppAsset::register($this);
             [
                 'label' => 'Consultant Practice',
                 'url' => ['/consultant/index'],
-                'visible' => !Yii::$app->user->isGuest && Yii::$app->user->identity->role == 'consultant',
+                'visible' => Yii::$app->user->can(\common\components\RbacHelper::PERM_MANAGE_CONSULTANT_PROFILE),
             ],
             //['label' => 'Contact', 'url' => ['/site/contact']],
         ];

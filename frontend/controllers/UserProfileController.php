@@ -150,8 +150,8 @@ class UserProfileController extends Controller
             return true;
         }
 
-        return Yii::$app->user->identity->role === 'consultant'
-            && Appointments::find()->where(['patient_id' => $model->user_id, 'consultant_id' => $userId])->exists();
+        // A consultant who has seen or will see this patient (only consultants are an appointment's consultant)
+        return Appointments::find()->where(['patient_id' => $model->user_id, 'consultant_id' => $userId])->exists();
     }
 
     /**

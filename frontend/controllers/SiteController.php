@@ -433,7 +433,7 @@ class SiteController extends Controller
         $name = $user->full_name ?: $user->username;
         Yii::$app->session->setFlash('success', "$name is deactivated and can no longer sign in.");
 
-        $column = $user->role === 'consultant' ? 'consultant_id' : 'patient_id';
+        $column = $user->isConsultantAccount() ? 'consultant_id' : 'patient_id';
         $upcoming = \frontend\models\Appointments::find()
             ->where([$column => $user->id])
             ->andWhere(['>=', 'date', date('Y-m-d')])
@@ -441,7 +441,7 @@ class SiteController extends Controller
             ->count();
         if ($upcoming > 0) {
             // Flashes are shown escaped in the admin layout, so this stays plain text
-            $where = $user->role === 'consultant'
+            $where = $user->isConsultantAccount()
                 ? " Filter the Appointments Board by $name to find them."
                 : '';
             Yii::$app->session->addFlash('warning', "$upcoming upcoming appointment(s) are kept; cancel or move them as needed.$where");

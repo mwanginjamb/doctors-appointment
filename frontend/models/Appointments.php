@@ -298,7 +298,8 @@ class Appointments extends \yii\db\ActiveRecord
             return false;
         }
 
-        return (int) $user->id === (int) $this->consultant_id || FrontDesk::canBookFor($this->consultant_id);
+        // RBAC: the consultant themselves (isTheConsultant) or their front desk (assignedConsultant)
+        return FrontDesk::canBookFor($this->consultant_id);
     }
 
     /**

@@ -58,8 +58,8 @@ class AppointmentsController extends Controller
     {
         $searchModel = new AppointmentsSearch();
         $dataProvider = $searchModel->search($this->request->queryParams);
-        $role = Yii::$app->user->identity->role;
-        if ($role === 'consultant') {
+        // My Appointments: a consultant's own calendar, or a patient's own bookings (account type)
+        if (Yii::$app->user->identity->isConsultantAccount()) {
             $dataProvider->query->andWhere(['consultant_id' => Yii::$app->user->id]);
         } else {
             $dataProvider->query->andWhere(['patient_id' => Yii::$app->user->id]);
@@ -102,7 +102,7 @@ class AppointmentsController extends Controller
     {
         $model = new Appointments();
         $user = Yii::$app->user->identity;
-        if ($user->role === 'consultant') {
+        if ($user->isConsultantAccount()) {
             $model->consultant_id = $user->id;
         } else {
             $model->patient_id = $user->id;
@@ -220,7 +220,7 @@ class AppointmentsController extends Controller
     public function actionConfirm($id)
     {
         $model = $this->findModel($id);
-        if (!$model->isConsultant(Yii::$app->user->id)) {
+        if (!Yii::$app->user->can(\common\components\RbacHelper::PERM_CONFIRM_APPOINTMENT, ['appointment' => $model])) {
             throw new ForbiddenHttpException(Yii::t('app', 'Only the consultant can confirm this appointment.'));
         }
         if ($model->status === Appointments::STATUS_SCHEDULED) {

@@ -2,7 +2,7 @@
 
 namespace frontend\controllers;
 
-use frontend\components\AdminAccessControl;
+use common\components\RbacHelper;
 use frontend\models\Consultant;
 use frontend\models\ConsultantTimeOff;
 use frontend\models\TimeOffForm;
@@ -27,8 +27,9 @@ class AvailabilityController extends Controller
                     [
                         'allow' => true,
                         'roles' => ['@'],
+                        // Consultants for their own calendar (rule isTheConsultant), admins for anyone's
                         'matchCallback' => function () {
-                            return Yii::$app->user->identity->role === 'consultant' || AdminAccessControl::isAdmin();
+                            return Yii::$app->user->can(RbacHelper::PERM_MANAGE_AVAILABILITY, ['consultantUserId' => Yii::$app->user->id]);
                         },
                     ],
                 ],
@@ -54,19 +55,24 @@ class AvailabilityController extends Controller
             return false;
         }
 
-        // Admins manage any consultant's availability with ?cid=<consultant.id>
+        // Someone else's availability with ?cid=<consultant.id>, for whoever may manage it (admins)
         $cid = $this->request->get('cid');
-        if ($cid !== null && AdminAccessControl::isAdmin()) {
-            $this->consultant = Consultant::findOne($cid);
-            if ($this->consultant === null) {
+        if ($cid !== null) {
+            $other = Consultant::findOne($cid);
+            if ($other === null && Yii::$app->user->can(RbacHelper::PERM_MANAGE_CONSULTANTS)) {
                 throw new NotFoundHttpException(Yii::t('app', 'Consultant not found.'));
             }
-            $this->managedCid = (int) $this->consultant->id;
-            return true;
+            if ($other !== null && (int) $other->user_id !== (int) Yii::$app->user->id
+                && Yii::$app->user->can(RbacHelper::PERM_MANAGE_AVAILABILITY, ['consultant' => $other])) {
+                $this->consultant = $other;
+                $this->managedCid = (int) $other->id;
+                return true;
+            }
+            // Otherwise ?cid= is ignored: a consultant always gets their own page
         }
 
         $this->consultant = Consultant::findOne(['user_id' => Yii::$app->user->id]);
-        if ($this->consultant === null && AdminAccessControl::isAdmin()) {
+        if ($this->consultant === null && Yii::$app->user->can(RbacHelper::PERM_MANAGE_CONSULTANTS)) {
             $this->redirect(['manage-consultants/index']);
             return false;
         }

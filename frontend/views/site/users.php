@@ -88,12 +88,12 @@ $canAssign = Yii::$app->user->can(\common\components\RbacHelper::PERM_MANAGE_RBA
                             if ((int) $user->status === Identity::STATUS_DELETED) {
                                 return $buttons . ' ' . Html::a('Reactivate', ['/site/reactivate-user', 'id' => $user->id], [
                                     'class' => 'btn btn-sm btn-outline-success',
-                                    'data' => ['method' => 'post', 'confirm' => "Reactivate $name? They can sign in again" . ($user->role === 'consultant' ? ' and be booked.' : '.')],
+                                    'data' => ['method' => 'post', 'confirm' => "Reactivate $name? They can sign in again" . ($user->isConsultantAccount() ? ' and be booked.' : '.')],
                                 ]);
                             }
                             return $buttons . ' ' . Html::a('Deactivate', ['/site/deactivate-user', 'id' => $user->id], [
                                 'class' => 'btn btn-sm btn-outline-danger',
-                                'data' => ['method' => 'post', 'confirm' => "Deactivate $name? They will be signed out and cannot sign in" . ($user->role === 'consultant' ? ', and patients can no longer book them. Their booked appointments are kept.' : '.')],
+                                'data' => ['method' => 'post', 'confirm' => "Deactivate $name? They will be signed out and cannot sign in" . ($user->isConsultantAccount() ? ', and patients can no longer book them. Their booked appointments are kept.' : '.')],
                             ]);
                         },
                     ],
