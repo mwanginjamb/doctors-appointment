@@ -33,6 +33,7 @@ use yii\behaviors\TimestampBehavior;
  * @property int|null $reminder_5hrs_sent
  * @property int|null $reminder_2hrs_sent
  * @property string|null $status (scheduled, completed, cancelled, no_show, confirmed)
+ * @property string|null $cancellation_note why it was cancelled; set only by cancel()
  * @property int|null $patient_age
  */
 class Appointments extends \yii\db\ActiveRecord
@@ -60,6 +61,7 @@ class Appointments extends \yii\db\ActiveRecord
         'updated_by',
         'reminder_5hrs_sent',
         'reminder_2hrs_sent',
+        'cancellation_note',
     ];
 
     public $patient_age;
@@ -91,6 +93,7 @@ class Appointments extends \yii\db\ActiveRecord
             [['patient_id', 'speciality_id', 'service_id', 'provider_id', 'recurring_appointment', 'walk_in_appointment', 'created_at', 'updated_at', 'created_by', 'updated_by', 'consultant_id', 'reminder_5hrs_sent', 'reminder_2hrs_sent'], 'integer'],
             [['location', 'symptoms_brief'], 'string'],
             [['status'], 'string', 'max' => 20],
+            [['cancellation_note'], 'string', 'max' => 500],
             [['status'], 'in', 'range' => array_keys(self::getStatusList())],
             [['status'], 'default', 'value' => self::STATUS_SCHEDULED],
             [['date', 'time', 'patient_id', 'consultant_id'], 'required'],
@@ -148,6 +151,12 @@ class Appointments extends \yii\db\ActiveRecord
     public function validateSlot($attribute, $params)
     {
         if ($this->hasErrors('date') || $this->hasErrors('consultant_id')) {
+            return;
+        }
+
+        // A cancelled appointment stays as history; moving it would bring it back with reminders
+        if (!$this->isNewRecord && $this->getOldAttribute('status') === self::STATUS_CANCELLED) {
+            $this->addError($attribute, Yii::t('app', 'This appointment was cancelled and cannot be rescheduled. Book a new one instead.'));
             return;
         }
 
@@ -234,6 +243,48 @@ class Appointments extends \yii\db\ActiveRecord
     }
 
     /**
+     * Only upcoming appointments that are still on (scheduled or confirmed) can be cancelled.
+     * Past ones are left for completed / no-show.
+     */
+    public function canBeCancelled()
+    {
+        $active = $this->status === null || in_array($this->status, [self::STATUS_SCHEDULED, self::STATUS_CONFIRMED], true);
+
+        return $active && $this->isFuture();
+    }
+
+    /**
+     * Cancels the appointment and keeps the record. afterSave() cancels its pending reminders,
+     * BlameableBehavior records who cancelled it (updated_by), and the slot becomes free.
+     *
+     * @param string|null $note optional reason, up to 500 characters
+     * @return bool false when the appointment cannot be cancelled or the note is invalid (see getErrors())
+     */
+    public function cancel($note = null)
+    {
+        if (!$this->canBeCancelled()) {
+            return false;
+        }
+
+        $note = trim((string) $note);
+        $this->cancellation_note = $note === '' ? null : $note;
+        if (!$this->validate(['cancellation_note'])) {
+            return false;
+        }
+
+        $this->status = self::STATUS_CANCELLED;
+        return $this->save(false);
+    }
+
+    /**
+     * Who last changed the appointment; for a cancelled one, who cancelled it.
+     */
+    public function getUpdater()
+    {
+        return $this->hasOne(User::class, ['id' => 'updated_by']);
+    }
+
+    /**
      * Whether the given user is the patient, consultant or creator of this appointment.
      */
     public function isParticipant($userId)
@@ -273,6 +324,7 @@ class Appointments extends \yii\db\ActiveRecord
             'updated_by' => Yii::t('app', 'Updated By'),
             'consultant_id' => Yii::t('app', 'Consultant ID'),
             'status' => Yii::t('app', 'Status'),
+            'cancellation_note' => Yii::t('app', 'Cancellation note'),
         ];
     }
 

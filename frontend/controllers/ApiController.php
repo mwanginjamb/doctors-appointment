@@ -85,11 +85,21 @@ class ApiController extends Controller
         foreach ($appointments as $app) {
             $patientName = $app->patient->full_name ?? 'Patient';
             $consultantName = $app->consultant->names ?? 'Dr.';
-            $events[] = [
+            $event = [
                 'id' => $app->id,
                 'title' => $patientName . ' Appointment with ' . $consultantName,
                 'description' => ' Subject: ' . mb_substr((string) $app->symptoms_brief, 0, 200),
-            ] + $this->eventTimes($app);
+            ];
+            // Cancelled appointments stay visible as history: greyed out and not draggable
+            if ($app->status === Appointments::STATUS_CANCELLED) {
+                $event['title'] = 'Cancelled: ' . $event['title'];
+                if ($app->cancellation_note) {
+                    $event['description'] = ' Cancelled: ' . mb_substr($app->cancellation_note, 0, 200);
+                }
+                $event['color'] = '#adb5bd';
+                $event['editable'] = false;
+            }
+            $events[] = $event + $this->eventTimes($app);
         }
 
         foreach ($otherAppointments as $app) {

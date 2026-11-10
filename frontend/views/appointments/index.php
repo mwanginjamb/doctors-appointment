@@ -84,7 +84,7 @@ $this->params['breadcrumbs'][] = $this->title;
                 /*'urlCreator' => function ($action, Appointments $model, $key, $index, $column) {
                         return Url::toRoute([$action, 'id' => $model->id]);
                     }*/
-                'template' => '{view} {update} {delete} {confirm}',
+                'template' => '{view} {update} {cancel} {confirm}',
                 'buttons' => [
                     'confirm' => function ($url, $model, $key) {
                             return Html::a('<span class="btn btn-sm btn-outline-success">Confirm</span>', ['appointments/confirm', 'id' => $model->id], [
@@ -100,12 +100,15 @@ $this->params['breadcrumbs'][] = $this->title;
                                 'title' => Yii::t('app', 'Update Appointment'),
                             ]);
                         },
-                    'delete' => function ($url, $model, $key) {
-                            return Html::a('<span class="btn btn-sm btn-outline-danger my-2">Cancel</span>', ['appointments/delete', 'id' => $model->id], [
-                                'title' => Yii::t('app', 'Delete Appointment'),
+                    // Opens _cancel_modal, which asks for an optional reason
+                    'cancel' => function ($url, $model, $key) {
+                            return Html::button(Yii::t('app', 'Cancel'), [
+                                'class' => 'btn btn-sm btn-outline-danger my-2',
+                                'title' => Yii::t('app', 'Cancel Appointment'),
                                 'data' => [
-                                    'confirm' => 'Are you sure you want to cancel this appointment?',
-                                    'method' => 'post',
+                                    'bs-toggle' => 'modal',
+                                    'bs-target' => '#cancelAppointmentModal',
+                                    'cancel-url' => Url::to(['appointments/cancel', 'id' => $model->id]),
                                 ],
                             ]);
                         },
@@ -118,10 +121,11 @@ $this->params['breadcrumbs'][] = $this->title;
                 ],
                 'visibleButtons' => [
                     'update' => function ($model) {
-                            return (Yii::$app->user->identity->role === 'super' && $model->status === Appointments::STATUS_SCHEDULED) ? true : false;
+                            return Yii::$app->user->identity->role === 'consultant' && $model->status === Appointments::STATUS_SCHEDULED;
                         },
-                    'delete' => function ($model) {
-                            return (Yii::$app->user->identity->role === 'patient' && $model->status === Appointments::STATUS_SCHEDULED) ? true : false;
+                    // The list only holds the user's own appointments, so either participant may cancel
+                    'cancel' => function ($model) {
+                            return $model->canBeCancelled();
                         },
                     'confirm' => function ($model) {
                             return (Yii::$app->user->identity->role === 'consultant' && $model->status === Appointments::STATUS_SCHEDULED) ? true : false;
@@ -136,5 +140,7 @@ $this->params['breadcrumbs'][] = $this->title;
     ]); ?>
 
     <?php Pjax::end(); ?>
+
+    <?= $this->render('_cancel_modal') ?>
 
 </div>

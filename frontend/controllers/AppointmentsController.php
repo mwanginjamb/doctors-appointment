@@ -30,7 +30,7 @@ class AppointmentsController extends Controller
                 'verbs' => [
                     'class' => VerbFilter::class,
                     'actions' => [
-                        'delete' => ['POST'],
+                        'cancel' => ['POST'],
                         'confirm' => ['POST'],
                     ],
                 ],
@@ -140,15 +140,23 @@ class AppointmentsController extends Controller
     }
 
     /**
-     * Deletes an existing Appointments model.
-     * If deletion is successful, the browser will be redirected to the 'index' page.
+     * Cancels an appointment the current user takes part in. The record is kept, marked
+     * cancelled, for history and audits; appointments are never deleted from the app.
      * @param int $id ID
      * @return \yii\web\Response
      * @throws NotFoundHttpException if the model cannot be found
      */
-    public function actionDelete($id)
+    public function actionCancel($id)
     {
-        $this->findModel($id)->delete();
+        $model = $this->findModel($id);
+
+        if ($model->cancel($this->request->post('note'))) {
+            Yii::$app->session->setFlash('success', Yii::t('app', 'Appointment cancelled. It stays in the appointment history.'));
+        } elseif ($model->hasErrors()) {
+            Yii::$app->session->setFlash('error', $model->getFirstError('cancellation_note'));
+        } else {
+            Yii::$app->session->setFlash('error', Yii::t('app', 'Only upcoming scheduled or confirmed appointments can be cancelled.'));
+        }
 
         return $this->redirect(['index']);
     }
