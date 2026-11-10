@@ -1,0 +1,17 @@
+# Fires doctors-appointment-health.service every 5 minutes.
+#
+#   systemctl list-timers doctors-appointment-health.timer   # last / next run
+
+[Unit]
+Description=Run the doctor appointments health checks every 5 minutes
+PartOf=doctors-appointment.target
+
+[Timer]
+OnCalendar=*:0/5
+AccuracySec=10s
+# Missed runs need no catch-up: the next run checks the current state
+Persistent=false
+Unit=doctors-appointment-health.service
+
+[Install]
+WantedBy=doctors-appointment.target

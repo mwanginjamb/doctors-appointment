@@ -39,6 +39,19 @@ return [
     // F11 can be switched off with CONSENT_ENABLED=false, e.g. outside Kenya or for demos. Required
     // for Kenyan deployments under the Data Protection Act; admins see a warning while it is off.
     'consent.enabled' => filter_var(env('CONSENT_ENABLED', 'true'), FILTER_VALIDATE_BOOLEAN),
+    // T2 monitoring. Errors go to a Sentry-compatible server (self-hosted GlitchTip, see
+    // deploy/glitchtip); empty DSN = off. Personal data is scrubbed before anything is sent.
+    'monitoring.dsn' => env('SENTRY_DSN', ''),
+    'monitoring.environment' => env('SENTRY_ENVIRONMENT', defined('YII_ENV') ? YII_ENV : 'prod'),
+    'monitoring.release' => env('APP_RELEASE', ''),
+    // Health checks (php yii health/check, every 5 minutes): alerts by email to ALERT_EMAILS
+    // (comma-separated); each run pings HEALTHCHECK_PING_URL (e.g. healthchecks.io) when set.
+    'health.alertEmails' => env('ALERT_EMAILS', ''),
+    'health.pingUrl' => env('HEALTHCHECK_PING_URL', ''),
+    'health.queueMaxWaitMinutes' => (int) env('HEALTH_QUEUE_MAX_WAIT_MINUTES', 5),
+    'health.reminderMaxLateMinutes' => (int) env('HEALTH_REMINDER_MAX_LATE_MINUTES', 10),
+    'health.failuresPerHour' => (int) env('HEALTH_FAILURES_PER_HOUR', 3),
+    'health.realertHours' => (int) env('HEALTH_REALERT_HOURS', 6),
     'privacy.controllerName' => env('PRIVACY_CONTROLLER_NAME', ''),
     'privacy.controllerAddress' => env('PRIVACY_CONTROLLER_ADDRESS', ''),
     'privacy.contactEmail' => env('PRIVACY_CONTACT_EMAIL', ''),

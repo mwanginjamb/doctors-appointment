@@ -1,0 +1,51 @@
+# Self-hosted GlitchTip (Sentry-compatible error tracking) for the doctor-appointments app (T2).
+# Errors stay on your own server. See README.md in this folder.
+#
+#   cp glitchtip.env.example glitchtip.env    # then fill it in
+#   docker compose up -d
+#
+# GlitchTip listens on 127.0.0.1:8000 only; nginx (glitchtip.nginx.conf) serves it over HTTPS.
+
+x-glitchtip: &glitchtip
+  # Pin a version you have tested (see https://glitchtip.com/documentation/install); update deliberately
+  image: ${GLITCHTIP_IMAGE:-glitchtip/glitchtip:latest}
+  env_file: glitchtip.env
+  depends_on:
+    - postgres
+    - redis
+  restart: unless-stopped
+  volumes:
+    - uploads:/code/uploads
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: glitchtip
+      POSTGRES_USER: glitchtip
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env next to this file}
+    restart: unless-stopped
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+
+  web:
+    <<: *glitchtip
+    ports:
+      - "127.0.0.1:8000:8000"
+
+  worker:
+    <<: *glitchtip
+    command: ./bin/run-celery-with-beat.sh
+
+  migrate:
+    <<: *glitchtip
+    command: ./bin/run-migrate.sh
+    restart: "no"
+
+volumes:
+  pg-data:
+  uploads:

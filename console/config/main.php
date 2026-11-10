@@ -33,6 +33,8 @@ return [
     'components' => [
         'log' => [
             'targets' => [
+                // T2: errors to the self-hosted error tracker (GlitchTip); off without SENTRY_DSN
+                ['class' => \common\log\ErrorTrackerTarget::class],
                 [
                     'class' => \yii\log\FileTarget::class,
                     'levels' => ['error', 'warning'],

@@ -70,7 +70,8 @@ Doing **Next up** below should bring the app to about 9.5 functionally and 8.5 t
 | T8 One permission system | RBAC is the only source of permissions: checks name an action (`bookForConsultant`, `recordOutcome`…), ownership is a rule (`isTheConsultant`, `assignedConsultant`), and `user.role` is only the account type. A test fails if a role-string permission check comes back. Run `php yii rbac/init` on deploy. | `dd5b303` |
 | T6 Logic out of views | `BookingService` holds the slot rules as separately tested methods, with `book()` / `reschedule()` as the ways in; `CalendarViewModel` prepares the calendar page; the calendar script is `Js/booking-calendar.js` and the booking-link and self-service pages share `Js/slot-picker.js`. | `6f538ee` |
 | T7 Audit log | An append-only `audit_log`: who (staff, patient, booking link, self-service link, system), what, which record, old → new values and IP. Records appointments, accounts, consultants, time off, holidays and booking links automatically; weekly hours, front-desk assignments, sign-ins, failed sign-ins and role changes explicitly. Passwords, keys and symptom details are never stored. Admins read it under **Audit Log**; staff see an appointment's **History**. Kept 7 years (`AUDIT_RETENTION_YEARS`), purged daily by `doctors-appointment-audit-purge.timer`. | `7820f94` |
-| F11 Consent (Kenya Data Protection Act) | A versioned privacy notice at `/site/privacy`, with the controller's details from `.env`. Consent to data processing (required) and to WhatsApp/SMS reminders (opt-in) is asked at email sign-up, on booking links, and by front desk for walk-ins (verbal consent, with who recorded it). Google/Microsoft/LinkedIn sign-ups, existing patients and everyone after a notice change are held on a consent page until they answer. Existing patients keep WhatsApp reminders until they answer (legacy carry-over). Answers are kept in an append-only `consent` table and in the audit log. Patients switch reminders and withdraw consent under **Privacy & messages**; withdrawing cancels upcoming appointments and opens an account-closure request for admins (**Closure Requests**). Staff see "consent not recorded" in patient lookup, and consent status on **System Users**. It can be switched off with `CONSENT_ENABLED=false` (outside Kenya, demos): nobody is asked, answers already given are kept, explicit "no" answers to WhatsApp/SMS still count, and admins see a warning on the dashboard. | `feature/consent` |
+| F11 Consent (Kenya Data Protection Act) | A versioned privacy notice at `/site/privacy`, with the controller's details from `.env`. Consent to data processing (required) and to WhatsApp/SMS reminders (opt-in) is asked at email sign-up, on booking links, and by front desk for walk-ins (verbal consent, with who recorded it). Google/Microsoft/LinkedIn sign-ups, existing patients and everyone after a notice change are held on a consent page until they answer. Existing patients keep WhatsApp reminders until they answer (legacy carry-over). Answers are kept in an append-only `consent` table and in the audit log. Patients switch reminders and withdraw consent under **Privacy & messages**; withdrawing cancels upcoming appointments and opens an account-closure request for admins (**Closure Requests**). Staff see "consent not recorded" in patient lookup, and consent status on **System Users**. It can be switched off with `CONSENT_ENABLED=false` (outside Kenya, demos): nobody is asked, answers already given are kept, explicit "no" answers to WhatsApp/SMS still count, and admins see a warning on the dashboard. | `32f3cd5` |
+| T2 Monitoring and alerts | Errors from the website, console and queue worker go to a self-hosted GlitchTip (Sentry-compatible), with personal data scrubbed (no request data, frame arguments, contacts or link tokens). `php yii health/check` runs every 5 minutes (`doctors-appointment-health.timer`) and emails `ALERT_EMAILS` when the queue worker stalls, the reminder scheduler stops, messages keep failing, WhatsApp logs out or the database is down: once, a reminder every 6 hours, and when resolved. Each run pings a heartbeat URL (healthchecks.io), and `/health` answers `ok` for an uptime monitor. Admins see **System health** on the dashboard. | `feature/monitoring` |
 
 ---
 
@@ -132,6 +133,46 @@ earlier are covered by the general steps: `php yii migrate`, `php yii rbac/init`
    - sign in as a patient created before this release: you are taken to the consent page first;
    - as an admin, **System Users** shows a Consent column and **Closure Requests** is in the sidebar.
 
+### T2 Monitoring and alerts
+
+1. **Code dependency:** `composer install --no-dev` installs `sentry/sentry` (the SDK GlitchTip speaks).
+2. **Database:** `php yii migrate` creates `health_state` (`m261122_090000_create_health_state_table`).
+3. **`.env`:**
+   ```
+   ALERT_EMAILS=admin@example.co.ke,owner@example.co.ke   # who gets health alerts
+   HEALTHCHECK_PING_URL=https://hc-ping.com/<uuid>         # step 6; empty = no heartbeat
+   SENTRY_DSN=                                              # step 5; empty = error tracking off
+   SENTRY_ENVIRONMENT=production
+   APP_RELEASE=                                             # optional: the deployed git commit
+   # Optional thresholds (defaults shown)
+   HEALTH_QUEUE_MAX_WAIT_MINUTES=5
+   HEALTH_REMINDER_MAX_LATE_MINUTES=10
+   HEALTH_FAILURES_PER_HOUR=3
+   HEALTH_REALERT_HOURS=6
+   ```
+   Alerts are emailed directly through the app's SMTP settings, so check those work.
+4. **Health timer:**
+   ```bash
+   sudo cp deploy/systemd/doctors-appointment-health.* deploy/systemd/doctors-appointment.target /etc/systemd/system/
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now doctors-appointment-health.timer
+   systemctl list-timers doctors-appointment-health.timer   # every 5 minutes
+   ```
+5. **Error tracking (GlitchTip):** follow `deploy/glitchtip/README.md` (Docker, about 1 GB RAM, ideally on
+   a small separate VM). Put the project's DSN in `SENTRY_DSN`. Until then, error tracking stays off and
+   everything else works.
+6. **External monitors** (free tiers are enough):
+   - healthchecks.io: create a check with period 5 minutes and grace 10 minutes, and put its ping URL in
+     `HEALTHCHECK_PING_URL`. It emails you when the pings stop, i.e. when the server is down;
+   - UptimeRobot (or similar): an HTTPS monitor on `https://<your domain>/health` expecting the keyword `ok`.
+7. **Restart** PHP-FPM and the background services so they load the new settings:
+   `sudo systemctl restart php*-fpm doctors-appointment.target`.
+8. **Check:**
+   - `sudo -u www-data php yii health/status`: every line is OK;
+   - the admin dashboard shows **System health** with recent times;
+   - `sudo -u www-data php yii health/test-error` appears in GlitchTip (once SENTRY_DSN is set);
+   - `curl https://<your domain>/health` prints `ok`.
+
 ---
 
 ## Deferred
@@ -139,6 +180,7 @@ earlier are covered by the general steps: `php yii migrate`, `php yii rbac/init`
 | Item | Why | Needs before starting |
 |---|---|---|
 | M-Pesa deposits (STK push) | A project of its own. | Safaricom Daraja credentials (shortcode, passkey, API keys), a public callback URL, and a refund / expiry policy. |
+| F10 Kiswahili translation | Deferred on 11 Nov 2026. Approach agreed in outline: Yii message files, a per-user language, patient-facing pages and all outgoing messages first, then staff screens. | A translator or reviewer for medical and legal wording, the default language for walk-ins, and the PHP `intl` extension on the server. |
 
 ---
 
@@ -174,7 +216,7 @@ Priority: **P1** do next, **P2** soon, **P3** when there is time. Impact is the 
 | F7 | Recurring appointments (the `recurring_appointment` field exists but nothing uses it). | P3 | |
 | F8 | Rooms and multiple locations. | P3 | |
 | F9 | Calendar sync (iCal / Google) for consultants. | P3 | |
-| F10 | Swahili translation. | P3 | |
+| F10 | Swahili translation (see **Deferred**). | P3 | |
 
 #### Compliance (Kenya Data Protection Act)
 
@@ -190,7 +232,7 @@ Priority: **P1** do next, **P2** soon, **P3** when there is time. Impact is the 
 | # | Item | Priority | Impact |
 |---|---|---|---|
 | ~~T1~~ | ~~Turn off debug mode in production.~~ **Done on the server (10 Nov 2026).** | — | +0.5 |
-| T2 | Error tracking (e.g. Sentry) and an alert when the queue worker stops or notifications keep failing. | P1 | +0.5 (with T4) |
+| ~~T2~~ | ~~Error tracking (e.g. Sentry) and an alert when the queue worker stops or notifications keep failing.~~ **Done.** | — | +0.5 (with T4) |
 | T3 | Move WhatsApp from WAHA (unofficial WhatsApp Web bridge) to the official WhatsApp Business API before relying on it at scale. | P2 | |
 
 #### Quality and delivery
@@ -216,7 +258,6 @@ Priority: **P1** do next, **P2** soon, **P3** when there is time. Impact is the 
 
 ## Next up
 
-1. **T2** Error tracking and queue alerts (approach to be agreed).
-2. **T4** CI on every push.
-3. **F12** Patients export and delete their data (completes the closure requests from F11).
-4. **F5** M-Pesa deposits, once Daraja credentials are available.
+1. **T4** CI on every push.
+2. **F12** Patients export and delete their data (completes the closure requests from F11).
+3. **F5** M-Pesa deposits, once Daraja credentials are available.

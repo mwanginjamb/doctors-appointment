@@ -56,6 +56,51 @@ class WahaClient
     }
 
     /**
+     * The WhatsApp session's status as WAHA reports it: WORKING when messages can be sent; STARTING,
+     * SCAN_QR_CODE (logged out: scan the QR code again), STOPPED or FAILED otherwise.
+     *
+     * @return string|null null when WAHA is not configured
+     * @throws \RuntimeException when WAHA cannot be reached
+     */
+    public static function sessionStatus()
+    {
+        $config = Yii::$app->params['whatsapp'] ?? [];
+        if (empty($config['endpoint'])) {
+            return null;
+        }
+        $session = ($config['session'] ?? '') ?: 'default';
+        $headers = ['Accept: application/json'];
+        if (!empty($config['api_key'])) {
+            $headers[] = 'X-Api-Key: ' . $config['api_key'];
+        }
+
+        $ch = curl_init(rtrim($config['endpoint'], '/') . '/api/sessions/' . rawurlencode($session));
+        curl_setopt_array($ch, [
+            CURLOPT_HTTPHEADER => $headers,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 10,
+            CURLOPT_CONNECTTIMEOUT => 5,
+        ]);
+        $result = curl_exec($ch);
+        $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
+        curl_close($ch);
+
+        if ($error) {
+            throw new \RuntimeException('WAHA cannot be reached: ' . $error);
+        }
+        if ($status === 404) {
+            return 'NOT_FOUND';
+        }
+        if ($status !== 200) {
+            throw new \RuntimeException("WAHA answered HTTP $status.");
+        }
+        $data = json_decode((string) $result, true);
+
+        return is_array($data) && isset($data['status']) ? (string) $data['status'] : 'UNKNOWN';
+    }
+
+    /**
      * "0712 345 678" / "254712345678" / "+254712345678" -> "254712345678@c.us"
      */
     public static function chatId($phone)
