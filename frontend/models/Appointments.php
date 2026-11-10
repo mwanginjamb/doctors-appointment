@@ -3,6 +3,7 @@
 namespace frontend\models;
 
 use common\components\RbacHelper;
+use frontend\components\FrontDesk;
 use frontend\models\User;
 use frontend\services\NotificationService;
 use frontend\models\UserProfile;
@@ -247,14 +248,17 @@ class Appointments extends \yii\db\ActiveRecord
     }
 
     /**
-     * Whether the logged-in user is the consultant this appointment is booked with
-     * (front-desk style booking). False in console runs, which have no user.
+     * Whether the logged-in user books on the clinic's side: the consultant this appointment is
+     * with, or front desk assigned to them. False in console runs, which have no user.
      */
     private function isBookedByTheConsultant()
     {
         $user = Yii::$app->get('user', false);
+        if ($user === null || $user->isGuest) {
+            return false;
+        }
 
-        return $user !== null && !$user->isGuest && (int) $user->id === (int) $this->consultant_id;
+        return (int) $user->id === (int) $this->consultant_id || FrontDesk::canBookFor($this->consultant_id);
     }
 
     /**

@@ -4,6 +4,8 @@ namespace frontend\controllers;
 
 use common\models\User;
 use frontend\components\AdminAccessControl;
+use frontend\components\FrontDesk;
+use frontend\models\RegisterPatientForm;
 use frontend\models\Appointments;
 use frontend\models\Consultant;
 use Yii;
@@ -37,6 +39,7 @@ class ApiController extends Controller
                     'visit' => ['POST'],
                     'update-visit' => ['POST'],
                     'find-patient' => ['GET'],
+                    'register-patient' => ['POST'],
                 ],
             ],
         ];
@@ -80,10 +83,10 @@ class ApiController extends Controller
                 ->where(['or', ['consultant_id' => $user->id], ['created_by' => $user->id]])
                 ->with(['consultant', 'patient'])
                 ->all();
-        } elseif (AdminAccessControl::isAdmin()) {
-            // The consultant whose calendar an admin opened from the appointments board
+        } elseif (FrontDesk::isStaff()) {
+            // The consultant whose calendar staff opened from the appointments board
             $consultant = Consultant::findOne(Yii::$app->session->get('booking_session_' . $user->id));
-            if ($consultant) {
+            if ($consultant && (AdminAccessControl::isAdmin() || FrontDesk::canBookFor($consultant->user_id))) {
                 $appointments = Appointments::find()
                     ->where(['consultant_id' => $consultant->user_id])
                     ->with(['consultant', 'patient'])
@@ -133,10 +136,17 @@ class ApiController extends Controller
         $model->time = $data['time'] ?? null;
         $model->symptoms_brief = $data['brief'] ?? null;
         // The logged-in user's own side of the booking always comes from the session
+        $patient = $data['patient'] ?? null;
         if ($user->role === 'consultant') {
             // A consultant books into their own calendar, for a patient found with api/find-patient
             $model->consultant_id = $user->id;
-            $patient = $data['patient'] ?? null;
+            $model->patient_id = ctype_digit((string) $patient) ? (int) $patient : null;
+        } elseif (FrontDesk::isFrontDesk()) {
+            // Front desk books for a patient into the calendar of a consultant assigned to them
+            if (!FrontDesk::canBookFor($data['consultant'] ?? 0)) {
+                return ['status' => 'error', 'message' => 'You can only book for the consultants assigned to you.'];
+            }
+            $model->consultant_id = (int) $data['consultant'];
             $model->patient_id = ctype_digit((string) $patient) ? (int) $patient : null;
         } else {
             $model->patient_id = $user->id;
@@ -155,7 +165,7 @@ class ApiController extends Controller
         $data = $this->getJsonBody();
 
         $model = Appointments::findOne($data['id'] ?? null);
-        if (!$model || !$model->isParticipant(Yii::$app->user->id)) {
+        if (!$model || !($model->isParticipant(Yii::$app->user->id) || FrontDesk::canBookFor($model->consultant_id))) {
             return ['status' => 'error', 'message' => 'Appointment not found.'];
         }
 
@@ -170,17 +180,15 @@ class ApiController extends Controller
     }
 
     /**
-     * Lets a consultant find the patient they are booking for, by exact email or phone number.
-     * There is deliberately no name search: consultants should not be able to browse every
+     * Lets a consultant or front desk find the patient they are booking for, by exact email or
+     * phone number. There is deliberately no name search: staff should not be able to browse every
      * patient on the platform. Matches are returned with masked contact details.
      *
      * GET api/find-patient?q=<email or phone>
      */
     public function actionFindPatient($q = '')
     {
-        if (Yii::$app->user->identity->role !== 'consultant') {
-            throw new ForbiddenHttpException('Only consultants can look up patients.');
-        }
+        $this->requireBookingStaff();
 
         $q = trim((string) $q);
         $digits = preg_replace('/\D/', '', $q);
@@ -208,14 +216,58 @@ class ApiController extends Controller
 
         return [
             'status' => 'success',
-            'patients' => array_map(function (User $p) {
-                return [
-                    'id' => $p->id,
-                    'name' => $p->full_name ?: $p->username,
-                    'email' => self::mask($p->email, '@'),
-                    'phone' => $p->phone_number ? '••••' . substr($p->phone_number, -3) : null,
-                ];
-            }, $patients),
+            'patients' => array_map([$this, 'patientSummary'], $patients),
+        ];
+    }
+
+    /**
+     * Registers a walk-in patient who has no account (name and phone, email optional) and returns
+     * them like find-patient does. When active patients already use the phone, it returns
+     * status "exists" with them, so staff choose one or resend with confirm_new to add someone new.
+     *
+     * POST api/register-patient {full_name, phone, email?, confirm_new?}
+     */
+    public function actionRegisterPatient()
+    {
+        $this->requireBookingStaff();
+
+        $form = new RegisterPatientForm();
+        $form->setAttributes($this->getJsonBody());
+        $patient = $form->register();
+
+        if ($patient) {
+            return ['status' => 'success', 'patient' => $this->patientSummary($patient)];
+        }
+        if ($form->matches) {
+            return [
+                'status' => 'exists',
+                'message' => 'Patients with this phone number are already registered. Choose one, or register a new patient anyway.',
+                'patients' => array_map([$this, 'patientSummary'], $form->matches),
+            ];
+        }
+        $errors = $form->getFirstErrors();
+
+        return ['status' => 'error', 'message' => $errors ? reset($errors) : 'Could not register the patient.'];
+    }
+
+    /**
+     * Only consultants and front desk book on a patient's behalf.
+     */
+    private function requireBookingStaff()
+    {
+        if (Yii::$app->user->identity->role !== 'consultant' && !FrontDesk::isFrontDesk()) {
+            throw new ForbiddenHttpException('Only consultants and front desk can look up or register patients.');
+        }
+    }
+
+    /** Not an action (no "action" prefix); public so array_map can call it. */
+    public function patientSummary(User $p)
+    {
+        return [
+            'id' => $p->id,
+            'name' => $p->full_name ?: $p->username,
+            'email' => self::mask($p->email, '@'),
+            'phone' => $p->phone_number ? '••••' . substr($p->phone_number, -3) : null,
         ];
     }
 

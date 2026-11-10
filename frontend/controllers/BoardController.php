@@ -2,13 +2,15 @@
 
 namespace frontend\controllers;
 
-use frontend\components\AdminAccessControl;
+use frontend\components\FrontDesk;
 use frontend\models\AppointmentBoardSearch;
+use frontend\models\Consultant;
+use yii\filters\AccessControl;
 use yii\web\Controller;
 
 /**
- * Clinic-wide appointments board: every consultant's appointments, today by default.
- * Admins only for now; front-desk staff get a version limited to their consultants.
+ * Appointments board: admins see every consultant's appointments; front desk sees only the
+ * consultants assigned to them, and books for them from their calendars.
  */
 class BoardController extends Controller
 {
@@ -17,19 +19,34 @@ class BoardController extends Controller
     public function behaviors()
     {
         return [
-            'access' => ['class' => AdminAccessControl::class],
+            'access' => [
+                'class' => AccessControl::class,
+                'rules' => [
+                    [
+                        'allow' => true,
+                        'roles' => ['@'],
+                        'matchCallback' => function () {
+                            return FrontDesk::isStaff();
+                        },
+                    ],
+                ],
+            ],
         ];
     }
 
     public function actionIndex()
     {
-        $search = new AppointmentBoardSearch();
+        $search = new AppointmentBoardSearch(['consultantUserIds' => FrontDesk::consultantUserIds()]);
         $dataProvider = $search->search($this->request->queryParams);
 
         return $this->render('index', [
             'search' => $search,
             'dataProvider' => $dataProvider,
             'counts' => $search->countsByStatus(),
+            // Front desk books from these consultants' calendars
+            'bookable' => FrontDesk::isFrontDesk()
+                ? Consultant::find()->where(['user_id' => FrontDesk::consultantUserIds()])->orderBy(['names' => SORT_ASC])->all()
+                : [],
         ]);
     }
 }

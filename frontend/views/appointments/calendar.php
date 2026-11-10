@@ -18,10 +18,16 @@ if ($role == 'client') {
 } else if ($role == 'consultant') {
     $consultant = Consultant::findOne(['user_id' => Yii::$app->user->id]);
     $title = 'Consultantations Schedule for ' . ucwords($consultant->names);
+} else if ($role === \frontend\components\FrontDesk::ROLE) {
+    // The controller only lets front desk open their assigned consultants' calendars
+    $title = 'Front desk: ' . $consultant->names;
 }
 
+// Consultants and front desk book for a patient they look up (or register as a walk-in)
+$booksForPatients = in_array($role, ['consultant', \frontend\components\FrontDesk::ROLE], true);
+
 // Admins open a consultant's calendar from the appointments board; it is read-only for them
-$readOnly = !in_array($role, ['client', 'consultant'], true);
+$readOnly = !in_array($role, ['client', 'consultant', \frontend\components\FrontDesk::ROLE], true);
 if ($readOnly) {
     $consultant = $consultant ?? null;
     if ($consultant === null && \frontend\components\AdminAccessControl::isAdmin()) {
@@ -31,7 +37,7 @@ if ($readOnly) {
 }
 
 $this->title = $title;
-$isConsultant = json_encode($role === 'consultant');
+$isConsultant = json_encode($booksForPatients);
 
 // What the calendar may offer. The server re-checks every booking (Appointments::validateSlot).
 $params = Yii::$app->params;
@@ -92,7 +98,7 @@ $bookingRules = json_encode([
     'availability' => $availability,
     'blocked' => $blocked,
     // Consultants book walk-ins into their own calendar without notice
-    'noticeMinutes' => $role === 'consultant' ? 0 : (int) ($params['booking.minNoticeMinutes'] ?? 0),
+    'noticeMinutes' => $booksForPatients ? 0 : (int) ($params['booking.minNoticeMinutes'] ?? 0),
     'maxDaysAhead' => (int) ($params['booking.maxDaysAhead'] ?? 90),
     'readOnly' => $readOnly,
 ]);
@@ -125,8 +131,8 @@ $bookingRules = json_encode([
 
                 <?php $form = ActiveForm::begin(['id' => 'appointmentForm']); ?>
 
-                <?php if ($role === 'consultant'): ?>
-                    <!-- A consultant books for a registered patient, found by exact email or phone -->
+                <?php if ($booksForPatients): ?>
+                    <!-- Consultants and front desk book for a registered patient, found by exact email or phone -->
                     <div class="mb-3">
                         <label class="form-label" for="patient-lookup"><?= Yii::t('app', 'Patient') ?></label>
                         <div class="input-group">
@@ -136,6 +142,14 @@ $bookingRules = json_encode([
                         </div>
                         <div id="patient-lookup-results" class="list-group mt-2"></div>
                         <div id="patient-selected" class="form-text fw-semibold"></div>
+                        <button type="button" class="btn btn-link btn-sm px-0" id="walk-in-toggle"><?= Yii::t('app', 'Not registered? Register a walk-in patient') ?></button>
+                        <div id="walk-in-form" class="border rounded p-2 mt-1 d-none">
+                            <input type="text" id="walk-in-name" class="form-control form-control-sm mb-2" maxlength="150" placeholder="<?= Yii::t('app', 'Full name') ?>">
+                            <input type="tel" id="walk-in-phone" class="form-control form-control-sm mb-2" maxlength="20" placeholder="<?= Yii::t('app', 'Phone, e.g. 0712 345 678') ?>">
+                            <input type="email" id="walk-in-email" class="form-control form-control-sm mb-2" maxlength="255" placeholder="<?= Yii::t('app', 'Email (optional)') ?>">
+                            <div class="form-text mb-2"><?= Yii::t('app', 'Without an email the patient gets reminders by SMS/WhatsApp only, and cannot sign in until an email is added.') ?></div>
+                            <button type="button" class="btn btn-sm btn-outline-primary" id="walk-in-register"><?= Yii::t('app', 'Register and choose') ?></button>
+                        </div>
                     </div>
                     <?= $form->field($model, 'patient_id')->hiddenInput(['value' => ''])->label(false) ?>
                 <?php endif; ?>
@@ -326,19 +340,61 @@ $script = <<<JS
                     choosePatient(response.patients[0]);
                     return;
                 }
-                // Several accounts share the number: let the consultant pick the right one
-                response.patients.forEach(function(patient) {
-                    var details = [patient.email, patient.phone].filter(Boolean).join(' · ');
-                    $('<button type="button" class="list-group-item list-group-item-action">')
-                        .text(patient.name + (details ? ' (' + details + ')' : ''))
-                        .on('click', function() { choosePatient(patient); })
-                        .appendTo(results);
-                });
+                // Several accounts share the number: let staff pick the right one
+                listPatients(results, response.patients);
             })
             .fail(function() {
                 results.append($('<div class="list-group-item text-danger">').text('Could not look up the patient.'));
             });
     }
+
+    function listPatients(results, patients) {
+        patients.forEach(function(patient) {
+            var details = [patient.email, patient.phone].filter(Boolean).join(' · ');
+            $('<button type="button" class="list-group-item list-group-item-action">')
+                .text(patient.name + (details ? ' (' + details + ')' : ''))
+                .on('click', function() { choosePatient(patient); $('#walk-in-form').addClass('d-none'); })
+                .appendTo(results);
+        });
+    }
+
+    // Walk-ins without an account: register them (name + phone, email optional) and choose them
+    $('#walk-in-toggle').on('click', function() {
+        $('#walk-in-form').toggleClass('d-none');
+    });
+
+    function registerWalkIn(confirmNew) {
+        var results = $('#patient-lookup-results').empty();
+        $.ajax({
+            url: '/api/register-patient',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                full_name: $('#walk-in-name').val(),
+                phone: $('#walk-in-phone').val(),
+                email: $('#walk-in-email').val(),
+                confirm_new: confirmNew
+            })
+        }).done(function(response) {
+            if (response.status === 'success') {
+                choosePatient(response.patient);
+                $('#walk-in-form').addClass('d-none');
+            } else if (response.status === 'exists') {
+                results.append($('<div class="list-group-item small">').text(response.message));
+                listPatients(results, response.patients);
+                $('<button type="button" class="list-group-item list-group-item-action text-primary">')
+                    .text('Register as a new patient anyway')
+                    .on('click', function() { registerWalkIn(true); })
+                    .appendTo(results);
+            } else {
+                results.append($('<div class="list-group-item text-danger">').text(response.message));
+            }
+        }).fail(function() {
+            results.append($('<div class="list-group-item text-danger">').text('Could not register the patient.'));
+        });
+    }
+
+    $('#walk-in-register').on('click', function() { registerWalkIn(false); });
 
     $('#patient-lookup-btn').on('click', lookupPatient);
     $('#patient-lookup').on('keydown', function(e) {

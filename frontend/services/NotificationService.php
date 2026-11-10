@@ -279,7 +279,8 @@ class NotificationService
 
 
         } else {
-            Yii::error('No patient email found for immediate confirmation notification for appointment ' . $appointment->id, 'notifications');
+            // Walk-in patients registered by front desk may have no email
+            Yii::info('No patient email; skipped the booking confirmation email for appointment ' . $appointment->id, 'notifications');
         }
     }
 
@@ -296,7 +297,7 @@ class NotificationService
             ]));
 
         } else {
-            Yii::error('No patient email found for reschedule notification for appointment ' . $appointment->id, 'notifications');
+            Yii::info('No patient email; skipped the reschedule email for appointment ' . $appointment->id, 'notifications');
         }
     }
 
@@ -313,7 +314,7 @@ class NotificationService
             ]));
 
         } else {
-            Yii::error('No patient email found for appointment confirmation notification for appointment ' . $appointment->id, 'notifications');
+            Yii::info('No patient email; skipped the confirmation email for appointment ' . $appointment->id, 'notifications');
         }
     }
 }

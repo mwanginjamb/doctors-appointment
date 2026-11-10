@@ -21,6 +21,9 @@ class AppointmentBoardSearch extends Model
     public $status;
     public $q;
 
+    /** @var int[]|null consultant user ids the viewer may see; null = all (admins). Not a filter field. */
+    public $consultantUserIds;
+
     public function rules()
     {
         return [
@@ -38,13 +41,14 @@ class AppointmentBoardSearch extends Model
     }
 
     /**
-     * @return array consultant user id => name, for the filter
+     * @return array consultant user id => name, for the filter (only those the viewer may see)
      */
-    public static function consultantOptions()
+    public function consultantOptions()
     {
         return Consultant::find()
             ->select(['names', 'user_id'])
             ->where(['not', ['user_id' => null]])
+            ->andFilterWhere(['user_id' => $this->consultantUserIds === null ? null : ($this->consultantUserIds ?: [0])])
             ->orderBy(['names' => SORT_ASC])
             ->indexBy('user_id')
             ->column();
@@ -82,6 +86,11 @@ class AppointmentBoardSearch extends Model
             ->orderBy(null) // drop AppointmentsQuery's newest-first default; the sort below applies
             ->andWhere(['between', 'a.date', $this->from, $this->to])
             ->andFilterWhere(['a.consultant_id' => $this->consultant]);
+
+        // Front desk only ever sees their assigned consultants ([0] matches nothing when they have none)
+        if ($this->consultantUserIds !== null) {
+            $query->andWhere(['a.consultant_id' => $this->consultantUserIds ?: [0]]);
+        }
 
         if ($this->status === self::STATUS_ACTIVE) {
             $query->andWhere(['or', ['a.status' => null], ['a.status' => [Appointments::STATUS_SCHEDULED, Appointments::STATUS_CONFIRMED]]]);

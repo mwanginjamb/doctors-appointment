@@ -14,12 +14,15 @@ use yii\rbac\ManagerInterface;
  *  - consultancy-admin : runs the platform and manages RBAC (assigned via `php yii rbac/assign-admin`)
  *  - consultant        : default role for users whose `user.role` is "consultant"
  *  - patient           : default role for users whose `user.role` is "client"
+ *  - front-desk        : default role for users whose `user.role` is "front_desk"; which consultants
+ *                        they book for is kept in front_desk_assignment, not in RBAC
  */
 class RbacHelper
 {
     const ROLE_ADMIN = 'consultancy-admin';
     const ROLE_CONSULTANT = 'consultant';
     const ROLE_PATIENT = 'patient';
+    const ROLE_FRONT_DESK = 'front-desk';
 
     const PERM_MANAGE_RBAC = 'manageRbac';
     const PERM_MANAGE_USERS = 'manageUsers';
@@ -27,11 +30,12 @@ class RbacHelper
     const PERM_MANAGE_CONSULTANT_PROFILE = 'manageConsultantProfile';
     const PERM_MANAGE_APPOINTMENTS = 'manageAppointments';
     const PERM_BOOK_APPOINTMENT = 'bookAppointment';
+    const PERM_MANAGE_CLINIC_BOOKINGS = 'manageClinicBookings';
 
     /**
      * Roles the application code depends on by name. They cannot be renamed or deleted from the UI.
      */
-    const CORE_ROLES = [self::ROLE_ADMIN, self::ROLE_CONSULTANT, self::ROLE_PATIENT];
+    const CORE_ROLES = [self::ROLE_ADMIN, self::ROLE_CONSULTANT, self::ROLE_PATIENT, self::ROLE_FRONT_DESK];
 
     /**
      * Role => [description, permissions] seeded by `php yii rbac/init`.
@@ -46,6 +50,7 @@ class RbacHelper
                 self::PERM_MANAGE_CONSULTANT_PROFILE => 'Create and update own consultant profile',
                 self::PERM_MANAGE_APPOINTMENTS => 'Manage appointments booked with the consultant',
                 self::PERM_BOOK_APPOINTMENT => 'Book and manage own appointments',
+                self::PERM_MANAGE_CLINIC_BOOKINGS => 'Book, move and cancel appointments for assigned consultants',
             ],
             'roles' => [
                 self::ROLE_ADMIN => [
@@ -59,6 +64,10 @@ class RbacHelper
                 self::ROLE_PATIENT => [
                     'Patient booking appointments',
                     [self::PERM_BOOK_APPOINTMENT],
+                ],
+                self::ROLE_FRONT_DESK => [
+                    'Front desk booking for assigned consultants',
+                    [self::PERM_MANAGE_CLINIC_BOOKINGS],
                 ],
             ],
         ];
@@ -77,6 +86,8 @@ class RbacHelper
                 return self::ROLE_ADMIN;
             case 'consultant':
                 return self::ROLE_CONSULTANT;
+            case 'front_desk':
+                return self::ROLE_FRONT_DESK;
             default: // "client" and legacy/empty values
                 return self::ROLE_PATIENT;
         }
