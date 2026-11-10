@@ -33,6 +33,7 @@ $this->params['breadcrumbs'][] = $this->title;
                                 <?= Html::a('Specializations', Url::toRoute(['specialization/index']), ['class' => 'link-secondary text-decoration-none fw-semibold']) ?>
                                 <?= Html::a('Insurance Providers', Url::toRoute(['provider/index']), ['class' => 'link-secondary text-decoration-none fw-semibold']) ?>
                                 <?= Html::a('Public Holidays', Url::toRoute(['holiday/index']), ['class' => 'link-secondary text-decoration-none fw-semibold']) ?>
+                                <?= Html::a('Audit Log', Url::toRoute(['audit/index']), ['class' => 'link-secondary text-decoration-none fw-semibold']) ?>
                             </div>
                         </div>
                     </div>

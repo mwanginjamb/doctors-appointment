@@ -2,6 +2,7 @@
 
 namespace frontend\models;
 
+use common\behaviors\AuditBehavior;
 use common\models\User;
 use Yii;
 use yii\db\ActiveRecord;
@@ -40,6 +41,12 @@ class BookingLink extends ActiveRecord
     public static function tableName()
     {
         return '{{%booking_link}}';
+    }
+
+    public function behaviors()
+    {
+        // The token's hash is a credential: never logged
+        return ['audit' => ['class' => AuditBehavior::class, 'entityType' => 'booking_link', 'exclude' => ['token_hash']]];
     }
 
     /**

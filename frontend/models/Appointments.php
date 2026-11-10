@@ -2,6 +2,7 @@
 
 namespace frontend\models;
 
+use common\behaviors\AuditBehavior;
 use common\components\RbacHelper;
 use frontend\models\User;
 use frontend\services\AppointmentChangeNotifier;
@@ -96,7 +97,9 @@ class Appointments extends \yii\db\ActiveRecord
     {
         return [
             TimestampBehavior::class,
-            BlameableBehavior::class
+            BlameableBehavior::class,
+            // The symptoms are health details: the log shows they changed, not what they say
+            'audit' => ['class' => AuditBehavior::class, 'entityType' => 'appointment', 'masked' => ['symptoms_brief']],
         ];
     }
 

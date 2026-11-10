@@ -2,6 +2,7 @@
 
 namespace frontend\models;
 
+use common\behaviors\AuditBehavior;
 use Yii;
 use yii\behaviors\BlameableBehavior;
 use yii\behaviors\TimestampBehavior;
@@ -27,7 +28,11 @@ class PublicHoliday extends ActiveRecord
 
     public function behaviors()
     {
-        return [TimestampBehavior::class, BlameableBehavior::class];
+        return [
+            TimestampBehavior::class,
+            BlameableBehavior::class,
+            'audit' => ['class' => AuditBehavior::class, 'entityType' => 'holiday'],
+        ];
     }
 
     public function rules()

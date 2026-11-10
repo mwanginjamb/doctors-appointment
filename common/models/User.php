@@ -123,6 +123,21 @@ class User extends ActiveRecord implements IdentityInterface
     {
         return [
             TimestampBehavior::class,
+            'audit' => self::auditBehavior(),
+        ];
+    }
+
+    /**
+     * Audit settings for accounts, shared with frontend\models\User (same table): a password change
+     * is logged without the hash; keys and tokens are never logged.
+     */
+    public static function auditBehavior()
+    {
+        return [
+            'class' => \common\behaviors\AuditBehavior::class,
+            'entityType' => 'user',
+            'masked' => ['password_hash'],
+            'exclude' => ['auth_key', 'password_reset_token', 'verification_token'],
         ];
     }
 

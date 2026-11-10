@@ -1,0 +1,17 @@
+# Fires doctors-appointment-audit-purge.service once a day, at a quiet hour.
+#
+#   systemctl list-timers doctors-appointment-audit-purge.timer   # last / next run
+
+[Unit]
+Description=Purge old audit log entries daily
+PartOf=doctors-appointment.target
+
+[Timer]
+OnCalendar=*-*-* 03:15:00
+RandomizedDelaySec=10min
+# If the server was off at 03:15, run once when it is back
+Persistent=true
+Unit=doctors-appointment-audit-purge.service
+
+[Install]
+WantedBy=doctors-appointment.target

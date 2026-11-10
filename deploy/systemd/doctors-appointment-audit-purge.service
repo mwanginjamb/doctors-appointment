@@ -1,0 +1,32 @@
+# One run of the audit log purge: removes audit entries older than the retention period
+# (AUDIT_RETENTION_YEARS, 7 by default) with php yii audit/purge. Started daily by
+# doctors-appointment-audit-purge.timer.
+#
+# Run it by hand:   sudo systemctl start doctors-appointment-audit-purge
+# See what it would remove:  sudo -u www-data php yii audit/purge --dry-run
+# Logs:             journalctl -u doctors-appointment-audit-purge
+#
+# Same path / PHP / user assumptions as doctors-appointment-queue.service.
+
+[Unit]
+Description=Doctor appointments audit log purge (one run)
+After=network-online.target mysql.service mariadb.service
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/html/doctors-appointment
+ExecStart=/usr/bin/php /var/www/html/doctors-appointment/yii audit/purge --color=0
+
+# Removes in batches; even a large first purge should finish well within this
+TimeoutStartSec=30min
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=doctors-audit-purge
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true

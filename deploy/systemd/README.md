@@ -1,12 +1,13 @@
 # Background services (systemd)
 
-Appointment reminders need two things running on the server:
+Appointment reminders need two things running on the server, plus a daily clean-up of the audit log:
 
 | Unit | What it does |
 | --- | --- |
 | `doctors-appointment-scheduler.timer` → `doctors-appointment-scheduler.service` | Every minute, runs `php yii notification/process` to put reminders that are now due on the queue. |
 | `doctors-appointment-queue.service` | Long-running `php yii queue/listen` worker that sends the queued emails, WhatsApp, push and SMS. |
-| `doctors-appointment.target` | Groups the two so they start, stop and restart together. |
+| `doctors-appointment-audit-purge.timer` → `doctors-appointment-audit-purge.service` | Daily at 03:15, runs `php yii audit/purge` to remove audit log entries older than the retention period (`AUDIT_RETENTION_YEARS`, 7 by default). |
+| `doctors-appointment.target` | Groups them so they start, stop and restart together. |
 
 ## How the pieces fit
 
@@ -14,8 +15,10 @@ Appointment reminders need two things running on the server:
 multi-user.target                                (normal boot)
   └─ doctors-appointment.target                  on/off switch for the group
        ├─ doctors-appointment-queue.service      always running: sends messages
-       └─ doctors-appointment-scheduler.timer    fires every minute
-            └─ doctors-appointment-scheduler.service   one short run: queues due reminders
+       ├─ doctors-appointment-scheduler.timer    fires every minute
+       │    └─ doctors-appointment-scheduler.service   one short run: queues due reminders
+       └─ doctors-appointment-audit-purge.timer  fires daily at 03:15
+            └─ doctors-appointment-audit-purge.service one run: removes audit entries past retention
 ```
 
 A reminder goes through two steps:
@@ -76,7 +79,16 @@ The every-minute clock.
   everything already due.
 - If a run is still going when the timer fires, systemd doesn't start a second copy (unlike cron).
 
-Both services share the same hardening (`NoNewPrivileges`, `PrivateTmp`, `ProtectSystem=full`, `ProtectHome`):
+### doctors-appointment-audit-purge.service / .timer
+
+Once a day, `php yii audit/purge` removes audit log entries older than `AUDIT_RETENTION_YEARS` (7 by
+default) in batches, and logs the removal itself.
+
+- `Persistent=true`: if the server was off at 03:15, it runs once when the server is back.
+- `RandomizedDelaySec=10min`: avoids starting exactly with other nightly jobs.
+- Check what would go first: `sudo -u www-data php yii audit/purge --dry-run`.
+
+The services share the same hardening (`NoNewPrivileges`, `PrivateTmp`, `ProtectSystem=full`, `ProtectHome`):
 `/usr`, `/boot` and `/etc` are read-only to them and `/home` is hidden, while `/var/www` stays writable.
 
 ## Assumptions
@@ -90,7 +102,7 @@ The units assume the app lives at `/var/www/html/doctors-appointment`, PHP CLI i
 sudo cp deploy/systemd/doctors-appointment* /etc/systemd/system/
 sudo systemd-analyze verify /etc/systemd/system/doctors-appointment*.{service,timer,target}
 sudo systemctl daemon-reload
-sudo systemctl enable doctors-appointment-queue.service doctors-appointment-scheduler.timer
+sudo systemctl enable doctors-appointment-queue.service doctors-appointment-scheduler.timer doctors-appointment-audit-purge.timer
 sudo systemctl enable --now doctors-appointment.target
 ```
 
@@ -104,7 +116,7 @@ sudo systemctl restart doctors-appointment.target        # after every deploy (l
 sudo systemctl stop doctors-appointment.target           # pause all notifications
 
 systemctl status doctors-appointment.target doctors-appointment-queue
-systemctl list-timers doctors-appointment-scheduler.timer
+systemctl list-timers doctors-appointment-scheduler.timer doctors-appointment-audit-purge.timer
 journalctl -u doctors-appointment-queue -f               # worker output
 journalctl -u doctors-appointment-scheduler --since -1h  # scheduler runs
 

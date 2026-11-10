@@ -2,6 +2,8 @@
 
 namespace frontend\controllers;
 
+use common\components\Audit;
+use common\models\AuditLog;
 use frontend\components\ThrottlesByIp;
 use frontend\models\BookingLink;
 use frontend\models\RemoteWalkInForm;
@@ -29,6 +31,8 @@ class BookController extends Controller
             return $this->render('unavailable', ['reason' => $link->getStatus(), 'link' => $link]);
         }
 
+        // Not signed in: logged as the booking link, named after its recipient
+        Audit::actAs(AuditLog::ACTOR_BOOKING_LINK, null, $link->recipient_name . " (link #{$link->id})");
         $form = new RemoteWalkInForm($link);
         if ($this->request->isPost && $form->load($this->request->post()) && $form->book()) {
             return $this->render('booked', ['form' => $form, 'link' => $link]);

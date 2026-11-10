@@ -70,6 +70,13 @@ $menuItems = [
         'visible' => $user->can(RbacHelper::PERM_MANAGE_RBAC),
     ],
     [
+        'label' => 'Audit Log',
+        'url' => ['/audit/index'],
+        'icon' => 'history',
+        'match' => ['audit'],
+        'visible' => $user->can(RbacHelper::PERM_VIEW_AUDIT_LOG),
+    ],
+    [
         'label' => 'Back to Site',
         'url' => ['/site/index'],
         'icon' => 'home',

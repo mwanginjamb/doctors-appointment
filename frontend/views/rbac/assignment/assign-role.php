@@ -40,7 +40,7 @@ foreach ($allRoles as $name => $role) {
         <div class="col-lg-8">
             <div class="card border-0 shadow-sm">
                 <div class="card-body">
-                    <?php $form = ActiveForm::begin(); ?>
+                    <?php $form = ActiveForm::begin(['id' => 'assign-role-form']); ?>
                     <?= $form->errorSummary($model) ?>
                     <?= $form->field($model, 'roles')->checkboxList($items, ['encode' => false]) ?>
                     <div class="d-flex gap-2">

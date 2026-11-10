@@ -2,6 +2,8 @@
 
 namespace frontend\controllers;
 
+use common\components\Audit;
+use common\models\AuditLog;
 use Yii;
 use yii\db\Query;
 use yii\rbac\Item;
@@ -90,6 +92,7 @@ class RbacController extends Controller
                     $auth->addChild($role, $auth->getPermission($permName));
                 }
                 $transaction->commit();
+                Audit::log(AuditLog::ACTION_RBAC_CHANGED, 'rbac', $role->name, [], 'Role created; permissions: ' . (implode(', ', $model->permissions) ?: 'none'));
                 Yii::$app->session->setFlash('success', "Role '{$role->name}' created.");
                 return $this->redirect(['index']);
             } catch (\Exception $e) {
@@ -140,6 +143,7 @@ class RbacController extends Controller
                 }
 
                 $transaction->commit();
+                Audit::log(AuditLog::ACTION_RBAC_CHANGED, 'rbac', $name, [], 'Role updated; permissions: ' . (implode(', ', $model->permissions) ?: 'none'));
                 Yii::$app->session->setFlash('success', 'Role updated successfully.');
                 return $this->redirect(['index']);
             } catch (\Exception $e) {
@@ -168,6 +172,7 @@ class RbacController extends Controller
 
         // remove() also deletes the role's hierarchy links and user assignments
         if ($auth->remove($role)) {
+            Audit::log(AuditLog::ACTION_RBAC_CHANGED, 'rbac', $name, [], 'Role deleted');
             Yii::$app->session->setFlash('success', "Role '$name' deleted. Its permission links and user assignments were removed.");
         } else {
             Yii::$app->session->setFlash('error', "Failed to delete role '$name'.");
@@ -220,6 +225,7 @@ class RbacController extends Controller
             throw new NotFoundHttpException('User not found.');
         }
 
+        $rolesBefore = array_keys($auth->getRolesByUser($user->id));
         $model = new UserRoleForm();
         $model->userId = $user->id;
         $model->roles = array_keys($auth->getRolesByUser($user->id));
@@ -239,6 +245,7 @@ class RbacController extends Controller
                 }
 
                 $transaction->commit();
+                Audit::log(AuditLog::ACTION_ROLES_CHANGED, 'user', $user->id, ['roles' => [implode(', ', $rolesBefore) ?: null, implode(', ', $model->roles) ?: null]]);
                 Yii::$app->session->setFlash('success', "Roles for {$user->username} updated.");
                 return $this->redirect(['user-roles']);
             } catch (\Exception $e) {
@@ -309,6 +316,7 @@ class RbacController extends Controller
                 }
 
                 $transaction->commit();
+                Audit::log(AuditLog::ACTION_RBAC_CHANGED, 'rbac', $permission->name, [], 'Permission created');
                 Yii::$app->session->setFlash('success', "Permission '{$permission->name}' created.");
                 return $this->redirect(['permissions']);
             } catch (\Exception $e) {
@@ -362,6 +370,7 @@ class RbacController extends Controller
                 }
 
                 $transaction->commit();
+                Audit::log(AuditLog::ACTION_RBAC_CHANGED, 'rbac', $permission->name, [], 'Permission updated');
                 Yii::$app->session->setFlash('success', 'Permission updated.');
                 return $this->redirect(['permissions']);
             } catch (\Exception $e) {
@@ -388,6 +397,7 @@ class RbacController extends Controller
             Yii::$app->session->setFlash('error', "'$name' is a core permission checked by the application and cannot be deleted.");
         } else {
             $auth->remove($permission);
+            Audit::log(AuditLog::ACTION_RBAC_CHANGED, 'rbac', $name, [], 'Permission deleted');
             Yii::$app->session->setFlash('success', "Permission '$name' deleted.");
         }
 
@@ -433,6 +443,7 @@ class RbacController extends Controller
                 }
                 $transaction->commit();
 
+                Audit::log(AuditLog::ACTION_RBAC_CHANGED, 'rbac', $name, [], 'Children set to: ' . (implode(', ', array_diff($selected, $skipped)) ?: 'none'));
                 Yii::$app->session->setFlash('success', "Children of '$name' updated.");
                 if ($skipped) {
                     Yii::$app->session->setFlash('warning', 'Skipped (would create a loop): ' . implode(', ', $skipped));

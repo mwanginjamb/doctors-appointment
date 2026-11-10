@@ -41,6 +41,7 @@ class FrontDeskAssignment extends ActiveRecord
         $db = static::getDb();
         $transaction = $db->beginTransaction();
         try {
+            $before = static::consultantIdsFor($userId);
             static::deleteAll(['user_id' => $userId]);
             $now = time();
             $by = \Yii::$app->get('user', false) && !\Yii::$app->user->isGuest ? \Yii::$app->user->id : null;
@@ -50,6 +51,21 @@ class FrontDeskAssignment extends ActiveRecord
             }
             if ($rows) {
                 $db->createCommand()->batchInsert(static::tableName(), ['user_id', 'consultant_id', 'created_at', 'created_by'], $rows)->execute();
+            }
+            // Saved in bulk, so the audit behaviour does not see it. Logged by consultant name.
+            $after = array_values(array_unique(array_map('intval', $consultantIds)));
+            sort($before);
+            sort($after);
+            if ($before !== $after) {
+                $names = Consultant::find()->select(['names', 'id'])->where(['id' => array_merge($before, $after)])->indexBy('id')->column();
+                $label = function (array $ids) use ($names) {
+                    return implode(', ', array_map(function ($id) use ($names) {
+                        return $names[$id] ?? "#$id";
+                    }, $ids)) ?: null;
+                };
+                \common\components\Audit::log(\common\models\AuditLog::ACTION_ASSIGNMENTS_CHANGED, 'user', $userId, [
+                    'consultants' => [$label($before), $label($after)],
+                ]);
             }
             $transaction->commit();
             \frontend\components\FrontDesk::reset();

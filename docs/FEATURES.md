@@ -10,7 +10,7 @@ _Last reviewed: 10 November 2026._
 | | Score | Summary |
 |---|---|---|
 | Functional | **8.5 / 10** | Covers every way an appointment is made (online, by staff, walk-in, remote walk-in link), realistic availability, the full appointment lifecycle and a usable back office. Patients are told about changes and can reschedule or cancel from a link. No payments yet. |
-| Technical | **7 / 10** | Booking rules are central, locked against double booking and covered by passing tests; debug mode is off in production. Two permission systems sit side by side, a lot of logic lives in views, and there is no CI or error tracking. |
+| Technical | **7.5 / 10** | Booking rules live in a tested service, locked against double booking; RBAC is the single permission system; the calendar scripts are out of the views; changes and sign-ins are audited; debug mode is off in production. There is no CI or error tracking yet. |
 
 Doing **Next up** below should bring the app to about 9 functionally and 8 technically.
 
@@ -62,6 +62,43 @@ Doing **Next up** below should bring the app to about 9 functionally and 8 techn
 | systemd units | Queue worker and reminder scheduler run under systemd; documented in `deploy/systemd/README.md`. | `190a338`, `fe0042d` |
 | Old reminder command removed | `yii send-reminders` (duplicate reminders, ignored cancellations) and its columns are gone. | `df375d0` |
 | Tests all passing | The four tests left over from the Yii template were fixed; 189 frontend and 8 common tests pass. | `2f719a0` |
+
+### Architecture and compliance
+
+| Item | What it does | Commit |
+|---|---|---|
+| T8 One permission system | RBAC is the only source of permissions: checks name an action (`bookForConsultant`, `recordOutcome`…), ownership is a rule (`isTheConsultant`, `assignedConsultant`), and `user.role` is only the account type. A test fails if a role-string permission check comes back. Run `php yii rbac/init` on deploy. | `dd5b303` |
+| T6 Logic out of views | `BookingService` holds the slot rules as separately tested methods, with `book()` / `reschedule()` as the ways in; `CalendarViewModel` prepares the calendar page; the calendar script is `Js/booking-calendar.js` and the booking-link and self-service pages share `Js/slot-picker.js`. | `6f538ee` |
+| T7 Audit log | An append-only `audit_log`: who (staff, patient, booking link, self-service link, system), what, which record, old → new values and IP. Records appointments, accounts, consultants, time off, holidays and booking links automatically; weekly hours, front-desk assignments, sign-ins, failed sign-ins and role changes explicitly. Passwords, keys and symptom details are never stored. Admins read it under **Audit Log**; staff see an appointment's **History**. Kept 7 years (`AUDIT_RETENTION_YEARS`), purged daily by `doctors-appointment-audit-purge.timer`. | `feature/audit-log` |
+
+---
+
+## Deploy steps
+
+What each item needs on the server, from T7 onwards, in the order to run it. Run them from the app
+directory (`/var/www/html/doctors-appointment`) as the web user, after pulling the code. Items done
+earlier are covered by the general steps: `php yii migrate`, `php yii rbac/init`, and
+`sudo systemctl restart doctors-appointment.target`.
+
+### T7 Audit log
+
+1. **Database:** `php yii migrate` creates the `audit_log` table (`m261120_090000_create_audit_log_table`).
+2. **Permissions:** `php yii rbac/init` adds the `viewAuditLog` permission and gives it to the
+   `consultancy-admin` role. Without it, admins don't see **Audit Log** in the sidebar.
+3. **Retention (optional):** set `AUDIT_RETENTION_YEARS` in `.env` to keep entries for a period other
+   than 7 years.
+4. **Daily purge timer:**
+   ```bash
+   sudo cp deploy/systemd/doctors-appointment-audit-purge.* deploy/systemd/doctors-appointment.target /etc/systemd/system/
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now doctors-appointment-audit-purge.timer
+   systemctl list-timers doctors-appointment-audit-purge.timer   # next run: 03:15
+   ```
+5. **Restart** the background services so the queue worker loads the new code:
+   `sudo systemctl restart doctors-appointment.target`.
+6. **Check:**
+   - sign in as an admin and open **Audit Log**: your own sign-in is the newest entry;
+   - `sudo -u www-data php yii audit/purge --dry-run` reports 0 entries to remove.
 
 ---
 
@@ -135,9 +172,9 @@ Priority: **P1** do next, **P2** soon, **P3** when there is time. Impact is the 
 
 | # | Item | Priority | Impact |
 |---|---|---|---|
-| T6 | Move the calendar's JavaScript out of `views/appointments/calendar.php` into its own file, and booking rules into a tested service class. | P2 | +0.5 (with T8) |
-| T7 | An audit log of who changed what on appointments and accounts, beyond `created_by` / `updated_by`. | P2 | +0.5 (with F11) |
-| T8 | Use one permission system: checks mix the `user.role` column and RBAC roles. | P2 | |
+| ~~T6~~ | ~~Move the calendar's JavaScript out of `views/appointments/calendar.php` into its own file, and booking rules into a tested service class.~~ **Done.** | — | +0.5 (with T8) |
+| ~~T7~~ | ~~An audit log of who changed what on appointments and accounts, beyond `created_by` / `updated_by`.~~ **Done.** | — | +0.5 (with F11) |
+| ~~T8~~ | ~~Use one permission system: checks mix the `user.role` column and RBAC roles.~~ **Done.** | — | |
 
 #### Scalability
 
@@ -147,6 +184,7 @@ Priority: **P1** do next, **P2** soon, **P3** when there is time. Impact is the 
 
 ## Next up
 
-1. **T2** Error tracking and queue alerts (approach to be agreed).
-2. **T4** CI on every push.
-3. **F5** M-Pesa deposits, once Daraja credentials are available.
+1. **F11** Consent, recorded in the audit log (needs the privacy notice text and data controller details, and a decision on opt-in or opt-out for WhatsApp/SMS reminders).
+2. **T2** Error tracking and queue alerts (approach to be agreed).
+3. **T4** CI on every push.
+4. **F5** M-Pesa deposits, once Daraja credentials are available.
