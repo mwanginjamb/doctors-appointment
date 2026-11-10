@@ -63,7 +63,13 @@ $script = <<<JS
             });
         },
         eventClick: function(info) {
-             window.open("/appointments/view?id=" + info.event.id, '_blank');
+            // Only appointments have an id; shaded blocks have none, so they open nothing
+            if (!info.event.id) {
+                var props = info.event.extendedProps;
+                alert(props.reason || props.description || info.event.title || 'This time is not available.');
+                return;
+            }
+            window.open("/appointments/view?id=" + encodeURIComponent(info.event.id), '_blank');
         }
     });
     calendar.render();

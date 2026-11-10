@@ -91,6 +91,21 @@ class TimeOffAndHolidaysCest
         $I->seeInSource('Time off: Private family matter');
     }
 
+    public function shadedBlocksAreExplainedInsteadOfOpeningABrokenLink(FunctionalTester $I)
+    {
+        // Clicking used to open appointments/view?id= (no id) for doctor-away, holiday and booked blocks: a 404
+        $this->timeOff($this->consultant);
+        $I->amLoggedInAs($this->client);
+        $I->amOnRoute('appointments/calendar', ['cid' => $this->consultant->id]);
+
+        $I->seeInSource('if (!info.event.id)');
+        $I->seeInSource('"reason":"Dr. Test is away');
+        $I->dontSeeInSource('"blocked":[{"id"');
+
+        $I->amOnRoute('appointments/my-calendar');
+        $I->seeInSource('if (!info.event.id)');
+    }
+
     public function adminAddsAHolidayAndIsWarnedAboutBookings(FunctionalTester $I)
     {
         $this->book('10:00');

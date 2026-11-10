@@ -289,7 +289,14 @@ $script = <<<JS
             });
         },
         eventClick: function(info) {
-             window.open("/appointments/view?id=" + info.event.id, '_blank');
+            // Only appointments have an id. Shaded blocks (doctor away, public holidays, other
+            // patients' booked slots) have none: explain them instead of opening a broken link.
+            if (!info.event.id) {
+                var props = info.event.extendedProps;
+                alert(props.reason || props.description || info.event.title || 'This time is not available.');
+                return;
+            }
+            window.open("/appointments/view?id=" + encodeURIComponent(info.event.id), '_blank');
         }
 
 
