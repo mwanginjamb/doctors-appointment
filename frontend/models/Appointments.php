@@ -2,6 +2,7 @@
 
 namespace frontend\models;
 
+use common\components\RbacHelper;
 use frontend\models\User;
 use frontend\services\NotificationService;
 use frontend\models\UserProfile;
@@ -95,6 +96,10 @@ class Appointments extends \yii\db\ActiveRecord
             [['date', 'time', 'patient_id', 'consultant_id'], 'required'],
             [['date'], 'date', 'format' => 'php:Y-m-d'],
             [['consultant_id'], 'exist', 'skipOnError' => true, 'targetClass' => Consultant::class, 'targetAttribute' => ['consultant_id' => 'user_id']],
+            // Only checked when the patient is set or changed, so older rows stay editable
+            [['patient_id'], 'validatePatient', 'when' => function ($model) {
+                return $model->isNewRecord || $model->isAttributeChanged('patient_id', false);
+            }],
             [['time'], 'validateSlot', 'when' => function ($model) {
                 return $model->isNewRecord
                     || $model->isAttributeChanged('date', false)
@@ -116,6 +121,24 @@ class Appointments extends \yii\db\ActiveRecord
         }, $scenarios[self::SCENARIO_DEFAULT]);
 
         return $scenarios;
+    }
+
+    /**
+     * The patient must be a registered patient account, and never the consultant being booked.
+     * Consultants book on a patient's behalf, so the patient id can come from someone else.
+     */
+    public function validatePatient($attribute, $params)
+    {
+        if ((int) $this->patient_id === (int) $this->consultant_id) {
+            $this->addError($attribute, Yii::t('app', 'A consultant cannot book an appointment with themselves. Choose a patient.'));
+            return;
+        }
+
+        // false when no such user; a null/empty role is a legacy patient account
+        $role = User::find()->select('role')->where(['id' => $this->patient_id])->scalar();
+        if ($role === false || RbacHelper::nativeRoleFor($role) !== RbacHelper::ROLE_PATIENT) {
+            $this->addError($attribute, Yii::t('app', 'Choose a registered patient.'));
+        }
     }
 
     /**
@@ -236,7 +259,7 @@ class Appointments extends \yii\db\ActiveRecord
             'id' => Yii::t('app', 'ID'),
             'date' => Yii::t('app', 'Date'),
             'time' => Yii::t('app', 'Time'),
-            'patient_id' => Yii::t('app', 'Patient ID'),
+            'patient_id' => Yii::t('app', 'Patient'),
             'speciality_id' => Yii::t('app', 'Speciality ID'),
             'service_id' => Yii::t('app', 'Service ID'),
             'provider_id' => Yii::t('app', 'Provider ID'),
