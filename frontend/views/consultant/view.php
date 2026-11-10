@@ -82,7 +82,11 @@ $this->params['breadcrumbs'][] = $this->title;
                                 <div class="col-md-6 mb-3">
                                     <div class="border-top pt-3">
                                         <p class="text-muted small mb-1">Working Hours</p>
-                                        <p class="fw-medium">Mon-Fri: 9 AM - 5 PM</p>
+                                        <p class="fw-medium"><?= Html::encode($model->getHoursSummary() ?? 'Not taking bookings') ?>
+                                            <?php if ((int) $model->user_id === (int) Yii::$app->user->id): ?>
+                                                <?= Html::a('Edit', ['availability/index'], ['class' => 'small ms-2']) ?>
+                                            <?php endif; ?>
+                                        </p>
                                     </div>
                                 </div>
                                 <div class="col-md-6 mb-3">

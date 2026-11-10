@@ -44,9 +44,6 @@ class Appointments extends \yii\db\ActiveRecord
     const STATUS_NO_SHOW = 'no_show';
     const STATUS_CONFIRMED = 'confirmed';
 
-    const DEFAULT_WORKING_START = '09:00:00';
-    const DEFAULT_WORKING_END = '17:00:00';
-
     /**
      * Attributes that are set by the system or derived from the logged-in user,
      * never mass-assigned from request data.
@@ -175,13 +172,39 @@ class Appointments extends \yii\db\ActiveRecord
             return;
         }
 
+        // Booking window. A consultant booking a walk-in into their own calendar skips the notice.
+        $notice = (int) (Yii::$app->params['booking.minNoticeMinutes'] ?? 0);
+        if ($notice > 0 && $startTs < time() + $notice * 60 && !$this->isBookedByTheConsultant()) {
+            $this->addError($attribute, Yii::t('app', 'Appointments must be booked at least {notice} in advance.', [
+                'notice' => $notice % 60 === 0 ? ($notice === 60 ? '1 hour' : ($notice / 60) . ' hours') : $notice . ' minutes',
+            ]));
+            return;
+        }
+        $maxDays = (int) (Yii::$app->params['booking.maxDaysAhead'] ?? 0);
+        if ($maxDays > 0 && $this->date > date('Y-m-d', strtotime("+{$maxDays} days"))) {
+            $this->addError($attribute, Yii::t('app', 'Appointments can be booked at most {n} days ahead.', ['n' => $maxDays]));
+            return;
+        }
+
+        // The whole session must fit inside one of the consultant's opening ranges that day
         $consultant = $this->consultant;
-        $workingStart = strtotime($this->date . ' ' . (!empty($consultant->working_start_time) ? $consultant->working_start_time : self::DEFAULT_WORKING_START));
-        $workingEnd = strtotime($this->date . ' ' . (!empty($consultant->working_end_time) ? $consultant->working_end_time : self::DEFAULT_WORKING_END));
-        if ($startTs < $workingStart || $endTs > $workingEnd) {
-            $this->addError($attribute, Yii::t('app', "Appointment time is outside of the doctor's working hours ({start} - {end}).", [
-                'start' => date('H:i', $workingStart),
-                'end' => date('H:i', $workingEnd),
+        $doctor = $consultant->names ?? Yii::t('app', 'The doctor');
+        $ranges = $consultant ? $consultant->getRangesFor($this->date) : [];
+        if (!$ranges) {
+            $this->addError($attribute, Yii::t('app', "{doctor} doesn't see patients on {day}s.", [
+                'doctor' => $doctor,
+                'day' => date('l', $startTs),
+            ]));
+            return;
+        }
+        if (!$consultant->isOpenFor($this->date, $this->time, $duration)) {
+            $this->addError($attribute, Yii::t('app', "That time is outside {doctor}'s hours on {day}: {hours}. A {minutes}-minute session must fit within them.", [
+                'doctor' => $doctor,
+                'day' => date('l', $startTs),
+                'hours' => implode(', ', array_map(function ($r) {
+                    return substr($r[0], 0, 5) . '–' . substr($r[1], 0, 5);
+                }, $ranges)),
+                'minutes' => $duration,
             ]));
             return;
         }
@@ -202,6 +225,17 @@ class Appointments extends \yii\db\ActiveRecord
         if ($conflict) {
             $this->addError($attribute, Yii::t('app', 'The doctor is not available at this time.'));
         }
+    }
+
+    /**
+     * Whether the logged-in user is the consultant this appointment is booked with
+     * (front-desk style booking). False in console runs, which have no user.
+     */
+    private function isBookedByTheConsultant()
+    {
+        $user = Yii::$app->get('user', false);
+
+        return $user !== null && !$user->isGuest && (int) $user->id === (int) $this->consultant_id;
     }
 
     /**

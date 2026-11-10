@@ -3,6 +3,7 @@
 namespace frontend\tests\unit\models;
 
 use frontend\models\Appointments;
+use frontend\models\ConsultantWorkingHours;
 use frontend\tests\BookingDataTrait;
 
 class AppointmentsTest extends \Codeception\Test\Unit
@@ -74,21 +75,82 @@ class AppointmentsTest extends \Codeception\Test\Unit
         $this->assertTrue($appointment->saveBooking(), json_encode($appointment->errors));
     }
 
-    public function testRejectsSlotOutsideDefaultWorkingHours()
+    public function testDefaultWeekIsMondayToSaturdayWithALunchBreak()
     {
-        $this->assertFalse($this->newBooking('08:30')->saveBooking());
-        $this->assertFalse($this->newBooking('16:45')->saveBooking(), 'Slot ending after 17:00 must be rejected');
-        $this->assertTrue($this->newBooking('16:30')->saveBooking());
+        $this->assertFalse($this->newBooking('07:30')->saveBooking(), 'before 08:00');
+        $this->assertFalse($this->newBooking('12:45')->saveBooking(), 'runs into the 13:00-14:00 break');
+        $this->assertFalse($this->newBooking('13:30')->saveBooking(), 'inside the break');
+        $this->assertFalse($this->newBooking('16:45')->saveBooking(), 'ends after 17:00');
+        $this->assertTrue($this->newBooking('08:00')->saveBooking());
+        $this->assertTrue($this->newBooking('12:30', $this->otherClient)->saveBooking(), 'ends exactly at 13:00');
+        $this->assertTrue($this->newBooking('14:00')->saveBooking());
+
+        $saturday = date('Y-m-d', strtotime($this->date . ' +5 days'));
+        $sunday = date('Y-m-d', strtotime($this->date . ' +6 days'));
+        $this->assertTrue($this->newBooking('10:00', null, $saturday)->saveBooking());
+        $closed = $this->newBooking('10:00', null, $sunday);
+        $this->assertFalse($closed->saveBooking());
+        $this->assertStringContainsString('Sundays', $closed->getFirstError('time'));
     }
 
-    public function testUsesConsultantWorkingHours()
+    public function testUsesConsultantsWeeklySchedule()
     {
-        $this->consultant->working_start_time = '07:00:00';
-        $this->consultant->working_end_time = '12:00:00';
-        $this->consultant->save(false);
+        // Mondays 07:00-12:00 only
+        ConsultantWorkingHours::replaceWeek($this->consultant->id, [1 => [['07:00:00', '12:00:00']]]);
 
         $this->assertTrue($this->newBooking('07:30')->saveBooking());
-        $this->assertFalse($this->newBooking('12:00', $this->otherClient)->saveBooking());
+        $late = $this->newBooking('12:00', $this->otherClient);
+        $this->assertFalse($late->saveBooking());
+        $this->assertStringContainsString('07:00–12:00', $late->getFirstError('time'));
+
+        $tuesday = date('Y-m-d', strtotime($this->date . ' +1 day'));
+        $this->assertFalse($this->newBooking('10:00', null, $tuesday)->saveBooking(), 'Tuesday is now closed');
+    }
+
+    public function testConsultantWithNoHoursCannotBeBooked()
+    {
+        ConsultantWorkingHours::replaceWeek($this->consultant->id, []);
+
+        $this->assertFalse($this->newBooking('10:00')->saveBooking());
+    }
+
+    public function testNewConsultantGetsTheDefaultWeek()
+    {
+        $this->assertSame(ConsultantWorkingHours::DEFAULT_WEEK, $this->consultant->getWeek());
+        $this->assertSame('Mon–Sat 08:00–13:00, 14:00–17:00', $this->consultant->getHoursSummary());
+    }
+
+    public function testSummaryGroupsConsecutiveDaysWithTheSameHours()
+    {
+        $this->assertSame(
+            'Mon–Tue 09:00–12:00; Thu 09:00–12:00; Sat 10:00–14:00',
+            ConsultantWorkingHours::summarize([
+                1 => [['09:00:00', '12:00:00']],
+                2 => [['09:00:00', '12:00:00']],
+                4 => [['09:00:00', '12:00:00']],
+                6 => [['10:00:00', '14:00:00']],
+            ])
+        );
+        $this->assertNull(ConsultantWorkingHours::summarize([]));
+    }
+
+    public function testPatientsNeedAnHoursNotice()
+    {
+        $soon = time() + 30 * 60;
+        $appointment = $this->newBooking(date('H:i', $soon), null, date('Y-m-d', $soon));
+
+        $this->assertFalse($appointment->saveBooking());
+        $this->assertStringContainsString('1 hour in advance', $appointment->getFirstError('time'));
+    }
+
+    public function testCannotBookMoreThanNinetyDaysAhead()
+    {
+        // The Monday 91-97 days ahead: open, but past the window
+        $tooFar = date('Y-m-d', strtotime('monday', strtotime('+91 days')));
+        $appointment = $this->newBooking('10:00', null, $tooFar);
+
+        $this->assertFalse($appointment->saveBooking());
+        $this->assertStringContainsString('90 days', $appointment->getFirstError('time'));
     }
 
     public function testRejectsPastSlot()

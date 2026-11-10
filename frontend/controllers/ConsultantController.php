@@ -144,7 +144,6 @@ class ConsultantController extends Controller
             $model->loadDefaultValues();
             // Prefill from the logged-in account; the consultant can still edit them
             $model->consultant_email = Yii::$app->user->identity->email;
-            $model->working_hours = Consultant::DEFAULT_WORKING_HOURS;
         }
 
         Yii::$app->session->setFlash('info', 'Please correct the Names accordingly as you fill out this form.');
