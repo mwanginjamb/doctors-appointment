@@ -130,6 +130,11 @@ class ConsultantController extends Controller
             return $this->redirect(Url::toRoute(['create']));
         }
 
+        // Front desk and admins have no consultant profile of their own
+        if ($model === null) {
+            throw new NotFoundHttpException(Yii::t('app', 'The requested page does not exist.'));
+        }
+
         return $this->render('view', [
             'model' => $model,
         ]);
