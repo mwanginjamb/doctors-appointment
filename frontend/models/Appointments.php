@@ -32,8 +32,6 @@ use yii\behaviors\TimestampBehavior;
  * @property int|null $created_by
  * @property int|null $updated_by
  * @property int|null $consultant_id
- * @property int|null $reminder_5hrs_sent
- * @property int|null $reminder_2hrs_sent
  * @property string|null $status (scheduled, completed, cancelled, no_show, confirmed)
  * @property string|null $cancellation_note why it was cancelled; set only by cancel()
  * @property int|null $patient_age
@@ -58,8 +56,6 @@ class Appointments extends \yii\db\ActiveRecord
         'updated_at',
         'created_by',
         'updated_by',
-        'reminder_5hrs_sent',
-        'reminder_2hrs_sent',
         'cancellation_note',
         'duration_minutes',
     ];
@@ -90,7 +86,7 @@ class Appointments extends \yii\db\ActiveRecord
         return [
             [['date', 'time', 'patient_id', 'speciality_id', 'service_id', 'provider_id', 'location', 'recurring_appointment', 'walk_in_appointment', 'symptoms_brief', 'created_at', 'updated_at', 'created_by', 'updated_by', 'consultant_id'], 'default', 'value' => null],
             [['date', 'time'], 'safe'],
-            [['patient_id', 'speciality_id', 'service_id', 'provider_id', 'recurring_appointment', 'walk_in_appointment', 'created_at', 'updated_at', 'created_by', 'updated_by', 'consultant_id', 'reminder_5hrs_sent', 'reminder_2hrs_sent'], 'integer'],
+            [['patient_id', 'speciality_id', 'service_id', 'provider_id', 'recurring_appointment', 'walk_in_appointment', 'created_at', 'updated_at', 'created_by', 'updated_by', 'consultant_id'], 'integer'],
             [['location', 'symptoms_brief'], 'string'],
             [['status'], 'string', 'max' => 20],
             [['cancellation_note'], 'string', 'max' => 500],

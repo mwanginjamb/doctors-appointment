@@ -32,8 +32,6 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
 
         try {
             $this->sendMail($appointment);
-            // Update the old reminder fields for backward compatibility
-            $this->updateLegacyReminderFields($appointment);
             AppointmentNotifications::markAsSentById($this->notificationId);
         } catch (\Exception $e) {
             AppointmentNotifications::markAsFailedById($this->notificationId, $e->getMessage());
@@ -126,37 +124,6 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
         }
 
         return "Appointment Reminder - {$timeUnit} notice";
-    }
-
-    /**
-     * Update legacy reminder fields for backward compatibility
-     */
-    private function updateLegacyReminderFields($appointment)
-    {
-        if (strpos($this->reminderType, '-minute') === false) {
-            return;
-        }
-
-        $minutes = (int) str_replace('-minute', '', $this->reminderType);
-
-        // Update the legacy reminder fields if they match common times
-        if ($minutes == 300) { // 5 hours
-            $appointment->reminder_5hrs_sent = 1;
-        } elseif ($minutes == 120) { // 2 hours
-            $appointment->reminder_2hrs_sent = 1;
-        } else {
-            // No legacy field to update
-            return;
-        }
-
-        // Use updateAll to bypass afterSave() hook and prevent infinite loops
-        Appointments::updateAll(
-            [
-                'reminder_5hrs_sent' => $appointment->reminder_5hrs_sent,
-                'reminder_2hrs_sent' => $appointment->reminder_2hrs_sent,
-            ],
-            ['id' => $appointment->id]
-        );
     }
 
     /**
