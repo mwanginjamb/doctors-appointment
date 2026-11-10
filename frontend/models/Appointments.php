@@ -36,6 +36,7 @@ use yii\behaviors\TimestampBehavior;
  * @property string|null $cancellation_note why it was cancelled; set only by cancel()
  * @property int|null $outcome_at when attended / no-show was recorded; set only by recordOutcome()
  * @property int|null $outcome_by who recorded it
+ * @property int|null $booking_link_id the booking link a remote walk-in booked through
  * @property int|null $patient_age
  */
 class Appointments extends \yii\db\ActiveRecord
@@ -62,10 +63,17 @@ class Appointments extends \yii\db\ActiveRecord
         'duration_minutes',
         'outcome_at',
         'outcome_by',
+        'booking_link_id',
     ];
 
     /** Days during which a recorded outcome can still be changed (attended <-> no-show). */
     const OUTCOME_CORRECTION_DAYS = 7;
+
+    /**
+     * @var bool set for a remote walk-in booked through a booking link: like a front-desk walk-in,
+     *           it is limited by the slots the link offers rather than by the minimum notice
+     */
+    public $skipNotice = false;
 
     public $patient_age;
 
@@ -194,7 +202,7 @@ class Appointments extends \yii\db\ActiveRecord
 
         // Booking window. A consultant booking a walk-in into their own calendar skips the notice.
         $notice = (int) (Yii::$app->params['booking.minNoticeMinutes'] ?? 0);
-        if ($notice > 0 && $startTs < time() + $notice * 60 && !$this->isBookedByTheConsultant()) {
+        if ($notice > 0 && $startTs < time() + $notice * 60 && !$this->skipNotice && !$this->isBookedByTheConsultant()) {
             $this->addError($attribute, Yii::t('app', 'Appointments must be booked at least {notice} in advance.', [
                 'notice' => $notice % 60 === 0 ? ($notice === 60 ? '1 hour' : ($notice / 60) . ' hours') : $notice . ' minutes',
             ]));
@@ -401,6 +409,11 @@ class Appointments extends \yii\db\ActiveRecord
         $this->outcome_by = $user && !$user->isGuest ? $user->id : null;
 
         return $this->save(false);
+    }
+
+    public function getBookingLink()
+    {
+        return $this->hasOne(BookingLink::class, ['id' => 'booking_link_id']);
     }
 
     public function getOutcomeRecorder()
