@@ -31,6 +31,7 @@ $menuItems = [
             ['label' => 'Specializations', 'url' => ['/specialization/index'], 'icon' => 'medical_services', 'match' => ['specialization']],
             ['label' => 'Genders', 'url' => ['/gender/index'], 'icon' => 'wc', 'match' => ['gender']],
             ['label' => 'Insurance Providers', 'url' => ['/provider/index'], 'icon' => 'health_and_safety', 'match' => ['provider']],
+            ['label' => 'Public Holidays', 'url' => ['/holiday/index'], 'icon' => 'event_busy', 'match' => ['holiday']],
         ],
         'visible' => $user->can(RbacHelper::PERM_MANAGE_REFERENCE_DATA),
     ],

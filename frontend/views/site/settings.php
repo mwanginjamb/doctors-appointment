@@ -27,6 +27,7 @@ $this->params['breadcrumbs'][] = $this->title;
                                 <?= Html::a('Gender', Url::toRoute(['gender/index']), ['class' => 'link-secondary text-decoration-none fw-semibold']) ?>
                                 <?= Html::a('Specializations', Url::toRoute(['specialization/index']), ['class' => 'link-secondary text-decoration-none fw-semibold']) ?>
                                 <?= Html::a('Insurance Providers', Url::toRoute(['provider/index']), ['class' => 'link-secondary text-decoration-none fw-semibold']) ?>
+                                <?= Html::a('Public Holidays', Url::toRoute(['holiday/index']), ['class' => 'link-secondary text-decoration-none fw-semibold']) ?>
                             </div>
                         </div>
                     </div>

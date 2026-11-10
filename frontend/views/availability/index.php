@@ -1,12 +1,16 @@
 <?php
 
 use frontend\models\ConsultantWorkingHours;
+use frontend\models\PublicHoliday;
+use yii\bootstrap5\ActiveForm;
 use yii\bootstrap5\Html;
 
 /**
  * @var yii\web\View $this
  * @var frontend\models\WeeklyScheduleForm $form
  * @var frontend\models\Consultant $consultant
+ * @var frontend\models\TimeOffForm $timeOffForm
+ * @var frontend\models\ConsultantTimeOff[] $timeOff
  */
 
 $this->title = Yii::t('app', 'Availability');
@@ -75,6 +79,83 @@ $rangeRow = function ($day, $i, $start = '', $end = '') {
         <?= Html::submitButton(Yii::t('app', 'Save working hours'), ['class' => 'btn btn-primary']) ?>
     </div>
     <?= Html::endForm() ?>
+
+    <h2 class="h4 fw-bold mt-5" id="time-off"><?= Yii::t('app', 'Time off') ?></h2>
+    <p class="text-muted"><?= Yii::t('app', 'Leave, conferences or part of a day. Patients cannot book you during it; they only see the dates, never the reason.') ?></p>
+
+    <div class="row g-4">
+        <div class="col-lg-5">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h3 class="h6 fw-bold mb-3"><?= Yii::t('app', 'Add time off') ?></h3>
+                    <?php $tf = ActiveForm::begin(['id' => 'time-off-form', 'action' => ['availability/add-time-off']]); ?>
+                    <div class="row g-2">
+                        <div class="col-6"><?= $tf->field($timeOffForm, 'start_date')->input('date') ?></div>
+                        <div class="col-6"><?= $tf->field($timeOffForm, 'start_time')->input('time') ?></div>
+                        <div class="col-6"><?= $tf->field($timeOffForm, 'end_date')->input('date') ?></div>
+                        <div class="col-6"><?= $tf->field($timeOffForm, 'end_time')->input('time') ?></div>
+                    </div>
+                    <p class="form-text mt-0"><?= Yii::t('app', 'Leave the times empty to take whole days, from the first date to the last date inclusive.') ?></p>
+                    <?= $tf->field($timeOffForm, 'reason')->textInput(['maxlength' => 255, 'placeholder' => Yii::t('app', 'e.g. Annual leave')]) ?>
+                    <?= Html::submitButton(Yii::t('app', 'Add time off'), ['class' => 'btn btn-outline-primary']) ?>
+                    <?php ActiveForm::end(); ?>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-7">
+            <?php if (!$timeOff): ?>
+                <p class="text-muted"><?= Yii::t('app', 'No time off coming up.') ?></p>
+            <?php endif; ?>
+            <?php foreach ($timeOff as $period): ?>
+                <?php $clashes = $period->findClashingAppointments(); ?>
+                <div class="card shadow-sm mb-3 time-off-entry<?= $clashes ? ' border-warning' : '' ?>">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <div class="fw-semibold"><?= Html::encode($period->getLabel()) ?></div>
+                                <?php if ($period->reason): ?>
+                                    <div class="text-muted small"><?= Html::encode($period->reason) ?></div>
+                                <?php endif; ?>
+                            </div>
+                            <?= Html::a(Yii::t('app', 'Remove'), ['availability/delete-time-off', 'id' => $period->id], [
+                                'class' => 'btn btn-sm btn-outline-danger',
+                                'data' => ['method' => 'post', 'confirm' => Yii::t('app', 'Remove this time off? Patients will be able to book these times again.')],
+                            ]) ?>
+                        </div>
+                        <?php if ($clashes): ?>
+                            <div class="alert alert-warning small mt-3 mb-0">
+                                <div class="fw-semibold mb-1">
+                                    <?= Yii::t('app', '{n} appointment(s) booked during this time. Open each one to cancel it with a note, or drag it to a new time on your calendar.', ['n' => count($clashes)]) ?>
+                                </div>
+                                <ul class="mb-0">
+                                    <?php foreach ($clashes as $appointment): ?>
+                                        <li>
+                                            <?= Html::a(
+                                                Html::encode(Yii::$app->formatter->asDatetime(strtotime($appointment->date . ' ' . $appointment->time), 'php:D j M, H:i')
+                                                    . ' — ' . ($appointment->patient->full_name ?? Yii::t('app', 'Patient'))),
+                                                ['appointments/view', 'id' => $appointment->id]
+                                            ) ?>
+                                        </li>
+                                    <?php endforeach; ?>
+                                </ul>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+
+            <?php $holidays = PublicHoliday::between(date('Y-m-d'), date('Y-m-d', strtotime('+' . (int) ($params['booking.maxDaysAhead'] ?? 90) . ' days'))); ?>
+            <?php if ($holidays): ?>
+                <h3 class="h6 fw-bold mt-4"><?= Yii::t('app', 'Public holidays (clinic closed)') ?></h3>
+                <ul class="list-unstyled small text-muted">
+                    <?php foreach ($holidays as $holiday): ?>
+                        <li><?= Html::encode(Yii::$app->formatter->asDate(strtotime($holiday->date), 'php:D j M Y') . ' — ' . $holiday->name) ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            <?php endif; ?>
+        </div>
+    </div>
 </div>
 
 <template id="range-template"><?= $rangeRow('__DAY__', '__I__') ?></template>

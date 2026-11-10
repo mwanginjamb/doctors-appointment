@@ -50,8 +50,39 @@ if (!empty($consultant)) {
         'summary' => $consultant->getHoursSummary(),
     ];
 }
+// Closed periods inside the booking window, shown as shaded background and refused on click.
+// Full local date-times ("YYYY-MM-DDTHH:MM:SS", no zone) so browsers read them as local time.
+$windowStart = date('Y-m-d');
+$windowEnd = date('Y-m-d', strtotime('+' . (int) ($params['booking.maxDaysAhead'] ?? 90) . ' days'));
+$blocked = [];
+foreach (\frontend\models\PublicHoliday::between($windowStart, $windowEnd) as $holiday) {
+    $blocked[] = [
+        'start' => $holiday->date . 'T00:00:00',
+        'end' => date('Y-m-d', strtotime($holiday->date . ' +1 day')) . 'T00:00:00',
+        'title' => 'Public holiday: ' . $holiday->name,
+        'reason' => $holiday->name . ' is a public holiday; the clinic is closed.',
+    ];
+}
+if (!empty($consultant)) {
+    // Time off reasons are private: patients only see that the doctor is away
+    foreach (\frontend\models\ConsultantTimeOff::overlapping($consultant->id, $windowStart . ' 00:00:00', $windowEnd . ' 23:59:59') as $away) {
+        $blocked[] = [
+            'start' => str_replace(' ', 'T', $away->start_at),
+            'end' => str_replace(' ', 'T', $away->end_at),
+            'title' => $role === 'consultant' ? 'Time off' . ($away->reason ? ': ' . $away->reason : '') : 'Doctor away',
+            'reason' => ($consultant->names ?: 'The doctor') . ' is away ' . $away->getLabel() . '.',
+        ];
+    }
+}
+foreach ($blocked as &$period) {
+    // overlap: false keeps appointments from being dragged onto it
+    $period += ['display' => 'background', 'color' => '#f1aeb5', 'overlap' => false];
+}
+unset($period);
+
 $bookingRules = json_encode([
     'availability' => $availability,
+    'blocked' => $blocked,
     // Consultants book walk-ins into their own calendar without notice
     'noticeMinutes' => $role === 'consultant' ? 0 : (int) ($params['booking.minNoticeMinutes'] ?? 0),
     'maxDaysAhead' => (int) ($params['booking.maxDaysAhead'] ?? 90),
@@ -138,6 +169,13 @@ $script = <<<JS
                 ? 'Please book at least ' + (rules.noticeMinutes === 60 ? '1 hour' : rules.noticeMinutes + ' minutes') + ' ahead.'
                 : 'Please choose a time in the future.';
         }
+        var sessionMs = (avail ? avail.duration : 30) * 60000;
+        var closed = rules.blocked.find(function (b) {
+            return date.getTime() < new Date(b.end).getTime() && date.getTime() + sessionMs > new Date(b.start).getTime();
+        });
+        if (closed) {
+            return closed.reason;
+        }
         if (!avail) {
             return null;
         }
@@ -171,7 +209,8 @@ $script = <<<JS
             center: 'title',
             right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek' // Toggle buttons
         },
-        events: fetchCalendarEvents, // Load existing appointments
+        // Existing appointments, plus holidays and time off as shaded background
+        eventSources: [fetchCalendarEvents, rules.blocked],
         selectable: true,
         editable: true,
         eventDurationEditable: true,

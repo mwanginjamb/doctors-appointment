@@ -186,9 +186,28 @@ class Appointments extends \yii\db\ActiveRecord
             return;
         }
 
-        // The whole session must fit inside one of the consultant's opening ranges that day
         $consultant = $this->consultant;
         $doctor = $consultant->names ?? Yii::t('app', 'The doctor');
+
+        // The clinic is closed on public holidays, for every consultant
+        if ($holiday = PublicHoliday::findOnDate($this->date)) {
+            $this->addError($attribute, Yii::t('app', '{date} is a public holiday ({name}); the clinic is closed.', [
+                'date' => date('l j M', $startTs),
+                'name' => $holiday->name,
+            ]));
+            return;
+        }
+
+        // The consultant's time off. Its reason is private, so patients only see the dates.
+        if ($consultant && ($away = ConsultantTimeOff::overlapping($consultant->id, date('Y-m-d H:i:s', $startTs), date('Y-m-d H:i:s', $endTs)))) {
+            $this->addError($attribute, Yii::t('app', '{doctor} is away {period}. Please choose another time.', [
+                'doctor' => $doctor,
+                'period' => $away[0]->getLabel(),
+            ]));
+            return;
+        }
+
+        // The whole session must fit inside one of the consultant's opening ranges that day
         $ranges = $consultant ? $consultant->getRangesFor($this->date) : [];
         if (!$ranges) {
             $this->addError($attribute, Yii::t('app', "{doctor} doesn't see patients on {day}s.", [

@@ -5,6 +5,7 @@ namespace frontend\tests;
 use common\models\User;
 use frontend\models\Appointments;
 use frontend\models\Consultant;
+use frontend\models\PublicHoliday;
 use frontend\models\UserProfile;
 
 /**
@@ -29,6 +30,8 @@ trait BookingDataTrait
     protected function createParticipants()
     {
         $this->date = date('Y-m-d', strtotime('next monday'));
+        // Seeded holidays would close some Mondays; tests that need a holiday add their own
+        PublicHoliday::deleteAll();
 
         $this->client = $this->createUser('client', 'client');
         $this->otherClient = $this->createUser('other.client', 'client');
