@@ -144,9 +144,12 @@ $username = Yii::$app->user->identity->username ?? 'User';
                         Html::tag('li', Html::tag('h6', 'My Account', ['class' => 'dropdown-header'])) .
                         Html::tag('li', Html::a(
                             Html::tag('i', '', ['class' => 'bi bi-person me-2']) . 'Profile',
-                            ['/consultant/view', 'id' => Yii::$app->user->identity->id],
-                            ['class' => 'dropdown-item', 'visible' => Yii::$app->user->identity->role == 'consultant'],
-
+                            // Consultants and patients have their own profiles (consultant/view sends patients to
+                            // theirs); front desk and admins have only an account
+                            in_array(Yii::$app->user->identity->role, ['consultant', 'client'], true)
+                                ? ['/consultant/view', 'id' => Yii::$app->user->identity->id]
+                                : ['/account/index'],
+                            ['class' => 'dropdown-item']
                         )) .
                         (\frontend\components\AdminAccessControl::isAdmin() ? Html::tag('li', Html::a(
                             Html::tag('i', '', ['class' => 'bi bi-gear me-2']) . 'Settings',
