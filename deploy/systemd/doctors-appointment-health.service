@@ -1,0 +1,33 @@
+# One run of the health checks (php yii health/check): queue worker, reminder scheduler, message
+# delivery, WhatsApp session, database. Emails alerts to ALERT_EMAILS (new problem, a reminder every
+# HEALTH_REALERT_HOURS, resolved) and pings HEALTHCHECK_PING_URL. Started every 5 minutes by
+# doctors-appointment-health.timer.
+#
+# Run it by hand:   sudo systemctl start doctors-appointment-health
+# Just look:        sudo -u www-data php yii health/status
+# Logs:             journalctl -u doctors-appointment-health
+#
+# Same path / PHP / user assumptions as doctors-appointment-queue.service.
+
+[Unit]
+Description=Doctor appointments health checks (one run)
+After=network-online.target mysql.service mariadb.service
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/html/doctors-appointment
+ExecStart=/usr/bin/php /var/www/html/doctors-appointment/yii health/check --color=0
+
+# Checks take seconds (the WAHA call times out after 10 s); never overlap the next run
+TimeoutStartSec=120
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=doctors-health
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true

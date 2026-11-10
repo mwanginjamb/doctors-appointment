@@ -21,6 +21,7 @@ $this->params['breadcrumbs'][] = $this->title;
                     it on to comply with the Data Protection Act, 2019. Answers recorded earlier are kept.
                 </div>
             <?php endif; ?>
+            <?= $this->render('_health') ?>
             <?= $this->render('_clinic_stats', ['stats' => $stats, 'scopeLabel' => 'the whole clinic']) ?>
 
             <!-- content -->

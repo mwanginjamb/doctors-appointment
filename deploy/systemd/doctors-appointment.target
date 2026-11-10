@@ -2,13 +2,14 @@
 #   * doctors-appointment-queue.service      — queue worker that sends emails / SMS / WhatsApp / push
 #   * doctors-appointment-scheduler.timer    — queues due reminders every minute
 #   * doctors-appointment-audit-purge.timer  — removes audit entries past retention, daily
+#   * doctors-appointment-health.timer       — health checks and alerts every 5 minutes
 #
 #   sudo systemctl restart doctors-appointment.target   # after every deploy
 #   sudo systemctl stop doctors-appointment.target      # pause all notifications
 
 [Unit]
 Description=Doctor appointments background services
-Wants=doctors-appointment-queue.service doctors-appointment-scheduler.timer doctors-appointment-audit-purge.timer
+Wants=doctors-appointment-queue.service doctors-appointment-scheduler.timer doctors-appointment-audit-purge.timer doctors-appointment-health.timer
 
 [Install]
 WantedBy=multi-user.target

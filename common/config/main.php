@@ -50,6 +50,8 @@ return [
             'ttr' => 300,
             'attempts' => 3,
             'mutex' => \yii\mutex\MysqlMutex::class, // Mutex used to sync queries
+            // Logs each job and, above all, each failed job (Yii::error), so failures reach the error tracker
+            'as log' => \yii\queue\LogBehavior::class,
         ],
         'mailer' => [
             'class' => \yii\symfonymailer\Mailer::class,

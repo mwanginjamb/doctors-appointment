@@ -27,6 +27,7 @@ class ConsentGate extends Behavior
         'site/error',
         'book/',
         'manage/',
+        'health/',
         'debug/',
         'gii/',
     ];
