@@ -22,6 +22,13 @@ $menuItems = [
         'match' => ['site/settings'],
         'visible' => $user->can(RbacHelper::ROLE_ADMIN),
     ],
+    [
+        'label' => 'Appointments Board',
+        'url' => ['/board/index'],
+        'icon' => 'event_note',
+        'match' => ['board'],
+        'visible' => $user->can(RbacHelper::ROLE_ADMIN),
+    ],
     // ── Reference data used by consultant profiles, search and booking ──
     [
         'label' => 'Reference Data',
