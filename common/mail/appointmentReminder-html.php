@@ -40,7 +40,15 @@ $practiceName = $consultant->practice_name ?? 'Practice Name Not Specified';
 
         <p>Please ensure to arrive a few minutes early to complete any necessary paperwork.</p>
 
-        <p>If you have any questions or need to reschedule, feel free do a calendar update.</p>
+        <?php if (!empty($manageUrl)): ?>
+            <p>Need a different time, or can't make it?</p>
+            <p style="margin: 16px 0 24px">
+                <a href="<?= htmlspecialchars($manageUrl) ?>"
+                    style="background:#0d6efd;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none">Reschedule or cancel</a>
+            </p>
+        <?php else: ?>
+            <p>If you have any questions or need to reschedule, please contact the clinic.</p>
+        <?php endif; ?>
 
         <p>Best regards,<br>Your Healthcare Team</p>
 

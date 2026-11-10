@@ -2,11 +2,11 @@
 
 namespace frontend\controllers;
 
+use frontend\components\ThrottlesByIp;
 use frontend\models\BookingLink;
 use frontend\models\RemoteWalkInForm;
 use Yii;
 use yii\web\Controller;
-use yii\web\TooManyRequestsHttpException;
 
 /**
  * The public page a booking link opens (/book/<token>): no sign-in. The patient sees the open slots
@@ -14,13 +14,11 @@ use yii\web\TooManyRequestsHttpException;
  */
 class BookController extends Controller
 {
-    /** Requests allowed per IP address per window, against guessing tokens or flooding bookings */
-    const RATE_LIMIT = 40;
-    const RATE_WINDOW = 600;
+    use ThrottlesByIp;
 
     public function actionIndex($token)
     {
-        $this->throttle();
+        $this->throttle('book');
 
         $link = BookingLink::findByToken($token);
         if ($link === null) {
@@ -37,16 +35,5 @@ class BookController extends Controller
         }
 
         return $this->render('index', ['link' => $link, 'form' => $form]);
-    }
-
-    private function throttle()
-    {
-        $key = 'book-throttle:' . Yii::$app->request->userIP;
-        $cache = Yii::$app->cache;
-        $count = (int) $cache->get($key) + 1;
-        $cache->set($key, $count, self::RATE_WINDOW);
-        if ($count > self::RATE_LIMIT) {
-            throw new TooManyRequestsHttpException(Yii::t('app', 'Too many requests. Please wait a few minutes and try again.'));
-        }
     }
 }

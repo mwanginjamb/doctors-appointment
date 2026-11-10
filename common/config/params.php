@@ -20,6 +20,15 @@ return [
     // Public address used in links sent to patients, e.g. https://appointments.example.com
     // (empty: the address of the request that creates the link)
     'bookingLink.baseUrl' => env('BOOKING_LINK_BASE_URL', ''),
+    // Public address of the site for links built outside a web request (reminders sent by the queue
+    // worker). Falls back to BOOKING_LINK_BASE_URL.
+    'app.publicUrl' => env('APP_PUBLIC_URL', env('BOOKING_LINK_BASE_URL', '')),
+    // Patient self-service links in reminders and "moved" notices: changes allowed until this many
+    // hours before the appointment; reschedule choices cover this many days. Set SELF_SERVICE_KEY to
+    // a long random string (it signs the links).
+    'selfService.cutoffHours' => (int) env('SELF_SERVICE_CUTOFF_HOURS', 24),
+    'selfService.rescheduleDays' => 14,
+    'selfService.key' => env('SELF_SERVICE_KEY', ''),
     // Default notification schedules to create for new users
     'defaultNotificationSchedules' => [
         [

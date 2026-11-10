@@ -141,60 +141,13 @@ class BookingLink extends ActiveRecord
      */
     public function openSlots()
     {
-        $slots = array_fill_keys($this->getDates(), []);
-        $consultant = $this->consultant;
-        if (!$consultant || !$consultant->isTakingBookings()) {
-            return $slots;
-        }
-
-        $length = $consultant->getSessionMinutes() * 60;
-        $holidays = array_map(function ($h) {
-            return $h->date;
-        }, PublicHoliday::between($this->from_date, $this->to_date));
-        $away = array_map(function ($t) {
-            return [strtotime($t->start_at), strtotime($t->end_at)];
-        }, ConsultantTimeOff::overlapping($consultant->id, $this->from_date . ' 00:00:00', date('Y-m-d', strtotime($this->to_date . ' +1 day')) . ' 00:00:00'));
-        $busy = [];
-        foreach (Appointments::find()->orderBy(null)
-            ->where(['consultant_id' => $consultant->user_id])
-            ->andWhere(['between', 'date', $this->from_date, $this->to_date])
-            ->andWhere(['or', ['status' => null], ['<>', 'status', Appointments::STATUS_CANCELLED]])
-            ->all() as $appointment) {
-            $start = strtotime($appointment->date . ' ' . $appointment->time);
-            $busy[] = [$start, $start + $appointment->getDurationMinutes() * 60];
-        }
-        $blocked = array_merge($away, $busy);
-
-        foreach (array_keys($slots) as $date) {
-            if (in_array($date, $holidays, true)) {
-                continue;
-            }
-            foreach ($consultant->getRangesFor($date) as [$open, $close]) {
-                $from = strtotime($date . ' ' . $open);
-                $to = strtotime($date . ' ' . $close);
-                if ($this->day_start) {
-                    $from = max($from, strtotime($date . ' ' . $this->day_start));
-                }
-                if ($this->day_end) {
-                    $to = min($to, strtotime($date . ' ' . $this->day_end));
-                }
-                // Step from the opening time so slots line up with the consultant's calendar grid
-                for ($start = strtotime($date . ' ' . $open); $start + $length <= $to; $start += $length) {
-                    if ($start < $from || $start <= time()) {
-                        continue;
-                    }
-                    $end = $start + $length;
-                    foreach ($blocked as [$bStart, $bEnd]) {
-                        if ($start < $bEnd && $end > $bStart) {
-                            continue 2;
-                        }
-                    }
-                    $slots[$date][] = date('H:i', $start);
-                }
-            }
-        }
-
-        return $slots;
+        return (new SlotFinder([
+            'consultant' => $this->consultant,
+            'from' => $this->from_date,
+            'to' => $this->to_date,
+            'dayStart' => $this->day_start,
+            'dayEnd' => $this->day_end,
+        ]))->find();
     }
 
     /**

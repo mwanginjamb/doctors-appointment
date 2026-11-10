@@ -93,6 +93,9 @@ return [
             'rules' => [
                 // Booking links sent to patients: /book/<token>
                 'book/<token:[A-Za-z0-9_-]+>' => 'book/index',
+                // Patient self-service links: /manage/<appointment id>/<signature>[/cancel|/reschedule]
+                'manage/<id:\d+>/<sig:[a-f0-9]{32}>' => 'manage/index',
+                'manage/<id:\d+>/<sig:[a-f0-9]{32}>/<action:cancel|reschedule>' => 'manage/<action>',
             ],
         ],
 
