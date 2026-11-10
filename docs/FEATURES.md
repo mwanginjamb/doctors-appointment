@@ -9,10 +9,10 @@ _Last reviewed: 10 November 2026._
 
 | | Score | Summary |
 |---|---|---|
-| Functional | **7.5 / 10** | Covers every way an appointment is made (online, by staff, walk-in, remote walk-in link), realistic availability, the full appointment lifecycle and a usable back office. Patients are not yet told when staff change their appointment, cannot manage it themselves, and there are no payments. |
-| Technical | **6.5 / 10** | Booking rules are central, locked against double booking and covered by 197 passing tests. Production runs in debug mode, two permission systems sit side by side, a lot of logic lives in views, and there is no CI or error tracking. |
+| Functional | **8.5 / 10** | Covers every way an appointment is made (online, by staff, walk-in, remote walk-in link), realistic availability, the full appointment lifecycle and a usable back office. Patients are told about changes and can reschedule or cancel from a link. No payments yet. |
+| Technical | **7 / 10** | Booking rules are central, locked against double booking and covered by passing tests; debug mode is off in production. Two permission systems sit side by side, a lot of logic lives in views, and there is no CI or error tracking. |
 
-Doing the first three items in **Next up** below should bring the app to about 9 functionally and 8 technically.
+Doing **Next up** below should bring the app to about 9 functionally and 8 technically.
 
 ---
 
@@ -46,6 +46,13 @@ Doing the first three items in **Next up** below should bring the app to about 9
 | My account for staff | Front desk and admins get an account page (details, password) instead of a crashing profile link. | `d0568aa` |
 | Dashboard numbers | Today, next 7 days, bookings this week, cancellation and no-show rates, busiest consultants; front desk sees their consultants only. | `f1e4786` |
 
+### Patient communication and self-service
+
+| Item | What it does | Branch |
+|---|---|---|
+| F1 Change notices | When an appointment is cancelled or moved, the other side is told by email and WhatsApp: the patient when the clinic changed it, the consultant when the patient did. The internal cancellation note is not sent. | `feature/notify-appointment-changes` |
+| F3 Self-service link | Reminders and "moved" notices carry a signed link (`/manage/<id>/<signature>`) where the patient reschedules to another free slot or cancels, up to `SELF_SERVICE_CUTOFF_HOURS` (default 24) before. Moving the appointment invalidates older links. Needs `APP_PUBLIC_URL` (links from the queue worker) and `SELF_SERVICE_KEY`. | `feature/notify-appointment-changes` |
+
 ### Notifications and operations
 
 | Item | What it does | Commit |
@@ -76,14 +83,12 @@ Priority: **P1** do next, **P2** soon, **P3** when there is time. Impact is the 
 
 | # | Item | Priority | Impact |
 |---|---|---|---|
-| F1 | Tell patients when staff cancel or move their appointment, by WhatsApp/SMS as well as email. Today a doctor's cancellation sends nothing. | P1 | +0.5 |
 | F2 | WhatsApp booking confirmations for every booking, not only booking links. | P2 | |
 
 #### Self-service
 
 | # | Item | Priority | Impact |
 |---|---|---|---|
-| F3 | A "reschedule or cancel" link in reminders and confirmations, so patients do not have to phone the clinic. | P1 | +0.5 |
 | F4 | Waitlist: notify patients when a slot frees up. | P3 | |
 
 #### Payments
@@ -115,7 +120,7 @@ Priority: **P1** do next, **P2** soon, **P3** when there is time. Impact is the 
 
 | # | Item | Priority | Impact |
 |---|---|---|---|
-| T1 | **Turn off debug mode in production** (`YII_DEBUG` false, `YII_ENV` prod in `frontend/web/index.php`). Error pages currently show source code. | P1 | +0.5 |
+| ~~T1~~ | ~~Turn off debug mode in production.~~ **Done on the server (10 Nov 2026).** | — | +0.5 |
 | T2 | Error tracking (e.g. Sentry) and an alert when the queue worker stops or notifications keep failing. | P1 | +0.5 (with T4) |
 | T3 | Move WhatsApp from WAHA (unofficial WhatsApp Web bridge) to the official WhatsApp Business API before relying on it at scale. | P2 | |
 
@@ -142,6 +147,6 @@ Priority: **P1** do next, **P2** soon, **P3** when there is time. Impact is the 
 
 ## Next up
 
-1. **T1** Turn off debug mode in production (minutes).
-2. **F1 + F3** Tell patients about changes, and let them reschedule or cancel from a link.
-3. **T4 + T2** CI on every push, error tracking and queue alerts.
+1. **T2** Error tracking and queue alerts (approach to be agreed).
+2. **T4** CI on every push.
+3. **F5** M-Pesa deposits, once Daraja credentials are available.

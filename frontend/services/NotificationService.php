@@ -284,23 +284,6 @@ class NotificationService
         }
     }
 
-    // reschedule notification
-    public static function sendRescheduleNotification(Appointments $appointment)
-    {
-        // use the email job queue immediately without scheduling
-        if ($appointment->patient && $appointment->patient->email) {
-            Yii::$app->queue->delay(10)->push(new SendReminderEmailJob([
-                'appointmentId' => $appointment->id,
-                'reminderType' => 'Reschedule',
-                'notificationId' => null,
-                'recipientType' => NotificationSchedules::METHOD_BOTH
-            ]));
-
-        } else {
-            Yii::info('No patient email; skipped the reschedule email for appointment ' . $appointment->id, 'notifications');
-        }
-    }
-
     // send immediate confirmation notification
     public static function sendAppointmentConfirmation(Appointments $appointment)
     {

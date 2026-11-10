@@ -142,6 +142,11 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
         $failCount = 0;
         $bcc = Yii::$app->params['notificationBcc'] ?? null;
 
+        // Scheduled reminders give the patient (not the consultant) a reschedule / cancel link
+        $isReminder = strpos((string) $this->reminderType, '-minute') !== false;
+        $patientEmail = $appointment->patient->email ?? null;
+        $manageUrl = $isReminder && $patientEmail ? \frontend\services\SelfServiceLink::urlIfChangeable($appointment) : null;
+
         foreach ($recipients as $email => $name) {
             try {
                 $message = Yii::$app->mailer->compose('appointmentReminder-html', [
@@ -149,6 +154,7 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
                     'timeUnit' => $this->getTimeUnit(),
                     'recipientName' => $name,
                     'consultant' => $this->consultant,
+                    'manageUrl' => $email === $patientEmail ? $manageUrl : null,
                 ])
                     ->setTo([$email => $name])
                     ->setFrom([Yii::$app->params['supportEmail'] => Yii::$app->name . ' Messenger'])

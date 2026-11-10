@@ -5,6 +5,7 @@ namespace frontend\models;
 use common\components\RbacHelper;
 use frontend\components\FrontDesk;
 use frontend\models\User;
+use frontend\services\AppointmentChangeNotifier;
 use frontend\services\NotificationService;
 use frontend\models\UserProfile;
 use frontend\models\Consultant;
@@ -74,6 +75,12 @@ class Appointments extends \yii\db\ActiveRecord
      *           it is limited by the slots the link offers rather than by the minimum notice
      */
     public $skipNotice = false;
+
+    /**
+     * @var bool set when the patient changes the appointment through their self-service link (not
+     *           signed in), so the change notice goes to the consultant
+     */
+    public $changedByPatient = false;
 
     public $patient_age;
 
@@ -506,12 +513,20 @@ class Appointments extends \yii\db\ActiveRecord
             // Send immediate confirmation notification
             NotificationService::sendImmediateConfirmation($this);
         } else {
-            // Handle updates
+            // Handle updates (reminders)
             $this->handleAppointmentUpdate($changedAttributes);
-            // Schedule notifications if date/time changed
-            if (isset($changedAttributes['date']) || isset($changedAttributes['time'])) {
-                // Send reschedule notification
-                NotificationService::sendRescheduleNotification($this);
+
+            // Tell the other side: the patient when the clinic changed it, the consultant when the patient did
+            $statusChanged = array_key_exists('status', $changedAttributes) && $changedAttributes['status'] !== $this->status;
+            if ($statusChanged && $this->status === self::STATUS_CANCELLED) {
+                AppointmentChangeNotifier::notify($this, AppointmentChangeNotifier::CANCELLED);
+            } elseif (isset($changedAttributes['date']) || isset($changedAttributes['time'])) {
+                AppointmentChangeNotifier::notify(
+                    $this,
+                    AppointmentChangeNotifier::MOVED,
+                    $changedAttributes['date'] ?? null,
+                    $changedAttributes['time'] ?? null
+                );
             }
         }
     }

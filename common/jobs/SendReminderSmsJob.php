@@ -89,7 +89,18 @@ class SendReminderSmsJob extends BaseObject implements \yii\queue\JobInterface
             return "Hello {$consultantName}, this is a reminder that you have an appointment with {$patientName} scheduled for {$appointmentDate} at {$appointmentTime} (in {$timeUnit}).";
         }
 
-        return "Hello {$patientName}, this is a reminder that your appointment with {$consultantName} is scheduled for {$appointmentDate} at {$appointmentTime} (in {$timeUnit}). Please arrive 15 minutes early.";
+        return "Hello {$patientName}, this is a reminder that your appointment with {$consultantName} is scheduled for {$appointmentDate} at {$appointmentTime} (in {$timeUnit}). Please arrive 15 minutes early."
+            . self::manageNote($appointment);
+    }
+
+    /**
+     * " To reschedule or cancel: <link>" for the patient, while they can still change it themselves.
+     */
+    private static function manageNote($appointment)
+    {
+        $url = \frontend\services\SelfServiceLink::urlIfChangeable($appointment);
+
+        return $url ? " To reschedule or cancel: {$url}" : '';
     }
 
     /**
