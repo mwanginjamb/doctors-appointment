@@ -44,13 +44,30 @@ $rangeRow = function ($day, $i, $start = '', $end = '') {
     <div class="alert alert-light border">
         <div><strong><?= Yii::t('app', 'Patients see') ?>:</strong> <?= Html::encode($summary ?? Yii::t('app', 'Closed every day')) ?></div>
         <div class="small text-muted mt-1">
-            <?= Yii::t('app', 'Sessions are {m} minutes. Patients book at least {notice} minutes ahead and at most {days} days ahead; you can book walk-ins with no notice.', [
-                'm' => (new \frontend\models\Appointments(['consultant_id' => $consultant->user_id]))->getDurationMinutes(),
+            <?= Yii::t('app', 'Patients book at least {notice} minutes ahead and at most {days} days ahead; you can book walk-ins with no notice.', [
                 'notice' => (int) ($params['booking.minNoticeMinutes'] ?? 0),
                 'days' => (int) ($params['booking.maxDaysAhead'] ?? 0),
             ]) ?>
         </div>
     </div>
+
+    <?= Html::beginForm(['availability/session-length', 'cid' => $cid], 'post', ['id' => 'session-length-form', 'class' => 'row g-2 align-items-end mb-4']) ?>
+        <div class="col-auto">
+            <label class="form-label fw-semibold mb-1" for="session-length"><?= Yii::t('app', 'Session length') ?></label>
+            <?= Html::dropDownList('minutes', $consultant->getSessionMinutes(), array_combine(
+                $params['booking.sessionLengths'] ?? [30],
+                array_map(function ($m) {
+                    return $m < 60 ? "$m minutes" : ($m % 60 ? floor($m / 60) . ' h ' . ($m % 60) . ' min' : ($m / 60) . ($m === 60 ? ' hour' : ' hours'));
+                }, $params['booking.sessionLengths'] ?? [30])
+            ), ['class' => 'form-select', 'id' => 'session-length']) ?>
+        </div>
+        <div class="col-auto">
+            <?= Html::submitButton(Yii::t('app', 'Save length'), ['class' => 'btn btn-outline-primary']) ?>
+        </div>
+        <div class="col-12 form-text mt-1">
+            <?= Yii::t('app', 'Applies to new bookings and sets the calendar grid. Appointments already booked keep the length they were booked with.') ?>
+        </div>
+    <?= Html::endForm() ?>
 
     <?php foreach ($form->dayErrors as $messages): ?>
         <?php foreach ($messages as $message): ?>

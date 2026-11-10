@@ -9,6 +9,10 @@ return [
     // Booking window, enforced by Appointments::validateSlot(). Consultants booking for a patient skip the notice.
     'booking.minNoticeMinutes' => 60,
     'booking.maxDaysAhead' => 90,
+    // Session length for consultants who have not chosen one (minutes). DURATION in .env is in seconds.
+    'booking.defaultSessionMinutes' => (int) round(env('DURATION', 1800) / 60),
+    // Lengths a consultant can choose on the Availability page (minutes)
+    'booking.sessionLengths' => [10, 15, 20, 30, 45, 60, 90, 120],
     // Default notification schedules to create for new users
     'defaultNotificationSchedules' => [
         [

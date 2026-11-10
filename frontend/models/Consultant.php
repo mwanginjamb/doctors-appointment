@@ -299,6 +299,19 @@ class Consultant extends \yii\db\ActiveRecord
     }
 
     /**
+     * Length of new bookings with this consultant, in minutes: their own setting, otherwise the
+     * clinic default. Existing appointments keep the length they were booked with.
+     */
+    public function getSessionMinutes()
+    {
+        if ($this->appointment_session_duration > 0) {
+            return (int) $this->appointment_session_duration;
+        }
+
+        return (int) (Yii::$app->params['booking.defaultSessionMinutes'] ?? 30);
+    }
+
+    /**
      * Whether a session of $minutes starting at $date $time fits entirely inside one opening range.
      */
     public function isOpenFor($date, $time, $minutes)

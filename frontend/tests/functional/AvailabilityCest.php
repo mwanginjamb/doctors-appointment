@@ -108,9 +108,54 @@ class AvailabilityCest
         $I->seeInSource('"noticeMinutes":60');
     }
 
+    public function consultantSetsTheSessionLengthForNewBookings(FunctionalTester $I)
+    {
+        $booked = $this->book('10:00');
+        $I->amLoggedInAs($this->consultantUser);
+        $I->amOnRoute('availability/index');
+        $I->seeOptionIsSelected('#session-length', '30 minutes');
+
+        $I->submitForm('#session-length-form', ['minutes' => '45']);
+
+        $I->see('New bookings now last 45 minutes.');
+        $I->assertSame(45, Consultant::findOne($this->consultant->id)->getSessionMinutes());
+        $I->assertSame(30, (int) Appointments::findOne($booked->id)->duration_minutes, 'already booked: unchanged');
+
+        $I->amOnRoute('appointments/calendar');
+        $I->seeInSource('"slotDuration":"00:45:00"');
+    }
+
+    public function onlyListedSessionLengthsAreAccepted(FunctionalTester $I)
+    {
+        $I->amLoggedInAs($this->consultantUser);
+        $I->amOnRoute('availability/index');
+        $I->postAsLink(['/availability/session-length'], ['minutes' => '37']);
+
+        $I->see('Choose one of the listed session lengths.');
+        $I->assertSame(30, Consultant::findOne($this->consultant->id)->getSessionMinutes());
+    }
+
+    public function adminSetsAnotherConsultantsSessionLength(FunctionalTester $I)
+    {
+        $I->amLoggedInAs($this->admin);
+        $I->amOnRoute('availability/index', ['cid' => $this->consultant->id]);
+        $I->submitForm('#session-length-form', ['minutes' => '20']);
+
+        $I->assertSame(20, Consultant::findOne($this->consultant->id)->getSessionMinutes());
+        $I->seeInCurrentUrl('cid=' . $this->consultant->id);
+    }
+
+    public function calendarNoLongerOffersResizing(FunctionalTester $I)
+    {
+        $I->amLoggedInAs($this->consultantUser);
+        $I->amOnRoute('appointments/calendar');
+        $I->seeInSource('eventDurationEditable: false');
+        $I->dontSeeInSource('eventResize');
+    }
+
     public function consultantBooksAWalkInWithoutNoticeButAPatientCannot(FunctionalTester $I)
     {
-        $soon = time() + 10 * 60;
+        $soon = (int) ceil((time() + 10 * 60) / 300) * 300; // starts fall on 5-minute marks
         if (date('H:i', $soon) > '23:15' || date('Y-m-d', $soon) !== date('Y-m-d')) {
             $I->markTestSkipped('Too close to midnight for a same-day walk-in slot.');
         }
