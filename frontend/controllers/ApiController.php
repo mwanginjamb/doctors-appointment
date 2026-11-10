@@ -3,6 +3,7 @@
 namespace frontend\controllers;
 
 use common\models\User;
+use frontend\components\AdminAccessControl;
 use frontend\models\Appointments;
 use frontend\models\Consultant;
 use Yii;
@@ -79,6 +80,15 @@ class ApiController extends Controller
                 ->where(['or', ['consultant_id' => $user->id], ['created_by' => $user->id]])
                 ->with(['consultant', 'patient'])
                 ->all();
+        } elseif (AdminAccessControl::isAdmin()) {
+            // The consultant whose calendar an admin opened from the appointments board
+            $consultant = Consultant::findOne(Yii::$app->session->get('booking_session_' . $user->id));
+            if ($consultant) {
+                $appointments = Appointments::find()
+                    ->where(['consultant_id' => $consultant->user_id])
+                    ->with(['consultant', 'patient'])
+                    ->all();
+            }
         }
 
         $events = [];

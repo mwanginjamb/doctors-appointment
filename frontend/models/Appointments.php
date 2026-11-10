@@ -330,6 +330,14 @@ class Appointments extends \yii\db\ActiveRecord
     }
 
     /**
+     * Who booked the appointment: the patient online, the consultant, or staff on their behalf.
+     */
+    public function getCreator()
+    {
+        return $this->hasOne(User::class, ['id' => 'created_by']);
+    }
+
+    /**
      * Who last changed the appointment; for a cancelled one, who cancelled it.
      */
     public function getUpdater()

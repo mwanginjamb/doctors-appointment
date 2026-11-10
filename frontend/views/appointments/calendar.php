@@ -20,7 +20,15 @@ if ($role == 'client') {
     $title = 'Consultantations Schedule for ' . ucwords($consultant->names);
 }
 
-
+// Admins open a consultant's calendar from the appointments board; it is read-only for them
+$readOnly = !in_array($role, ['client', 'consultant'], true);
+if ($readOnly) {
+    $consultant = $consultant ?? null;
+    if ($consultant === null && \frontend\components\AdminAccessControl::isAdmin()) {
+        throw new \yii\web\NotFoundHttpException('Open a consultant from the appointments board to see their calendar.');
+    }
+    $title = 'Schedule for ' . ($consultant->names ?? 'consultant');
+}
 
 $this->title = $title;
 $isConsultant = json_encode($role === 'consultant');
@@ -86,13 +94,18 @@ $bookingRules = json_encode([
     // Consultants book walk-ins into their own calendar without notice
     'noticeMinutes' => $role === 'consultant' ? 0 : (int) ($params['booking.minNoticeMinutes'] ?? 0),
     'maxDaysAhead' => (int) ($params['booking.maxDaysAhead'] ?? 90),
+    'readOnly' => $readOnly,
 ]);
 
 ?>
 <div class="container mt-4">
     <div class="calendar-header text-center py-3">
         <h1 class="fw-bold display-5 text-primary"><?= Html::encode(ucwords($title)) ?> </h1>
-        <p class="lead text-muted">Please click on any available time slot to enter your appointment.</p>
+        <p class="lead text-muted">
+            <?= $readOnly
+                ? 'View only. Click an appointment to open it; cancel it from there or from the appointments board.'
+                : 'Please click on any available time slot to enter your appointment.' ?>
+        </p>
     </div>
 </div>
 <div class="container">
@@ -211,14 +224,17 @@ $script = <<<JS
         },
         // Existing appointments, plus holidays and time off as shaded background
         eventSources: [fetchCalendarEvents, rules.blocked],
-        selectable: true,
-        editable: true,
-        eventDurationEditable: true,
+        selectable: !rules.readOnly,
+        editable: !rules.readOnly,
+        eventDurationEditable: !rules.readOnly,
         height: 600,
         dateClick: function(info) {
             // A day in month view has no time yet: open that day to pick one
             if (info.allDay) {
                 calendar.changeView('timeGridDay', info.date);
+                return;
+            }
+            if (rules.readOnly) {
                 return;
             }
             var problem = slotProblem(info.date);

@@ -9,6 +9,7 @@ use yii\filters\VerbFilter;
 use frontend\models\Appointments;
 use yii\filters\AccessControl;
 use frontend\models\AppointmentsSearch;
+use frontend\components\AdminAccessControl;
 use yii\web\ForbiddenHttpException;
 use yii\web\NotFoundHttpException;
 
@@ -77,7 +78,7 @@ class AppointmentsController extends Controller
      */
     public function actionView($id)
     {
-        $appointment = $this->findModel($id);
+        $appointment = $this->findModel($id, true);
 
         $appointment->patient_age = 0;
         // calculate age based on $model->patientProfile->dob in years and months
@@ -148,7 +149,7 @@ class AppointmentsController extends Controller
      */
     public function actionCancel($id)
     {
-        $model = $this->findModel($id);
+        $model = $this->findModel($id, true);
 
         if ($model->cancel($this->request->post('note'))) {
             Yii::$app->session->setFlash('success', Yii::t('app', 'Appointment cancelled. It stays in the appointment history.'));
@@ -158,7 +159,8 @@ class AppointmentsController extends Controller
             Yii::$app->session->setFlash('error', Yii::t('app', 'Only upcoming scheduled or confirmed appointments can be cancelled.'));
         }
 
-        return $this->redirect(['index']);
+        // Back to where the Cancel button was: the list, the appointment, or the admin board with its filters
+        return $this->redirect(Yii::$app->request->referrer ?: ['index']);
     }
 
     public function actionCalendar($cid = null)
@@ -203,15 +205,17 @@ class AppointmentsController extends Controller
      * Finds an Appointments model the current user takes part in.
      * If the model is not found, or belongs to someone else, a 404 HTTP exception will be thrown.
      * @param int $id ID
+     * @param bool $allowAdmin whether admins may open any appointment (viewing and cancelling only)
      * @return Appointments the loaded model
      * @throws NotFoundHttpException if the model cannot be found
      */
-    protected function findModel($id)
+    protected function findModel($id, $allowAdmin = false)
     {
-        $model = Appointments::find()
-            ->where(['appointments.id' => $id])
-            ->forParticipant(Yii::$app->user->id)
-            ->one();
+        $query = Appointments::find()->where(['appointments.id' => $id]);
+        if (!($allowAdmin && AdminAccessControl::isAdmin())) {
+            $query->forParticipant(Yii::$app->user->id);
+        }
+        $model = $query->one();
         if ($model !== null) {
             return $model;
         }
