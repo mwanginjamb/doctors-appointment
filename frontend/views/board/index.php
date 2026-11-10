@@ -11,6 +11,7 @@ use yii\helpers\Url;
 /** @var yii\data\ActiveDataProvider $dataProvider */
 /** @var array $counts status => count */
 /** @var frontend\models\Consultant[] $bookable front desk: consultants they book for */
+/** @var frontend\models\ClinicStats|null $stats front desk: numbers for their consultants */
 
 $this->title = 'Appointments Board';
 $this->params['breadcrumbs'][] = $this->title;
@@ -50,6 +51,9 @@ $today = date('Y-m-d');
                 <span class="text-warning">No consultants are assigned to you yet. Ask an administrator.</span>
             <?php endif; ?>
         </div>
+        <?php if ($bookable && $stats): ?>
+            <?= $this->render('@frontend/views/site/_clinic_stats', ['stats' => $stats, 'scopeLabel' => 'your consultants']) ?>
+        <?php endif; ?>
     <?php else: ?>
         <p class="text-muted">Every consultant's appointments. Open one to see the details, or cancel it with a note.</p>
     <?php endif; ?>

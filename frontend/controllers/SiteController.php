@@ -381,7 +381,9 @@ class SiteController extends Controller
     public function actionSettings()
     {
         $this->layout = 'admin';
-        return $this->render('settings');
+        return $this->render('settings', [
+            'stats' => new \frontend\models\ClinicStats(),
+        ]);
     }
 
     /**
