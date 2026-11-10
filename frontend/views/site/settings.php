@@ -4,8 +4,7 @@ use yii\helpers\Url;
 use yii\bootstrap5\Html;
 
 /** @var yii\web\View $this */
-/** @var app\models\ProviderSearch $searchModel */
-/** @var yii\data\ActiveDataProvider $dataProvider */
+/** @var frontend\models\ClinicStats $stats */
 
 $this->title = 'Settings';
 $this->params['breadcrumbs'][] = $this->title;
@@ -13,6 +12,9 @@ $this->params['breadcrumbs'][] = $this->title;
 <div class="body-content py-5">
     <div class="row justify-content-center">
         <div class="col-lg-10">
+            <h1 class="h3 fw-bold mb-3">Dashboard</h1>
+            <?= $this->render('_clinic_stats', ['stats' => $stats, 'scopeLabel' => 'the whole clinic']) ?>
+
             <!-- content -->
             <div class="card mb-5">
                 <div class="card-body text-center">
