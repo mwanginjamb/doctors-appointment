@@ -13,6 +13,13 @@ return [
     'booking.defaultSessionMinutes' => (int) round(env('DURATION', 1800) / 60),
     // Lengths a consultant can choose on the Availability page (minutes)
     'booking.sessionLengths' => [10, 15, 20, 30, 45, 60, 90, 120],
+    // Booking links (remote walk-ins): minutes a link stays valid after it is created, and the
+    // longest date range it may offer
+    'bookingLink.ttlMinutes' => (int) env('BOOKING_LINK_TTL_MINUTES', 20),
+    'bookingLink.maxDays' => 5,
+    // Public address used in links sent to patients, e.g. https://appointments.example.com
+    // (empty: the address of the request that creates the link)
+    'bookingLink.baseUrl' => env('BOOKING_LINK_BASE_URL', ''),
     // Default notification schedules to create for new users
     'defaultNotificationSchedules' => [
         [

@@ -122,6 +122,12 @@ $bookingRules = json_encode([
                 Please click on any available time slot to enter your appointment.
             <?php endif; ?>
         </p>
+        <?php if ($booksForPatients && !$readOnly && !empty($consultant)): ?>
+            <?= Html::a('Send a booking link', ['/booking-link/create', 'cid' => $consultant->id], [
+                'class' => 'btn btn-outline-primary',
+                'title' => 'Let a potential patient pick one of your free slots as a remote walk-in',
+            ]) ?>
+        <?php endif; ?>
     </div>
 </div>
 <div class="container">

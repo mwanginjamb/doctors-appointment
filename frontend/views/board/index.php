@@ -47,6 +47,7 @@ $today = date('Y-m-d');
         <div class="d-flex flex-wrap gap-2 mb-3">
             <?php foreach ($bookable as $consultant): ?>
                 <?= Html::a('Book with ' . Html::encode($consultant->names), ['/appointments/calendar', 'cid' => $consultant->id], ['class' => 'btn btn-sm btn-success']) ?>
+                <?= Html::a('Send link', ['/booking-link/create', 'cid' => $consultant->id], ['class' => 'btn btn-sm btn-outline-success', 'title' => 'Send a booking link (remote walk-in)']) ?>
             <?php endforeach; ?>
             <?php if (!$bookable): ?>
                 <span class="text-warning">No consultants are assigned to you yet. Ask an administrator.</span>
@@ -194,6 +195,9 @@ $today = date('Y-m-d');
             [
                 'label' => 'Booked by',
                 'value' => function (Appointments $model) {
+                    if ($model->booking_link_id) {
+                        return 'Remote walk-in (link from ' . ($model->creator->full_name ?? $model->creator->username ?? 'staff') . ')';
+                    }
                     if ((int) $model->created_by === (int) $model->patient_id) {
                         return 'Patient online';
                     }
