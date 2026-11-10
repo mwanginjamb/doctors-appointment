@@ -48,6 +48,7 @@ class RbacHelper
     const PERM_MANAGE_AVAILABILITY = 'manageAvailability';
     const PERM_UPDATE_CONSULTANT_PROFILE = 'updateConsultantProfile';
     const PERM_MANAGE_CONSULTANTS = 'manageConsultants';
+    const PERM_VIEW_AUDIT_LOG = 'viewAuditLog';
 
     // The same permissions limited by a rule: "the consultant themselves" or "front desk assigned to them"
     const PERM_BOOK_OWN_CALENDAR = 'bookOwnCalendar';
@@ -97,6 +98,7 @@ class RbacHelper
                 self::PERM_MANAGE_AVAILABILITY => "Edit a consultant's working hours, time off and session length",
                 self::PERM_UPDATE_CONSULTANT_PROFILE => "Edit a consultant's profile",
                 self::PERM_MANAGE_CONSULTANTS => 'Add consultants and manage front-desk staff',
+                self::PERM_VIEW_AUDIT_LOG => 'Read the audit log: who changed what, sign-ins',
             ],
             'ruledPermissions' => [
                 self::PERM_BOOK_OWN_CALENDAR => ['Book in own calendar', 'isTheConsultant', self::PERM_BOOK_FOR_CONSULTANT],
@@ -115,7 +117,7 @@ class RbacHelper
                         self::PERM_MANAGE_RBAC, self::PERM_MANAGE_USERS, self::PERM_MANAGE_REFERENCE_DATA,
                         self::PERM_VIEW_CLINIC_BOARD, self::PERM_VIEW_ALL_APPOINTMENTS, self::PERM_HANDLE_APPOINTMENT,
                         self::PERM_RECORD_OUTCOME, self::PERM_MANAGE_AVAILABILITY, self::PERM_UPDATE_CONSULTANT_PROFILE,
-                        self::PERM_MANAGE_CONSULTANTS,
+                        self::PERM_MANAGE_CONSULTANTS, self::PERM_VIEW_AUDIT_LOG,
                     ],
                 ],
                 self::ROLE_CONSULTANT => [

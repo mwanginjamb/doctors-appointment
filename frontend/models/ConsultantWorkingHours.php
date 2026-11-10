@@ -2,6 +2,8 @@
 
 namespace frontend\models;
 
+use common\components\Audit;
+use common\models\AuditLog;
 use yii\behaviors\TimestampBehavior;
 use yii\db\ActiveRecord;
 
@@ -71,6 +73,10 @@ class ConsultantWorkingHours extends ActiveRecord
         $db = static::getDb();
         $transaction = $db->beginTransaction();
         try {
+            $before = [];
+            foreach (static::find()->where(['consultant_id' => $consultantId])->orderBy(['day_of_week' => SORT_ASC, 'start_time' => SORT_ASC])->all() as $row) {
+                $before[(int) $row->day_of_week][] = [$row->start_time, $row->end_time];
+            }
             static::deleteAll(['consultant_id' => $consultantId]);
             $now = time();
             $rows = [];
@@ -81,6 +87,12 @@ class ConsultantWorkingHours extends ActiveRecord
             }
             if ($rows) {
                 $db->createCommand()->batchInsert(static::tableName(), ['consultant_id', 'day_of_week', 'start_time', 'end_time', 'created_at', 'updated_at'], $rows)->execute();
+            }
+            // Saved in bulk, so the audit behaviour does not see it
+            $old = static::summarize($before);
+            $new = static::summarize($week);
+            if ($old !== $new) {
+                Audit::log(AuditLog::ACTION_HOURS_CHANGED, 'consultant', $consultantId, ['hours' => [$old, $new]]);
             }
             $transaction->commit();
         } catch (\Throwable $e) {

@@ -8,6 +8,7 @@ use yii\widgets\DetailView;
 
 /** @var yii\web\View $this */
 /** @var frontend\models\Appointments $model */
+/** @var common\models\AuditLog[]|null $history entries about this appointment, for the clinic side; null for the patient */
 
 $this->title = $model->id;
 $this->params['breadcrumbs'][] = ['label' => Yii::t('app', 'Appointments'), 'url' => ['index']];
@@ -181,5 +182,32 @@ $this->params['breadcrumbs'][] = $this->title;
         </div>
     </div>
 
+
+    <?php if ($history !== null): ?>
+        <!-- Audit log for this appointment: clinic side only (the consultant, front desk, admins) -->
+        <div class="card border-0 shadow-sm my-5" id="appointment-history">
+            <div class="card-header bg-white p-4 border-bottom">
+                <h2 class="h5 fw-semibold text-dark mb-0">History</h2>
+            </div>
+            <div class="card-body p-4">
+                <?php if (!$history): ?>
+                    <p class="text-muted mb-0">No changes recorded yet.</p>
+                <?php endif; ?>
+                <?php foreach ($history as $entry): ?>
+                    <div class="border-bottom py-2">
+                        <div>
+                            <span class="fw-semibold"><?= Html::encode($entry->getActionLabel()) ?></span>
+                            <span class="text-muted small">
+                                <?= date('Y-m-d H:i', $entry->created_at) ?> ·
+                                <?= Html::encode($entry->actor_name ?? $entry->getActorTypeLabel()) ?>
+                                (<?= Html::encode($entry->getActorTypeLabel()) ?>)
+                            </span>
+                        </div>
+                        <?= $this->render('/audit/_changes', ['entry' => $entry]) ?>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    <?php endif; ?>
 
 </div>

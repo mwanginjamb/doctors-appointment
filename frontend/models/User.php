@@ -35,6 +35,11 @@ class User extends \yii\db\ActiveRecord
         return 'user';
     }
 
+    public function behaviors()
+    {
+        return ['audit' => \common\models\User::auditBehavior()];
+    }
+
     /**
      * {@inheritdoc}
      */

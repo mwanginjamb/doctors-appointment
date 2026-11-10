@@ -22,6 +22,9 @@ return [
             'identityClass' => 'common\models\User',
             'enableAutoLogin' => true,
             'identityCookie' => ['name' => '_identity-frontend', 'httpOnly' => true],
+            // Audit log: every sign-in (password, Google/LinkedIn, email verification) and sign-out
+            'on afterLogin' => ['common\components\Audit', 'onLogin'],
+            'on afterLogout' => ['common\components\Audit', 'onLogout'],
         ],
         'session' => [
             // this is the name of the session cookie used for login on the frontend

@@ -11,6 +11,7 @@ use yii\filters\AccessControl;
 use frontend\models\AppointmentsSearch;
 use frontend\models\CalendarViewModel;
 use frontend\services\BookingService;
+use common\models\AuditLog;
 use frontend\components\FrontDesk;
 use yii\web\ForbiddenHttpException;
 use yii\web\NotFoundHttpException;
@@ -90,8 +91,12 @@ class AppointmentsController extends Controller
             $appointment->patient_age = $diff->y . ' years ' . $diff->m . ' months';
         }
 
+        // Its history (audit log) is for the clinic side: the consultant, their front desk, admins
+        $staffView = $appointment->isConsultant(Yii::$app->user->id) || FrontDesk::canHandle($appointment);
+
         return $this->render('view', [
             'model' => $appointment,
+            'history' => $staffView ? AuditLog::forEntity('appointment', $appointment->id) : null,
         ]);
     }
 

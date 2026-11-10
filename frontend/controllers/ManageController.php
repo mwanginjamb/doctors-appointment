@@ -2,6 +2,8 @@
 
 namespace frontend\controllers;
 
+use common\components\Audit;
+use common\models\AuditLog;
 use frontend\components\ThrottlesByIp;
 use frontend\models\Appointments;
 use frontend\models\SlotFinder;
@@ -55,6 +57,7 @@ class ManageController extends Controller
         if ($appointment === null) {
             return $this->render('invalid');
         }
+        $this->actAsPatient($appointment);
         if (!SelfServiceLink::isChangeable($appointment)) {
             Yii::$app->session->setFlash('error', $this->tooLateMessage());
             return $this->redirect(['index', 'id' => $id, 'sig' => $sig]);
@@ -75,6 +78,7 @@ class ManageController extends Controller
         if ($appointment === null) {
             return $this->render('invalid');
         }
+        $this->actAsPatient($appointment);
         if (!SelfServiceLink::isChangeable($appointment)) {
             Yii::$app->session->setFlash('error', $this->tooLateMessage());
             return $this->redirect(['index', 'id' => $id, 'sig' => $sig]);
@@ -129,5 +133,14 @@ class ManageController extends Controller
         return Yii::t('app', 'Changes are possible up to {n} hours before the appointment. Please call the clinic.', [
             'n' => SelfServiceLink::cutoffHours(),
         ]);
+    }
+
+    /**
+     * Changes made through the link are logged as the patient using their self-service link.
+     */
+    private function actAsPatient(Appointments $appointment)
+    {
+        $patient = $appointment->patient;
+        Audit::actAs(AuditLog::ACTOR_SELF_SERVICE, $appointment->patient_id, $patient ? ($patient->full_name ?: $patient->username) : null);
     }
 }

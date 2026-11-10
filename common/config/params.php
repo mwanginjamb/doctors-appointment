@@ -29,6 +29,9 @@ return [
     'selfService.cutoffHours' => (int) env('SELF_SERVICE_CUTOFF_HOURS', 24),
     'selfService.rescheduleDays' => 14,
     'selfService.key' => env('SELF_SERVICE_KEY', ''),
+    // Audit log entries older than this are removed by `php yii audit/purge` (daily timer).
+    // 7 years, a common period for health records.
+    'audit.retentionYears' => (int) env('AUDIT_RETENTION_YEARS', 7),
     // Default notification schedules to create for new users
     'defaultNotificationSchedules' => [
         [

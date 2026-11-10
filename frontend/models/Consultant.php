@@ -2,6 +2,7 @@
 
 namespace frontend\models;
 
+use common\behaviors\AuditBehavior;
 use frontend\models\Provider;
 use Yii;
 use common\models\User;
@@ -62,7 +63,13 @@ class Consultant extends \yii\db\ActiveRecord
     {
         return [
             TimestampBehavior::class,
-            BlameableBehavior::class
+            BlameableBehavior::class,
+            // Device tokens identify a phone for push messages: not worth keeping
+            'audit' => [
+                'class' => AuditBehavior::class,
+                'entityType' => 'consultant',
+                'exclude' => ['device_token', 'device_type', 'token_updated_at'],
+            ],
         ];
     }
 
