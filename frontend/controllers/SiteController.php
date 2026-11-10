@@ -39,7 +39,7 @@ class SiteController extends Controller
             ],
             'usersAccess' => [
                 'class' => AdminAccessControl::class,
-                'only' => ['users'],
+                'only' => ['users', 'deactivate-user', 'reactivate-user'],
                 'permission' => \common\components\RbacHelper::PERM_MANAGE_USERS,
             ],
             'access' => [
@@ -62,6 +62,8 @@ class SiteController extends Controller
                 'class' => VerbFilter::class,
                 'actions' => [
                     'logout' => ['post'],
+                    'deactivate-user' => ['post'],
+                    'reactivate-user' => ['post'],
                 ],
             ],
         ];
@@ -408,6 +410,65 @@ class SiteController extends Controller
             'q' => $q,
             'type' => $type,
         ]);
+    }
+
+    /**
+     * Deactivates an account: they can no longer sign in (and are signed out on their next request),
+     * a deactivated consultant can no longer be booked and disappears from patients' search, and
+     * patients can no longer be booked by staff. Appointments already booked are kept; the admin is
+     * told how many are coming up so someone can follow them up.
+     */
+    public function actionDeactivateUser($id)
+    {
+        $user = $this->findAccount($id);
+        if ((int) $user->id === (int) Yii::$app->user->id) {
+            Yii::$app->session->setFlash('error', 'You cannot deactivate your own account.');
+            return $this->redirect(Yii::$app->request->referrer ?: ['users']);
+        }
+
+        $user->status = \common\models\User::STATUS_DELETED;
+        $user->save(false);
+        $name = $user->full_name ?: $user->username;
+        Yii::$app->session->setFlash('success', "$name is deactivated and can no longer sign in.");
+
+        $column = $user->role === 'consultant' ? 'consultant_id' : 'patient_id';
+        $upcoming = \frontend\models\Appointments::find()
+            ->where([$column => $user->id])
+            ->andWhere(['>=', 'date', date('Y-m-d')])
+            ->andWhere(['or', ['status' => null], ['status' => [\frontend\models\Appointments::STATUS_SCHEDULED, \frontend\models\Appointments::STATUS_CONFIRMED]]])
+            ->count();
+        if ($upcoming > 0) {
+            // Flashes are shown escaped in the admin layout, so this stays plain text
+            $where = $user->role === 'consultant'
+                ? " Filter the Appointments Board by $name to find them."
+                : '';
+            Yii::$app->session->addFlash('warning', "$upcoming upcoming appointment(s) are kept; cancel or move them as needed.$where");
+        }
+
+        return $this->redirect(Yii::$app->request->referrer ?: ['users']);
+    }
+
+    public function actionReactivateUser($id)
+    {
+        $user = $this->findAccount($id);
+        $user->status = \common\models\User::STATUS_ACTIVE;
+        $user->save(false);
+        Yii::$app->session->setFlash('success', ($user->full_name ?: $user->username) . ' is active again.');
+
+        return $this->redirect(Yii::$app->request->referrer ?: ['users']);
+    }
+
+    /**
+     * @return \common\models\User
+     */
+    private function findAccount($id)
+    {
+        $user = \common\models\User::findOne($id);
+        if ($user === null) {
+            throw new \yii\web\NotFoundHttpException('Account not found.');
+        }
+
+        return $user;
     }
 
     public function actionTemplate()

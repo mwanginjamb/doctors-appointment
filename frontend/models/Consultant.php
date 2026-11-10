@@ -211,6 +211,14 @@ class Consultant extends \yii\db\ActiveRecord
         return $this->hasOne(User::class, ['id' => 'user_id']);
     }
 
+    /**
+     * False once an admin deactivates the consultant's account: they can no longer be booked.
+     */
+    public function isTakingBookings()
+    {
+        return $this->user !== null && (int) $this->user->status === User::STATUS_ACTIVE;
+    }
+
     // Get Gender
     public function getGenderIdentity()
     {

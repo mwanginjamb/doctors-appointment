@@ -46,7 +46,13 @@ class SearchForm extends Model
     public function findConsultants($params, $formName)
     {
         $model = new ConsultantSearch();
-        $results = $model->search($params, $formName)->getModels();
-        return $results;
+        $dataProvider = $model->search($params, $formName);
+        // Deactivated consultants no longer appear to patients
+        $dataProvider->query->andWhere(['or',
+            ['consultant.user_id' => null],
+            ['not in', 'consultant.user_id', \common\models\User::find()->select('id')->where(['status' => \common\models\User::STATUS_DELETED])],
+        ]);
+
+        return $dataProvider->getModels();
     }
 }

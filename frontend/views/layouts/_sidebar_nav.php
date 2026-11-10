@@ -30,6 +30,13 @@ $menuItems = [
         'visible' => \frontend\components\FrontDesk::isStaff(),
     ],
     [
+        'label' => 'Consultants',
+        'url' => ['/manage-consultants/index'],
+        'icon' => 'stethoscope',
+        'match' => ['manage-consultants'],
+        'visible' => $user->can(RbacHelper::ROLE_ADMIN),
+    ],
+    [
         'label' => 'Front Desk Staff',
         'url' => ['/front-desk/index'],
         'icon' => 'support_agent',

@@ -11,9 +11,15 @@ use yii\bootstrap5\Html;
  * @var frontend\models\Consultant $consultant
  * @var frontend\models\TimeOffForm $timeOffForm
  * @var frontend\models\ConsultantTimeOff[] $timeOff
+ * @var int|null $cid consultant.id when an admin manages someone else's availability
  */
 
-$this->title = Yii::t('app', 'Availability');
+if ($cid) {
+    $this->title = Yii::t('app', 'Availability: {name}', ['name' => $consultant->names]);
+    $this->params['breadcrumbs'][] = ['label' => Yii::t('app', 'Consultants'), 'url' => ['manage-consultants/index']];
+} else {
+    $this->title = Yii::t('app', 'Availability');
+}
 $this->params['breadcrumbs'][] = $this->title;
 
 $params = Yii::$app->params;
@@ -52,7 +58,7 @@ $rangeRow = function ($day, $i, $start = '', $end = '') {
         <?php endforeach; ?>
     <?php endforeach; ?>
 
-    <?= Html::beginForm(['availability/index'], 'post', ['id' => 'weekly-schedule-form']) ?>
+    <?= Html::beginForm(['availability/index', 'cid' => $cid], 'post', ['id' => 'weekly-schedule-form']) ?>
     <?= Html::hiddenInput('submitted', 1) ?>
     <div class="card shadow-sm">
         <ul class="list-group list-group-flush">
@@ -88,7 +94,7 @@ $rangeRow = function ($day, $i, $start = '', $end = '') {
             <div class="card shadow-sm">
                 <div class="card-body">
                     <h3 class="h6 fw-bold mb-3"><?= Yii::t('app', 'Add time off') ?></h3>
-                    <?php $tf = ActiveForm::begin(['id' => 'time-off-form', 'action' => ['availability/add-time-off']]); ?>
+                    <?php $tf = ActiveForm::begin(['id' => 'time-off-form', 'action' => ['availability/add-time-off', 'cid' => $cid]]); ?>
                     <div class="row g-2">
                         <div class="col-6"><?= $tf->field($timeOffForm, 'start_date')->input('date') ?></div>
                         <div class="col-6"><?= $tf->field($timeOffForm, 'start_time')->input('time') ?></div>
@@ -118,7 +124,7 @@ $rangeRow = function ($day, $i, $start = '', $end = '') {
                                     <div class="text-muted small"><?= Html::encode($period->reason) ?></div>
                                 <?php endif; ?>
                             </div>
-                            <?= Html::a(Yii::t('app', 'Remove'), ['availability/delete-time-off', 'id' => $period->id], [
+                            <?= Html::a(Yii::t('app', 'Remove'), ['availability/delete-time-off', 'id' => $period->id, 'cid' => $cid], [
                                 'class' => 'btn btn-sm btn-outline-danger',
                                 'data' => ['method' => 'post', 'confirm' => Yii::t('app', 'Remove this time off? Patients will be able to book these times again.')],
                             ]) ?>

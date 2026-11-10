@@ -5,7 +5,9 @@ namespace frontend\controllers;
 use frontend\models\Provider;
 use Yii;
 use yii\helpers\Url;
+use yii\helpers\Html;
 use common\models\User;
+use frontend\components\AdminAccessControl;
 use yii\web\Controller;
 use frontend\models\Gender;
 use yii\filters\VerbFilter;
@@ -46,6 +48,14 @@ class ConsultantController extends Controller
                             'roles' => ['@'],
                             'matchCallback' => function () {
                                 return Yii::$app->user->identity->role === 'consultant';
+                            },
+                        ],
+                        [ // admins edit any consultant's profile
+                            'actions' => ['update'],
+                            'allow' => true,
+                            'roles' => ['@'],
+                            'matchCallback' => function () {
+                                return AdminAccessControl::isAdmin();
                             },
                         ],
                         [ // logged in users
@@ -164,10 +174,20 @@ class ConsultantController extends Controller
      */
     public function actionUpdate($id)
     {
-        $model = $this->findOwnModel($id);
+        $profile = $this->findModel($id);
+        // An unclaimed legacy profile is "own" only for a consultant, who claims it by editing it
+        $ownProfile = $profile->user_id === null
+            ? Yii::$app->user->identity->role === 'consultant'
+            : (int) $profile->user_id === (int) Yii::$app->user->id;
+        // Admins edit anyone's profile; everyone else only their own
+        $model = !$ownProfile && AdminAccessControl::isAdmin() ? $this->findModel($id) : $this->findOwnModel($id);
         $model->loadSubSpecialities();
 
         if ($this->request->isPost && $model->load($this->request->post()) && $model->save()) {
+            if (!$ownProfile) {
+                Yii::$app->session->setFlash('success', Html::encode($model->names) . "'s profile saved.");
+                return $this->redirect(['manage-consultants/index']);
+            }
             return $this->redirect(['view', 'id' => $model->id]);
         }
 

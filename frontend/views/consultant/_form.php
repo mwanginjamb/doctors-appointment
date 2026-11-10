@@ -21,7 +21,13 @@ SpecializationPicker::register($this, '#consultant-speciality', '#consultant-sub
 
     <div class="row">
         <div class="col-md-6">
-            <?= $form->field($model, 'names')->textInput(['maxlength' => true, 'autofocus' => true, 'placeholder' => 'Title Full Names', 'value' => 'Dr. ' . ucwords(Yii::$app->user->identity->full_name)]) ?>
+            <?php
+            // Suggest a name only for a new profile; never replace a saved one (or put an admin's name on it)
+            if ($model->isNewRecord && !$model->names) {
+                $model->names = 'Dr. ' . ucwords((string) Yii::$app->user->identity->full_name);
+            }
+            ?>
+            <?= $form->field($model, 'names')->textInput(['maxlength' => true, 'autofocus' => true, 'placeholder' => 'Title Full Names']) ?>
         </div>
         <div class="col-md-6">
             <?= $form->field($model, 'facility')->textInput(['maxlength' => true]) ?>
