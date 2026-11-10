@@ -9,7 +9,7 @@ use yii\filters\VerbFilter;
 use frontend\models\Appointments;
 use yii\filters\AccessControl;
 use frontend\models\AppointmentsSearch;
-use frontend\components\AdminAccessControl;
+use frontend\components\FrontDesk;
 use yii\web\ForbiddenHttpException;
 use yii\web\NotFoundHttpException;
 
@@ -167,6 +167,14 @@ class AppointmentsController extends Controller
     {
         $model = new Appointments();
         $consultant = ($cid) ? Consultant::findOne($cid) : $cid;
+        if (FrontDesk::isFrontDesk()) {
+            if (!$consultant) {
+                return $this->redirect(['board/index']);
+            }
+            if (!FrontDesk::canBookFor($consultant->user_id)) {
+                throw new ForbiddenHttpException(Yii::t('app', 'You can only open the calendars of the consultants assigned to you.'));
+            }
+        }
         $user = Yii::$app->user->id;
         $booking_session = 'booking_session_' . $user;
         Yii::$app->session->set($booking_session, $cid); // carries relevant consultant id
@@ -205,18 +213,15 @@ class AppointmentsController extends Controller
      * Finds an Appointments model the current user takes part in.
      * If the model is not found, or belongs to someone else, a 404 HTTP exception will be thrown.
      * @param int $id ID
-     * @param bool $allowAdmin whether admins may open any appointment (viewing and cancelling only)
+     * @param bool $allowStaff whether admins (any appointment) and front desk (their consultants'
+     *                         appointments) may open it; for viewing and cancelling only
      * @return Appointments the loaded model
      * @throws NotFoundHttpException if the model cannot be found
      */
-    protected function findModel($id, $allowAdmin = false)
+    protected function findModel($id, $allowStaff = false)
     {
-        $query = Appointments::find()->where(['appointments.id' => $id]);
-        if (!($allowAdmin && AdminAccessControl::isAdmin())) {
-            $query->forParticipant(Yii::$app->user->id);
-        }
-        $model = $query->one();
-        if ($model !== null) {
+        $model = Appointments::find()->where(['appointments.id' => $id])->one();
+        if ($model !== null && ($model->isParticipant(Yii::$app->user->id) || ($allowStaff && FrontDesk::canHandle($model)))) {
             return $model;
         }
 

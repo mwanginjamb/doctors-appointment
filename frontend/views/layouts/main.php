@@ -90,6 +90,11 @@ $username = Yii::$app->user->identity->username ?? 'User';
                     'visible' => !Yii::$app->user->isGuest && Yii::$app->user->identity->role == 'consultant',
                 ],
                 [
+                    'label' => 'Front Desk',
+                    'url' => ['/board/index'],
+                    'visible' => \frontend\components\FrontDesk::isFrontDesk(),
+                ],
+                [
                     'label' => 'Availability',
                     'url' => ['/availability/index'],
                     'visible' => !Yii::$app->user->isGuest && Yii::$app->user->identity->role == 'consultant',

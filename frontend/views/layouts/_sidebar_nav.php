@@ -27,6 +27,13 @@ $menuItems = [
         'url' => ['/board/index'],
         'icon' => 'event_note',
         'match' => ['board'],
+        'visible' => \frontend\components\FrontDesk::isStaff(),
+    ],
+    [
+        'label' => 'Front Desk Staff',
+        'url' => ['/front-desk/index'],
+        'icon' => 'support_agent',
+        'match' => ['front-desk'],
         'visible' => $user->can(RbacHelper::ROLE_ADMIN),
     ],
     // ── Reference data used by consultant profiles, search and booking ──

@@ -10,6 +10,7 @@ use yii\helpers\Url;
 /** @var AppointmentBoardSearch $search */
 /** @var yii\data\ActiveDataProvider $dataProvider */
 /** @var array $counts status => count */
+/** @var frontend\models\Consultant[] $bookable front desk: consultants they book for */
 
 $this->title = 'Appointments Board';
 $this->params['breadcrumbs'][] = $this->title;
@@ -39,7 +40,19 @@ $today = date('Y-m-d');
 <div class="board-index">
 
     <h1><?= Html::encode($this->title) ?></h1>
-    <p class="text-muted">Every consultant's appointments. Open one to see the details, or cancel it with a note.</p>
+    <?php if (\frontend\components\FrontDesk::isFrontDesk()): ?>
+        <p class="text-muted">Appointments for the consultants you work for. Open a consultant's calendar to book, or drag an appointment there to move it.</p>
+        <div class="d-flex flex-wrap gap-2 mb-3">
+            <?php foreach ($bookable as $consultant): ?>
+                <?= Html::a('Book with ' . Html::encode($consultant->names), ['/appointments/calendar', 'cid' => $consultant->id], ['class' => 'btn btn-sm btn-success']) ?>
+            <?php endforeach; ?>
+            <?php if (!$bookable): ?>
+                <span class="text-warning">No consultants are assigned to you yet. Ask an administrator.</span>
+            <?php endif; ?>
+        </div>
+    <?php else: ?>
+        <p class="text-muted">Every consultant's appointments. Open one to see the details, or cancel it with a note.</p>
+    <?php endif; ?>
 
     <div class="d-flex flex-wrap gap-2 mb-3">
         <?= $rangeLink('Today', $today, $today) ?>
@@ -59,7 +72,7 @@ $today = date('Y-m-d');
         </div>
         <div class="col-md-3">
             <label class="form-label small" for="board-consultant">Consultant</label>
-            <?= Html::dropDownList('consultant', $search->consultant, AppointmentBoardSearch::consultantOptions(), ['class' => 'form-select form-select-sm', 'id' => 'board-consultant', 'prompt' => 'All consultants']) ?>
+            <?= Html::dropDownList('consultant', $search->consultant, $search->consultantOptions(), ['class' => 'form-select form-select-sm', 'id' => 'board-consultant', 'prompt' => 'All consultants']) ?>
         </div>
         <div class="col-md-2">
             <label class="form-label small" for="board-status">Status</label>
