@@ -4,6 +4,7 @@ namespace frontend\models;
 
 use common\jobs\SendWhatsappTextJob;
 use common\models\User;
+use frontend\services\BookingService;
 use Yii;
 use yii\base\Model;
 
@@ -125,7 +126,7 @@ class RemoteWalkInForm extends Model
             $appointment->consultant_id = $this->link->consultant->user_id;
             $appointment->booking_link_id = $this->link->id;
             $appointment->skipNotice = true;
-            if (!$appointment->saveBooking()) {
+            if (!Yii::createObject(BookingService::class)->book($appointment)) {
                 $errors = $appointment->getFirstErrors();
                 $this->addError('time', $errors ? reset($errors) : Yii::t('app', 'The appointment could not be booked.'));
                 $transaction->rollBack();

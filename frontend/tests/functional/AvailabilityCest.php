@@ -149,8 +149,10 @@ class AvailabilityCest
     {
         $I->amLoggedInAs($this->consultantUser);
         $I->amOnRoute('appointments/calendar');
-        $I->seeInSource('eventDurationEditable: false');
-        $I->dontSeeInSource('eventResize');
+        $I->seeInSource('Js/booking-calendar.js');
+        $script = file_get_contents(\Yii::getAlias('@frontend/web/Js/booking-calendar.js'));
+        $I->assertStringContainsString('eventDurationEditable: false', $script);
+        $I->assertStringNotContainsString('eventResize', $script);
     }
 
     public function consultantBooksAWalkInWithoutNoticeButAPatientCannot(FunctionalTester $I)

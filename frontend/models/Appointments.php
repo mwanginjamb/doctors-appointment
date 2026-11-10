@@ -3,9 +3,9 @@
 namespace frontend\models;
 
 use common\components\RbacHelper;
-use frontend\components\FrontDesk;
 use frontend\models\User;
 use frontend\services\AppointmentChangeNotifier;
+use frontend\services\BookingService;
 use frontend\services\NotificationService;
 use frontend\models\UserProfile;
 use frontend\models\Consultant;
@@ -164,8 +164,7 @@ class Appointments extends \yii\db\ActiveRecord
     }
 
     /**
-     * Ensures the requested slot is in the future, inside the consultant's
-     * working hours and does not overlap another active appointment.
+     * The slot must be bookable: see BookingService::slotProblem() for the rules.
      */
     public function validateSlot($attribute, $params)
     {
@@ -173,133 +172,10 @@ class Appointments extends \yii\db\ActiveRecord
             return;
         }
 
-        // A cancelled appointment stays as history; moving it would bring it back with reminders
-        if (!$this->isNewRecord && $this->getOldAttribute('status') === self::STATUS_CANCELLED) {
-            $this->addError($attribute, Yii::t('app', 'This appointment was cancelled and cannot be rescheduled. Book a new one instead.'));
-            return;
+        $problem = Yii::createObject(BookingService::class)->slotProblem($this);
+        if ($problem !== null) {
+            $this->addError($attribute, $problem);
         }
-
-        $startTs = strtotime($this->date . ' ' . $this->time);
-        if ($startTs === false) {
-            $this->addError($attribute, Yii::t('app', 'Invalid appointment time.'));
-            return;
-        }
-
-        // A new booking (or one moved to another consultant) takes that consultant's current length;
-        // a rescheduled appointment keeps the length it was booked with
-        if ($this->isNewRecord || $this->isAttributeChanged('consultant_id', false) || !$this->duration_minutes) {
-            $this->duration_minutes = $this->consultant ? $this->consultant->getSessionMinutes() : self::defaultSessionMinutes();
-        }
-        $duration = $this->getDurationMinutes();
-        $endTs = $startTs + $duration * 60;
-        $this->time = date('H:i:s', $startTs);
-
-        // Starts fall on 5-minute marks (10:05 yes, 10:07 no)
-        if ((int) date('i', $startTs) % 5 !== 0 || (int) date('s', $startTs) !== 0) {
-            $this->addError($attribute, Yii::t('app', 'Choose a start time on a 5-minute mark, such as {example}.', [
-                'example' => date('H:', $startTs) . sprintf('%02d', intdiv((int) date('i', $startTs), 5) * 5),
-            ]));
-            return;
-        }
-
-        if ($startTs <= time()) {
-            $this->addError($attribute, Yii::t('app', 'Appointments must be booked in the future.'));
-            return;
-        }
-
-        // Booking window. A consultant booking a walk-in into their own calendar skips the notice.
-        $notice = (int) (Yii::$app->params['booking.minNoticeMinutes'] ?? 0);
-        if ($notice > 0 && $startTs < time() + $notice * 60 && !$this->skipNotice && !$this->isBookedByTheConsultant()) {
-            $this->addError($attribute, Yii::t('app', 'Appointments must be booked at least {notice} in advance.', [
-                'notice' => $notice % 60 === 0 ? ($notice === 60 ? '1 hour' : ($notice / 60) . ' hours') : $notice . ' minutes',
-            ]));
-            return;
-        }
-        $maxDays = (int) (Yii::$app->params['booking.maxDaysAhead'] ?? 0);
-        if ($maxDays > 0 && $this->date > date('Y-m-d', strtotime("+{$maxDays} days"))) {
-            $this->addError($attribute, Yii::t('app', 'Appointments can be booked at most {n} days ahead.', ['n' => $maxDays]));
-            return;
-        }
-
-        $consultant = $this->consultant;
-        $doctor = $consultant->names ?? Yii::t('app', 'The doctor');
-
-        // A deactivated consultant keeps their history but takes no new bookings or reschedules
-        if ($consultant && !$consultant->isTakingBookings()) {
-            $this->addError($attribute, Yii::t('app', '{doctor} is no longer taking appointments.', ['doctor' => $doctor]));
-            return;
-        }
-
-        // The clinic is closed on public holidays, for every consultant
-        if ($holiday = PublicHoliday::findOnDate($this->date)) {
-            $this->addError($attribute, Yii::t('app', '{date} is a public holiday ({name}); the clinic is closed.', [
-                'date' => date('l j M', $startTs),
-                'name' => $holiday->name,
-            ]));
-            return;
-        }
-
-        // The consultant's time off. Its reason is private, so patients only see the dates.
-        if ($consultant && ($away = ConsultantTimeOff::overlapping($consultant->id, date('Y-m-d H:i:s', $startTs), date('Y-m-d H:i:s', $endTs)))) {
-            $this->addError($attribute, Yii::t('app', '{doctor} is away {period}. Please choose another time.', [
-                'doctor' => $doctor,
-                'period' => $away[0]->getLabel(),
-            ]));
-            return;
-        }
-
-        // The whole session must fit inside one of the consultant's opening ranges that day
-        $ranges = $consultant ? $consultant->getRangesFor($this->date) : [];
-        if (!$ranges) {
-            $this->addError($attribute, Yii::t('app', "{doctor} doesn't see patients on {day}s.", [
-                'doctor' => $doctor,
-                'day' => date('l', $startTs),
-            ]));
-            return;
-        }
-        if (!$consultant->isOpenFor($this->date, $this->time, $duration)) {
-            $this->addError($attribute, Yii::t('app', "That time is outside {doctor}'s hours on {day}: {hours}. A {minutes}-minute session must fit within them.", [
-                'doctor' => $doctor,
-                'day' => date('l', $startTs),
-                'hours' => implode(', ', array_map(function ($r) {
-                    return substr($r[0], 0, 5) . '–' . substr($r[1], 0, 5);
-                }, $ranges)),
-                'minutes' => $duration,
-            ]));
-            return;
-        }
-
-        // Two slots overlap when each one starts before the other ends.
-        // Each existing appointment is measured by its own stored length.
-        $conflict = self::find()
-            ->where(['date' => $this->date, 'consultant_id' => $this->consultant_id])
-            ->andWhere(['or', ['status' => null], ['<>', 'status', self::STATUS_CANCELLED]])
-            ->andWhere(['<', 'time', date('H:i:s', $endTs)])
-            ->andWhere(new \yii\db\Expression('ADDTIME([[time]], SEC_TO_TIME(COALESCE(NULLIF([[duration_minutes]], 0), :fallback) * 60)) > :start', [
-                ':fallback' => self::defaultSessionMinutes(),
-                ':start' => $this->time,
-            ]))
-            ->andFilterWhere(['<>', 'id', $this->id])
-            ->exists();
-
-        if ($conflict) {
-            $this->addError($attribute, Yii::t('app', 'The doctor is not available at this time.'));
-        }
-    }
-
-    /**
-     * Whether the logged-in user books on the clinic's side: the consultant this appointment is
-     * with, or front desk assigned to them. False in console runs, which have no user.
-     */
-    private function isBookedByTheConsultant()
-    {
-        $user = Yii::$app->get('user', false);
-        if ($user === null || $user->isGuest) {
-            return false;
-        }
-
-        // RBAC: the consultant themselves (isTheConsultant) or their front desk (assignedConsultant)
-        return FrontDesk::canBookFor($this->consultant_id);
     }
 
     /**
@@ -322,28 +198,12 @@ class Appointments extends \yii\db\ActiveRecord
     }
 
     /**
-     * Saves the appointment while holding a row lock on the consultant, so two
-     * concurrent requests cannot both pass the overlap check for the same slot.
+     * Saves the booking with the consultant locked (BookingService::save()). Kept for callers that
+     * hold an Appointments; new code books and moves through BookingService.
      */
     public function saveBooking()
     {
-        $db = static::getDb();
-        $transaction = $db->beginTransaction();
-        try {
-            $db->createCommand('SELECT [[id]] FROM {{%consultant}} WHERE [[user_id]] = :uid FOR UPDATE', [
-                ':uid' => $this->consultant_id,
-            ])->queryScalar();
-
-            if ($this->save()) {
-                $transaction->commit();
-                return true;
-            }
-            $transaction->rollBack();
-            return false;
-        } catch (\Throwable $e) {
-            $transaction->rollBack();
-            throw $e;
-        }
+        return Yii::createObject(BookingService::class)->save($this);
     }
 
     /**

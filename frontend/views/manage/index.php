@@ -1,5 +1,6 @@
 <?php
 
+use frontend\components\SlotPicker;
 use frontend\models\Appointments;
 use frontend\services\SelfServiceLink;
 use yii\bootstrap5\Html;
@@ -20,22 +21,7 @@ $when = date('l j F Y \a\t H:i', strtotime($appointment->date . ' ' . $appointme
 $length = (int) $appointment->getDurationMinutes();
 $this->title = 'Your appointment';
 
-$events = [];
-$windowStart = '23:59';
-$windowEnd = '00:00';
-foreach ($slots as $date => $times) {
-    foreach ($times as $time) {
-        $start = strtotime("$date $time");
-        $events[] = [
-            'start' => date('Y-m-d\TH:i:s', $start),
-            'end' => date('Y-m-d\TH:i:s', $start + $length * 60),
-            'title' => 'Free',
-            'extendedProps' => ['date' => $date, 'time' => $time, 'label' => date('l j F \a\t H:i', $start)],
-        ];
-        $windowStart = min($windowStart, $time);
-        $windowEnd = max($windowEnd, date('H:i', $start + $length * 60));
-    }
-}
+$hasSlots = (bool) array_filter($slots);
 $dates = array_keys($slots);
 ?>
 <div class="manage-index container my-4" style="max-width: 60rem">
@@ -65,11 +51,23 @@ $dates = array_keys($slots);
         <?php endif; ?>
     <?php else: ?>
         <h2 class="h5 fw-bold">Choose another time</h2>
-        <?php if (!$events): ?>
+        <?php if (!$hasSlots): ?>
             <p class="text-muted">There are no other free times with <?= Html::encode($consultant->names ?? 'this doctor') ?> in the next <?= count($dates) ?> days. Please call the clinic.</p>
         <?php else: ?>
             <p class="text-muted small">Green times are free. Your current time stays booked until you choose a new one.</p>
-            <div id="reschedule-calendar" class="mb-3"></div>
+            <?= SlotPicker::widget([
+                'slots' => $slots,
+                'minutes' => $length,
+                'weekly' => true,
+                'targets' => [
+                    'dateInput' => 'reschedule-date',
+                    'timeInput' => 'reschedule-time',
+                    'label' => 'reschedule-choice',
+                    'button' => 'reschedule-button',
+                ],
+                'labelPrefix' => 'New time: ',
+                'options' => ['class' => 'mb-3'],
+            ]) ?>
             <?= Html::beginForm(['manage/reschedule', 'id' => $appointment->id, 'sig' => $sig], 'post', ['id' => 'reschedule-form', 'class' => 'mb-5']) ?>
                 <?= Html::hiddenInput('date', '', ['id' => 'reschedule-date']) ?>
                 <?= Html::hiddenInput('time', '', ['id' => 'reschedule-time']) ?>
@@ -89,41 +87,3 @@ $dates = array_keys($slots);
         <?= Html::endForm() ?>
     <?php endif; ?>
 </div>
-<?php
-if ($changeable && $events) {
-    $config = json_encode([
-        'events' => $events,
-        'from' => $dates[0],
-        'days' => count($dates),
-        'end' => date('Y-m-d', strtotime(end($dates) . ' +1 day')),
-        'slotDuration' => sprintf('%02d:%02d:00', intdiv($length, 60), $length % 60),
-        'slotMinTime' => $windowStart,
-        'slotMaxTime' => $windowEnd,
-    ]);
-    $this->registerJs(<<<JS
-    var cfg = {$config};
-    new FullCalendar.Calendar(document.getElementById('reschedule-calendar'), {
-        initialView: window.innerWidth < 768 ? 'listWeek' : 'timeGridWeek',
-        initialDate: cfg.from,
-        validRange: { start: cfg.from, end: cfg.end },
-        headerToolbar: { left: 'prev,next', center: 'title', right: 'timeGridWeek,listWeek' },
-        allDaySlot: false,
-        slotDuration: cfg.slotDuration,
-        slotMinTime: cfg.slotMinTime,
-        slotMaxTime: cfg.slotMaxTime,
-        selectable: false,
-        editable: false,
-        height: 'auto',
-        events: cfg.events,
-        eventColor: '#198754',
-        eventClick: function (info) {
-            var p = info.event.extendedProps;
-            document.getElementById('reschedule-date').value = p.date;
-            document.getElementById('reschedule-time').value = p.time;
-            document.getElementById('reschedule-choice').textContent = 'New time: ' + p.label;
-            document.getElementById('reschedule-button').disabled = false;
-        }
-    }).render();
-JS);
-    $this->registerCss('#reschedule-calendar .fc-timegrid-col { background: #f1f3f5; }');
-}

@@ -8,6 +8,7 @@ use frontend\components\FrontDesk;
 use frontend\models\RegisterPatientForm;
 use frontend\models\Appointments;
 use frontend\models\Consultant;
+use frontend\services\BookingService;
 use Yii;
 use yii\filters\AccessControl;
 use yii\filters\VerbFilter;
@@ -157,7 +158,7 @@ class ApiController extends Controller
             $model->consultant_id = $data['consultant'] ?? null;
         }
 
-        if ($model->saveBooking()) {
+        if (Yii::createObject(BookingService::class)->book($model)) {
             return ['status' => 'success', 'message' => 'Appointment #' . $model->id . ' booked successfully!'];
         }
 
@@ -173,10 +174,7 @@ class ApiController extends Controller
             return ['status' => 'error', 'message' => 'Appointment not found.'];
         }
 
-        $model->date = $data['date'] ?? null;
-        $model->time = $data['time'] ?? null;
-
-        if ($model->saveBooking()) {
+        if (Yii::createObject(BookingService::class)->reschedule($model, $data['date'] ?? null, $data['time'] ?? null)) {
             return ['status' => 'success', 'message' => 'Appointment updated'];
         }
 
