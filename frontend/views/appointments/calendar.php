@@ -23,6 +23,7 @@ if ($role == 'client') {
 
 
 $this->title = $title;
+$isConsultant = json_encode($role === 'consultant');
 
 ?>
 <div class="container mt-4">
@@ -48,7 +49,20 @@ $this->title = $title;
 
                 <?php $form = ActiveForm::begin(['id' => 'appointmentForm']); ?>
 
-                <?= $form->field($model, 'patient_id')->hiddenInput(['value' => Yii::$app->user->id])->label(false) ?>
+                <?php if ($role === 'consultant'): ?>
+                    <!-- A consultant books for a registered patient, found by exact email or phone -->
+                    <div class="mb-3">
+                        <label class="form-label" for="patient-lookup"><?= Yii::t('app', 'Patient') ?></label>
+                        <div class="input-group">
+                            <input type="text" id="patient-lookup" class="form-control" autocomplete="off"
+                                placeholder="<?= Yii::t('app', "Patient's email or phone number") ?>">
+                            <button type="button" class="btn btn-outline-primary" id="patient-lookup-btn"><?= Yii::t('app', 'Find') ?></button>
+                        </div>
+                        <div id="patient-lookup-results" class="list-group mt-2"></div>
+                        <div id="patient-selected" class="form-text fw-semibold"></div>
+                    </div>
+                    <?= $form->field($model, 'patient_id')->hiddenInput(['value' => ''])->label(false) ?>
+                <?php endif; ?>
                 <?= $form->field($model, 'consultant_id')->hiddenInput(['value' => $consultant->user_id ?? null])->label(false) ?>
                 <div class="row">
                     <div class="col-md-6">
@@ -168,6 +182,52 @@ $script = <<<JS
         });
     }
 
+    var isConsultant = {$isConsultant};
+
+    // Consultants: find the patient by exact email or phone, then pick them from the matches
+    function choosePatient(patient) {
+        $('#appointments-patient_id').val(patient.id);
+        $('#patient-lookup-results').empty();
+        $('#patient-selected').text('Booking for: ' + patient.name);
+    }
+
+    function lookupPatient() {
+        var results = $('#patient-lookup-results').empty();
+        $('#appointments-patient_id').val('');
+        $('#patient-selected').text('');
+
+        $.getJSON('/api/find-patient', { q: $('#patient-lookup').val() })
+            .done(function(response) {
+                if (response.status !== 'success') {
+                    results.append($('<div class="list-group-item text-danger">').text(response.message));
+                    return;
+                }
+                if (response.patients.length === 1) {
+                    choosePatient(response.patients[0]);
+                    return;
+                }
+                // Several accounts share the number: let the consultant pick the right one
+                response.patients.forEach(function(patient) {
+                    var details = [patient.email, patient.phone].filter(Boolean).join(' · ');
+                    $('<button type="button" class="list-group-item list-group-item-action">')
+                        .text(patient.name + (details ? ' (' + details + ')' : ''))
+                        .on('click', function() { choosePatient(patient); })
+                        .appendTo(results);
+                });
+            })
+            .fail(function() {
+                results.append($('<div class="list-group-item text-danger">').text('Could not look up the patient.'));
+            });
+    }
+
+    $('#patient-lookup-btn').on('click', lookupPatient);
+    $('#patient-lookup').on('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault(); // look up instead of submitting the booking
+            lookupPatient();
+        }
+    });
+
     // Handle form submission
     $('#appointmentForm').off('submit').on('submit', function(e) {
         e.preventDefault();
@@ -175,12 +235,16 @@ $script = <<<JS
             date: $('#appointments-date').val(),
             time: $('#appointments-time').val(),
             brief: $('#appointments-symptoms_brief').val(),
-            patient_name: $('#appointments-patient_id').val(),
+            patient: $('#appointments-patient_id').val(),
             consultant: $('#appointments-consultant_id').val(),
         };
 
         if(!appointmentData.consultant){
             console.error(`consultant Needed ...`); return;
+        }
+        if (isConsultant && !appointmentData.patient) {
+            alert('Find and choose the patient first.');
+            return;
         }
         $.ajax({
             url: '/api/visit',

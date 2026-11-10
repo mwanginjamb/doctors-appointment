@@ -2,6 +2,7 @@
 
 namespace frontend\controllers;
 
+use common\models\User;
 use frontend\models\Appointments;
 use frontend\models\Consultant;
 use Yii;
@@ -9,6 +10,7 @@ use yii\filters\AccessControl;
 use yii\filters\VerbFilter;
 use yii\helpers\Json;
 use yii\web\BadRequestHttpException;
+use yii\web\ForbiddenHttpException;
 use yii\web\Controller;
 use yii\web\Response;
 
@@ -33,6 +35,7 @@ class ApiController extends Controller
                     'appointments' => ['GET'],
                     'visit' => ['POST'],
                     'update-visit' => ['POST'],
+                    'find-patient' => ['GET'],
                 ],
             ],
         ];
@@ -109,9 +112,16 @@ class ApiController extends Controller
         $model->date = $data['date'] ?? null;
         $model->time = $data['time'] ?? null;
         $model->symptoms_brief = $data['brief'] ?? null;
-        // Identities come from the session, never from the request body
-        $model->patient_id = $user->id;
-        $model->consultant_id = $user->role === 'consultant' ? $user->id : ($data['consultant'] ?? null);
+        // The logged-in user's own side of the booking always comes from the session
+        if ($user->role === 'consultant') {
+            // A consultant books into their own calendar, for a patient found with api/find-patient
+            $model->consultant_id = $user->id;
+            $patient = $data['patient'] ?? null;
+            $model->patient_id = ctype_digit((string) $patient) ? (int) $patient : null;
+        } else {
+            $model->patient_id = $user->id;
+            $model->consultant_id = $data['consultant'] ?? null;
+        }
 
         if ($model->saveBooking()) {
             return ['status' => 'success', 'message' => 'Appointment #' . $model->id . ' booked successfully!'];
@@ -137,6 +147,69 @@ class ApiController extends Controller
         }
 
         return ['status' => 'error', 'message' => $this->firstError($model)];
+    }
+
+    /**
+     * Lets a consultant find the patient they are booking for, by exact email or phone number.
+     * There is deliberately no name search: consultants should not be able to browse every
+     * patient on the platform. Matches are returned with masked contact details.
+     *
+     * GET api/find-patient?q=<email or phone>
+     */
+    public function actionFindPatient($q = '')
+    {
+        if (Yii::$app->user->identity->role !== 'consultant') {
+            throw new ForbiddenHttpException('Only consultants can look up patients.');
+        }
+
+        $q = trim((string) $q);
+        $digits = preg_replace('/\D/', '', $q);
+
+        if (filter_var($q, FILTER_VALIDATE_EMAIL)) {
+            $match = ['email' => $q];
+        } elseif (strlen($digits) >= 9) {
+            // Compare the last 9 digits so 0712…, 254712… and +254 712… find the same number
+            $match = ['like', 'phone_number', '%' . substr($digits, -9), false];
+        } else {
+            return ['status' => 'error', 'message' => "Enter the patient's full email address or phone number."];
+        }
+
+        $patients = User::find()
+            ->select(['id', 'full_name', 'username', 'email', 'phone_number'])
+            ->where($match)
+            ->andWhere(['status' => User::STATUS_ACTIVE])
+            ->andWhere(['or', ['role' => 'client'], ['role' => null], ['role' => '']])
+            ->limit(10)
+            ->all();
+
+        if (!$patients) {
+            return ['status' => 'error', 'message' => 'No registered patient has that email or phone number. Ask them to sign up first.'];
+        }
+
+        return [
+            'status' => 'success',
+            'patients' => array_map(function (User $p) {
+                return [
+                    'id' => $p->id,
+                    'name' => $p->full_name ?: $p->username,
+                    'email' => self::mask($p->email, '@'),
+                    'phone' => $p->phone_number ? '••••' . substr($p->phone_number, -3) : null,
+                ];
+            }, $patients),
+        ];
+    }
+
+    /**
+     * Keeps the first two characters and everything from $from on: "jane@x.com" -> "ja••@x.com".
+     */
+    private static function mask($value, $from)
+    {
+        $pos = strpos((string) $value, $from);
+        if ($pos === false) {
+            return null;
+        }
+
+        return substr($value, 0, min(2, $pos)) . '••' . substr($value, $pos);
     }
 
     private function getJsonBody()
