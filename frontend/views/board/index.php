@@ -10,6 +10,7 @@ use yii\helpers\Url;
 /** @var AppointmentBoardSearch $search */
 /** @var yii\data\ActiveDataProvider $dataProvider */
 /** @var array $counts status => count */
+/** @var Appointments[] $needsOutcome started appointments nobody has marked attended / no-show */
 /** @var frontend\models\Consultant[] $bookable front desk: consultants they book for */
 /** @var frontend\models\ClinicStats|null $stats front desk: numbers for their consultants */
 
@@ -91,6 +92,31 @@ $today = date('Y-m-d');
             <?= Html::a('Reset', ['index'], ['class' => 'btn btn-sm btn-link px-1']) ?>
         </div>
     <?= Html::endForm() ?>
+
+    <?php if ($needsOutcome): ?>
+        <div class="card border-warning mb-4 needs-outcome">
+            <div class="card-body">
+                <h2 class="h6 fw-bold mb-1">Needs an outcome (<?= count($needsOutcome) ?>)</h2>
+                <p class="small text-muted mb-2">Appointments from the last 30 days that have started but are not yet marked attended or no-show. Oldest first.</p>
+                <table class="table table-sm align-middle mb-0">
+                    <tbody>
+                        <?php foreach ($needsOutcome as $appointment): ?>
+                            <tr>
+                                <td class="text-nowrap"><?= Html::encode($f->asDatetime(strtotime($appointment->date . ' ' . $appointment->time), 'php:D j M, H:i')) ?></td>
+                                <td><?= Html::encode($appointment->consultant->names ?? '') ?></td>
+                                <td><?= Html::encode($appointment->patient->full_name ?? $appointment->patient->username ?? '') ?></td>
+                                <td class="text-end">
+                                    <?php if (\frontend\components\FrontDesk::canRecordOutcome($appointment)): ?>
+                                        <?= $this->render('@frontend/views/appointments/_outcome_buttons', ['model' => $appointment]) ?>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    <?php endif; ?>
 
     <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
         <strong><?= Html::encode($range) ?>:</strong>
@@ -192,6 +218,10 @@ $today = date('Y-m-d');
                                 'cancel-url' => Url::to(['/appointments/cancel', 'id' => $model->id]),
                             ],
                         ]);
+                    }
+                    // Started appointments: record or correct attended / no-show
+                    if ($model->canRecordOutcome() && \frontend\components\FrontDesk::canRecordOutcome($model)) {
+                        $buttons .= ' ' . $this->render('@frontend/views/appointments/_outcome_buttons', ['model' => $model]);
                     }
                     return $buttons;
                 },

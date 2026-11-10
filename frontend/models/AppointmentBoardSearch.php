@@ -135,6 +135,27 @@ class AppointmentBoardSearch extends Model
     }
 
     /**
+     * Appointments in the viewer's scope that have started, in the last $days days, with no outcome
+     * recorded yet (still scheduled or confirmed). Oldest first, so the backlog is worked through.
+     *
+     * @return Appointments[]
+     */
+    public function needsOutcome($days = 30, $limit = 50)
+    {
+        $query = Appointments::find()
+            ->orderBy(['date' => SORT_ASC, 'time' => SORT_ASC])
+            ->with(['patient', 'consultant'])
+            ->andWhere(['between', 'date', date('Y-m-d', strtotime("-{$days} days")), date('Y-m-d')])
+            ->andWhere(['or', ['status' => null], ['status' => [Appointments::STATUS_SCHEDULED, Appointments::STATUS_CONFIRMED]]])
+            ->andWhere(['or', ['<', 'date', date('Y-m-d')], ['<=', 'time', date('H:i:s')]]);
+        if ($this->consultantUserIds !== null) {
+            $query->andWhere(['consultant_id' => $this->consultantUserIds ?: [0]]);
+        }
+
+        return $query->limit($limit)->all();
+    }
+
+    /**
      * Appointment counts by status for the current filters (ignoring the status filter itself).
      *
      * @return array status => count

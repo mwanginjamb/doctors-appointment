@@ -333,11 +333,17 @@ $script = <<<JS
 
     var isConsultant = {$isConsultant};
 
+    // " · 2 no-shows in the last year" for staff deciding whether to book; empty when there are none
+    function noShowNote(patient) {
+        var n = patient.noShows || 0;
+        return n ? ' · ' + n + (n === 1 ? ' no-show' : ' no-shows') + ' in the last year' : '';
+    }
+
     // Consultants: find the patient by exact email or phone, then pick them from the matches
     function choosePatient(patient) {
         $('#appointments-patient_id').val(patient.id);
         $('#patient-lookup-results').empty();
-        $('#patient-selected').text('Booking for: ' + patient.name);
+        $('#patient-selected').text('Booking for: ' + patient.name + noShowNote(patient));
     }
 
     function lookupPatient() {
@@ -365,7 +371,7 @@ $script = <<<JS
 
     function listPatients(results, patients) {
         patients.forEach(function(patient) {
-            var details = [patient.email, patient.phone].filter(Boolean).join(' · ');
+            var details = [patient.email, patient.phone].filter(Boolean).join(' · ') + noShowNote(patient);
             $('<button type="button" class="list-group-item list-group-item-action">')
                 .text(patient.name + (details ? ' (' + details + ')' : ''))
                 .on('click', function() { choosePatient(patient); $('#walk-in-form').addClass('d-none'); })

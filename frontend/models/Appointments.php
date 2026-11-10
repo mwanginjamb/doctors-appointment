@@ -34,6 +34,8 @@ use yii\behaviors\TimestampBehavior;
  * @property int|null $consultant_id
  * @property string|null $status (scheduled, completed, cancelled, no_show, confirmed)
  * @property string|null $cancellation_note why it was cancelled; set only by cancel()
+ * @property int|null $outcome_at when attended / no-show was recorded; set only by recordOutcome()
+ * @property int|null $outcome_by who recorded it
  * @property int|null $patient_age
  */
 class Appointments extends \yii\db\ActiveRecord
@@ -58,7 +60,12 @@ class Appointments extends \yii\db\ActiveRecord
         'updated_by',
         'cancellation_note',
         'duration_minutes',
+        'outcome_at',
+        'outcome_by',
     ];
+
+    /** Days during which a recorded outcome can still be changed (attended <-> no-show). */
+    const OUTCOME_CORRECTION_DAYS = 7;
 
     public $patient_age;
 
@@ -355,6 +362,62 @@ class Appointments extends \yii\db\ActiveRecord
 
         $this->status = self::STATUS_CANCELLED;
         return $this->save(false);
+    }
+
+    /**
+     * Whether attended / no-show can be recorded now: the appointment has started and is still
+     * scheduled or confirmed, or its outcome was recorded within the last OUTCOME_CORRECTION_DAYS
+     * (to fix a wrong mark). Who may record it is checked by the controller.
+     */
+    public function canRecordOutcome()
+    {
+        if (strtotime($this->date . ' ' . $this->time) > time()) {
+            return false;
+        }
+        if ($this->status === null || in_array($this->status, [self::STATUS_SCHEDULED, self::STATUS_CONFIRMED], true)) {
+            return true;
+        }
+
+        return in_array($this->status, [self::STATUS_COMPLETED, self::STATUS_NO_SHOW], true)
+            && $this->outcome_at !== null
+            && $this->outcome_at > time() - self::OUTCOME_CORRECTION_DAYS * 86400;
+    }
+
+    /**
+     * Records that the patient attended (STATUS_COMPLETED) or did not come (STATUS_NO_SHOW).
+     *
+     * @param string $outcome STATUS_COMPLETED or STATUS_NO_SHOW
+     * @return bool false when the outcome is not allowed now (see canRecordOutcome())
+     */
+    public function recordOutcome($outcome)
+    {
+        if (!in_array($outcome, [self::STATUS_COMPLETED, self::STATUS_NO_SHOW], true) || !$this->canRecordOutcome()) {
+            return false;
+        }
+
+        $user = Yii::$app->get('user', false);
+        $this->status = $outcome;
+        $this->outcome_at = time();
+        $this->outcome_by = $user && !$user->isGuest ? $user->id : null;
+
+        return $this->save(false);
+    }
+
+    public function getOutcomeRecorder()
+    {
+        return $this->hasOne(User::class, ['id' => 'outcome_by']);
+    }
+
+    /**
+     * No-shows of a patient in the last $days days, for staff to see when booking or opening an appointment.
+     */
+    public static function countNoShows($patientId, $days = 365)
+    {
+        return (int) self::find()
+            ->orderBy(null)
+            ->where(['patient_id' => $patientId, 'status' => self::STATUS_NO_SHOW])
+            ->andWhere(['>=', 'date', date('Y-m-d', strtotime("-{$days} days"))])
+            ->count();
     }
 
     /**

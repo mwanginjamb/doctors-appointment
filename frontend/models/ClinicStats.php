@@ -60,6 +60,32 @@ class ClinicStats extends BaseObject
     }
 
     /**
+     * Outcomes of appointments dated in the last $cancellationWindowDays days (today included) that
+     * have started: how many attended, how many were no-shows, and how many still need an outcome.
+     *
+     * @return array{attended:int, noShows:int, unmarked:int, noShowRate:float|null} rate in percent of
+     *               recorded outcomes, null when none are recorded
+     */
+    public function getOutcomes()
+    {
+        $range = ['between', 'date', $this->day(1 - $this->cancellationWindowDays), $this->today];
+        $attended = (int) $this->scoped()->andWhere($range)->andWhere(['status' => Appointments::STATUS_COMPLETED])->count();
+        $noShows = (int) $this->scoped()->andWhere($range)->andWhere(['status' => Appointments::STATUS_NO_SHOW])->count();
+        // Started = an earlier day, or today at a time that has passed (only when "today" is the real today)
+        $started = $this->today === date('Y-m-d')
+            ? ['or', ['<', 'date', $this->today], ['<=', 'time', date('H:i:s')]]
+            : ['<', 'date', $this->today];
+        $unmarked = (int) $this->active()->andWhere($range)->andWhere($started)->count();
+
+        return [
+            'attended' => $attended,
+            'noShows' => $noShows,
+            'unmarked' => $unmarked,
+            'noShowRate' => $attended + $noShows > 0 ? round($noShows * 100 / ($attended + $noShows), 1) : null,
+        ];
+    }
+
+    /**
      * Appointments booked (created) in the last 7 days, split by who booked them.
      *
      * @return array{total:int, online:int, staff:int} online = the patient themselves

@@ -268,6 +268,8 @@ class ApiController extends Controller
             'name' => $p->full_name ?: $p->username,
             'email' => self::mask($p->email, '@'),
             'phone' => $p->phone_number ? '••••' . substr($p->phone_number, -3) : null,
+            // Staff only (both callers require consultant or front desk): no-shows in the last 12 months
+            'noShows' => Appointments::countNoShows($p->id),
         ];
     }
 

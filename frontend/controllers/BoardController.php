@@ -44,6 +44,7 @@ class BoardController extends Controller
             'search' => $search,
             'dataProvider' => $dataProvider,
             'counts' => $search->countsByStatus(),
+            'needsOutcome' => $search->needsOutcome(),
             // Front desk gets the headline numbers for their consultants here; admins on the dashboard
             'stats' => FrontDesk::isFrontDesk() ? new ClinicStats(['consultantUserIds' => FrontDesk::consultantUserIds()]) : null,
             // Front desk books from these consultants' calendars

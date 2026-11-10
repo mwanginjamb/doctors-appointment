@@ -32,6 +32,7 @@ class AppointmentsController extends Controller
                     'class' => VerbFilter::class,
                     'actions' => [
                         'cancel' => ['POST'],
+                        'outcome' => ['POST'],
                         'confirm' => ['POST'],
                     ],
                 ],
@@ -161,6 +162,32 @@ class AppointmentsController extends Controller
 
         // Back to where the Cancel button was: the list, the appointment, or the admin board with its filters
         return $this->redirect(Yii::$app->request->referrer ?: ['index']);
+    }
+
+    /**
+     * Records whether the patient attended (outcome=completed) or did not come (outcome=no_show).
+     * The consultant, their front desk or an admin may record it once the appointment has started,
+     * and change it within Appointments::OUTCOME_CORRECTION_DAYS.
+     */
+    public function actionOutcome($id)
+    {
+        $model = $this->findModel($id, true);
+        if (!FrontDesk::canRecordOutcome($model)) {
+            throw new ForbiddenHttpException(Yii::t('app', 'Only the consultant or front desk can record whether the patient came.'));
+        }
+
+        $outcome = $this->request->post('outcome');
+        if ($model->recordOutcome($outcome)) {
+            Yii::$app->session->setFlash('success', $outcome === Appointments::STATUS_NO_SHOW
+                ? Yii::t('app', 'Recorded as a no-show.')
+                : Yii::t('app', 'Recorded as attended.'));
+        } else {
+            Yii::$app->session->setFlash('error', Yii::t('app', 'An outcome can be recorded once the appointment has started, and changed within {n} days.', [
+                'n' => Appointments::OUTCOME_CORRECTION_DAYS,
+            ]));
+        }
+
+        return $this->redirect(Yii::$app->request->referrer ?: ['view', 'id' => $model->id]);
     }
 
     public function actionCalendar($cid = null)
