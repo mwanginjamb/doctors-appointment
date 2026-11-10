@@ -29,9 +29,21 @@ use yii\web\IdentityInterface;
  */
 class User extends ActiveRecord implements IdentityInterface
 {
+    use AccountTypeTrait;
+
     const STATUS_DELETED = 0;
     const STATUS_INACTIVE = 9;
     const STATUS_ACTIVE = 10;
+
+    /**
+     * Account types (user.role). They decide which version of a page someone gets (a patient's
+     * calendar or a consultant's) and the RBAC role they start with. They are not permissions:
+     * what someone may do is checked with Yii::$app->user->can().
+     */
+    const ACCOUNT_PATIENT = 'client';
+    const ACCOUNT_CONSULTANT = 'consultant';
+    const ACCOUNT_FRONT_DESK = 'front_desk';
+    const ACCOUNT_ADMIN = 'admin';
 
 
     /**

@@ -8,11 +8,11 @@ use yii\bootstrap5\ActiveForm;
 /**
  * @var yii\web\View $this
  */
-$role = Yii::$app->user->identity->role;
+$me = Yii::$app->user->identity;
 $title = 'My Appointments Calendar - Read Only';
-if ($role == 'client') {
-    $title = 'Consultantations Appointments for ' . ucwords(Yii::$app->user->identity->full_name);
-} else if ($role == 'consultant') {
+if ($me->isPatientAccount()) {
+    $title = 'Consultantations Appointments for ' . ucwords((string) $me->full_name);
+} else if ($me->isConsultantAccount()) {
     $consultant = Consultant::findOne(['user_id' => Yii::$app->user->id]);
     $title = 'Consultantations Schedule for ' . ucwords($consultant->names);
 }

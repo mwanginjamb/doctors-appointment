@@ -197,7 +197,7 @@ class DeviceController extends Controller
      */
     private function getUserModel($user)
     {
-        if ($user->role === 'consultant') {
+        if ($user->isConsultantAccount()) {
             return Consultant::findOne(['user_id' => $user->id]);
         }
 

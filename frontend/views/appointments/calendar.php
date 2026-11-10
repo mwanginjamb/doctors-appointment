@@ -8,33 +8,35 @@ use yii\bootstrap5\ActiveForm;
 /**
  * @var yii\web\View $this
  */
-$role = Yii::$app->user->identity->role;
+// Which calendar this is depends on the account type; what may be done in it, on permissions
+$me = Yii::$app->user->identity;
 $title = 'Appointments Calendar';
-if ($role == 'client') {
-    $title = 'Consultantations Appointments for ' . ucwords(Yii::$app->user->identity->full_name);
+if ($me->isPatientAccount()) {
+    $title = 'Consultantations Appointments for ' . ucwords((string) $me->full_name);
     $ConsultantSession = Yii::$app->session->get('booking_session_' . Yii::$app->user->id);
     $consultant = Consultant::findOne(['id' => $ConsultantSession]);
-    // Yii::$app->utility->printrr($consultant);
-} else if ($role == 'consultant') {
+} else if ($me->isConsultantAccount()) {
     $consultant = Consultant::findOne(['user_id' => Yii::$app->user->id]);
     $title = 'Consultantations Schedule for ' . ucwords($consultant->names);
-} else if ($role === \frontend\components\FrontDesk::ROLE) {
+} else if ($me->isFrontDeskAccount()) {
     // The controller only lets front desk open their assigned consultants' calendars
     $title = 'Front desk: ' . $consultant->names;
 }
 
-// Consultants and front desk book for a patient they look up (or register as a walk-in)
-$booksForPatients = in_array($role, ['consultant', \frontend\components\FrontDesk::ROLE], true);
+// Staff who may book in this consultant's calendar do so for a patient they look up (or register
+// as a walk-in): the consultant themselves, or their front desk
+$booksForPatients = !$me->isPatientAccount() && !empty($consultant) && $consultant->user_id
+    && \frontend\components\FrontDesk::canBookFor($consultant->user_id);
 
-// Admins open a consultant's calendar from the appointments board; it is read-only for them
-$readOnly = !in_array($role, ['client', 'consultant', \frontend\components\FrontDesk::ROLE], true);
+// Patients book for themselves; staff who may not book here (admins) get a read-only calendar
+$readOnly = !$me->isPatientAccount() && !$booksForPatients;
 
 // A deactivated consultant's calendar stays viewable as history but takes no bookings
 $deactivated = !empty($consultant) && !$consultant->isTakingBookings();
 $readOnly = $readOnly || $deactivated;
 if ($readOnly) {
     $consultant = $consultant ?? null;
-    if ($consultant === null && \frontend\components\AdminAccessControl::isAdmin()) {
+    if ($consultant === null && \frontend\components\FrontDesk::isStaff()) {
         throw new \yii\web\NotFoundHttpException('Open a consultant from the appointments board to see their calendar.');
     }
     $title = 'Schedule for ' . ($consultant->names ?? 'consultant');
@@ -89,7 +91,8 @@ if (!empty($consultant)) {
         $blocked[] = [
             'start' => str_replace(' ', 'T', $away->start_at),
             'end' => str_replace(' ', 'T', $away->end_at),
-            'title' => $role === 'consultant' ? 'Time off' . ($away->reason ? ': ' . $away->reason : '') : 'Doctor away',
+            // The reason is private: only the consultant themselves sees it
+            'title' => (int) $consultant->user_id === (int) Yii::$app->user->id ? 'Time off' . ($away->reason ? ': ' . $away->reason : '') : 'Doctor away',
             'reason' => ($consultant->names ?: 'The doctor') . ' is away ' . $away->getLabel() . '.',
         ];
     }

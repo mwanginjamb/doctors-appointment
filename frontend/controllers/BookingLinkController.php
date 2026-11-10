@@ -28,7 +28,7 @@ class BookingLinkController extends Controller
                     'allow' => true,
                     'roles' => ['@'],
                     'matchCallback' => function () {
-                        return Yii::$app->user->identity->role === 'consultant' || FrontDesk::isFrontDesk();
+                        return Yii::$app->user->can(\common\components\RbacHelper::PERM_SEND_BOOKING_LINKS);
                     },
                 ]],
             ],
@@ -96,11 +96,15 @@ class BookingLinkController extends Controller
      */
     private function bookableConsultants()
     {
-        if (Yii::$app->user->identity->role === 'consultant') {
-            return Consultant::find()->where(['user_id' => Yii::$app->user->id])->all();
-        }
+        // Candidates: a consultant's own profile, or the consultants on the user's board ...
+        $candidates = Yii::$app->user->identity->isConsultantAccount()
+            ? Consultant::find()->where(['user_id' => Yii::$app->user->id])->all()
+            : Consultant::find()->andFilterWhere(['user_id' => FrontDesk::consultantUserIds() ?? null])->orderBy(['names' => SORT_ASC])->all();
 
-        return Consultant::find()->where(['user_id' => FrontDesk::consultantUserIds() ?: [0]])->orderBy(['names' => SORT_ASC])->all();
+        // ... that RBAC lets them book for
+        return array_values(array_filter($candidates, function (Consultant $consultant) {
+            return $consultant->user_id !== null && FrontDesk::canBookFor($consultant->user_id);
+        }));
     }
 
     private function findBookableConsultant($cid)

@@ -30,12 +30,36 @@ class RbacController extends Controller
         $auth = Yii::$app->authManager;
         $defs = RbacHelper::definitions();
 
+        foreach ($defs['rules'] ?? [] as $name => $class) {
+            if ($auth->getRule($name) === null) {
+                $auth->add(new $class());
+                $this->stdout("Created rule $name\n", Console::FG_GREEN);
+            }
+        }
+
         foreach ($defs['permissions'] as $name => $description) {
             if ($auth->getPermission($name) === null) {
                 $perm = $auth->createPermission($name);
                 $perm->description = $description;
                 $auth->add($perm);
                 $this->stdout("Created permission $name\n", Console::FG_GREEN);
+            }
+        }
+
+        // A ruled permission grants its general permission only when its rule passes
+        foreach ($defs['ruledPermissions'] ?? [] as $name => [$description, $ruleName, $grants]) {
+            $perm = $auth->getPermission($name);
+            if ($perm === null) {
+                $perm = $auth->createPermission($name);
+                $perm->description = $description;
+                $perm->ruleName = $ruleName;
+                $auth->add($perm);
+                $this->stdout("Created permission $name (rule $ruleName)\n", Console::FG_GREEN);
+            }
+            $general = $auth->getPermission($grants);
+            if (!$auth->hasChild($perm, $general)) {
+                $auth->addChild($perm, $general);
+                $this->stdout("  $name -> $grants\n");
             }
         }
 

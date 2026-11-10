@@ -85,24 +85,27 @@ $username = Yii::$app->user->identity->username ?? 'User';
                     'visible' => !Yii::$app->user->isGuest,
                 ],
                 [
+                    // Menu items follow permissions (RBAC), not the account type
                     'label' => 'Consultant Practice',
                     'url' => ['/consultant/index'],
-                    'visible' => !Yii::$app->user->isGuest && Yii::$app->user->identity->role == 'consultant',
+                    'visible' => Yii::$app->user->can(\common\components\RbacHelper::PERM_MANAGE_CONSULTANT_PROFILE),
                 ],
                 [
+                    // Admins reach the board from Administration
                     'label' => 'Front Desk',
                     'url' => ['/board/index'],
-                    'visible' => \frontend\components\FrontDesk::isFrontDesk(),
+                    'visible' => \frontend\components\FrontDesk::isStaff() && !\frontend\components\AdminAccessControl::isAdmin(),
                 ],
                 [
                     'label' => 'Booking links',
                     'url' => ['/booking-link/index'],
-                    'visible' => !Yii::$app->user->isGuest && (Yii::$app->user->identity->role == 'consultant' || \frontend\components\FrontDesk::isFrontDesk()),
+                    'visible' => Yii::$app->user->can(\common\components\RbacHelper::PERM_SEND_BOOKING_LINKS),
                 ],
                 [
                     'label' => 'Availability',
                     'url' => ['/availability/index'],
-                    'visible' => !Yii::$app->user->isGuest && Yii::$app->user->identity->role == 'consultant',
+                    'visible' => !Yii::$app->user->isGuest
+                        && Yii::$app->user->can(\common\components\RbacHelper::PERM_MANAGE_OWN_AVAILABILITY, ['consultantUserId' => Yii::$app->user->id]),
                 ],
                 [
                     'label' => 'Administration',
@@ -151,7 +154,7 @@ $username = Yii::$app->user->identity->username ?? 'User';
                             Html::tag('i', '', ['class' => 'bi bi-person me-2']) . 'Profile',
                             // Consultants and patients have their own profiles (consultant/view sends patients to
                             // theirs); front desk and admins have only an account
-                            in_array(Yii::$app->user->identity->role, ['consultant', 'client'], true)
+                            Yii::$app->user->identity->isConsultantAccount() || Yii::$app->user->identity->isPatientAccount()
                                 ? ['/consultant/view', 'id' => Yii::$app->user->identity->id]
                                 : ['/account/index'],
                             ['class' => 'dropdown-item']

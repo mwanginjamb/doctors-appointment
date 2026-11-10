@@ -21,7 +21,7 @@ $this->params['breadcrumbs'][] = $this->title;
     <div class="actions d-flex justify-content-between my-3">
         <?php Html::a(Yii::t('app', 'Create Appointments'), ['create'], ['class' => 'btn btn-lg btn-outline-success']) ?>
         <?= Html::a(Yii::t('app', '<i class="fa fas-calendar"></i> My Calendar'), ['appointments/my-calendar'], ['class' => 'btn btn-lg btn-outline-info']) ?>
-        <?= (Yii::$app->user->identity->role === 'consultant') ? Html::a(Yii::t('app', 'Edit Calendar Bookings'), ['appointments/calendar'], ['class' => 'btn btn-lg btn-outline-dark']) : '' ?>
+        <?= Yii::$app->user->identity->isConsultantAccount() ? Html::a(Yii::t('app', 'Edit Calendar Bookings'), ['appointments/calendar'], ['class' => 'btn btn-lg btn-outline-dark']) : '' ?>
 
     </div>
 
@@ -128,14 +128,14 @@ $this->params['breadcrumbs'][] = $this->title;
                             return $model->canRecordOutcome() && \frontend\components\FrontDesk::canRecordOutcome($model);
                         },
                     'update' => function ($model) {
-                            return Yii::$app->user->identity->role === 'consultant' && $model->status === Appointments::STATUS_SCHEDULED;
+                            return \frontend\components\FrontDesk::canBookFor($model->consultant_id) && $model->status === Appointments::STATUS_SCHEDULED;
                         },
                     // The list only holds the user's own appointments, so either participant may cancel
                     'cancel' => function ($model) {
                             return $model->canBeCancelled();
                         },
                     'confirm' => function ($model) {
-                            return (Yii::$app->user->identity->role === 'consultant' && $model->status === Appointments::STATUS_SCHEDULED) ? true : false;
+                            return $model->status === Appointments::STATUS_SCHEDULED && Yii::$app->user->can(\common\components\RbacHelper::PERM_CONFIRM_APPOINTMENT, ['appointment' => $model]);
                         },
 
                 ],

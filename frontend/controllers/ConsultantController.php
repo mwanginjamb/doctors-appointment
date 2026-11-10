@@ -7,7 +7,7 @@ use Yii;
 use yii\helpers\Url;
 use yii\helpers\Html;
 use common\models\User;
-use frontend\components\AdminAccessControl;
+use common\components\RbacHelper;
 use yii\web\Controller;
 use frontend\models\Gender;
 use yii\filters\VerbFilter;
@@ -42,20 +42,20 @@ class ConsultantController extends Controller
                 'access' => [
                     'class' => AccessControl::class,
                     'rules' => [
-                        [ // only consultants manage consultant profiles
+                        [ // consultants create (and delete) their own profile
                             'actions' => ['create', 'update', 'delete'],
                             'allow' => true,
                             'roles' => ['@'],
                             'matchCallback' => function () {
-                                return Yii::$app->user->identity->role === 'consultant';
+                                return Yii::$app->user->can(RbacHelper::PERM_MANAGE_CONSULTANT_PROFILE);
                             },
                         ],
-                        [ // admins edit any consultant's profile
+                        [ // whoever may edit consultants' profiles (admins); which profile is checked in the action
                             'actions' => ['update'],
                             'allow' => true,
                             'roles' => ['@'],
                             'matchCallback' => function () {
-                                return AdminAccessControl::isAdmin();
+                                return Yii::$app->user->can(RbacHelper::PERM_UPDATE_CONSULTANT_PROFILE);
                             },
                         ],
                         [ // logged in users
@@ -98,7 +98,7 @@ class ConsultantController extends Controller
 
 
 
-        if (Yii::$app->user->identity->role === 'client' && !Yii::$app->request->get('consultant')) {
+        if (Yii::$app->user->identity->isPatientAccount() && !Yii::$app->request->get('consultant')) {
             $userId = Yii::$app->user->id;
 
             // check if user profile exists for this user
@@ -111,14 +111,14 @@ class ConsultantController extends Controller
                 Yii::$app->session->setFlash('info', 'Please create your profile.');
                 return $this->redirect(Url::toRoute(['user-profile/create']), 302);
             }
-        } elseif ($model === null && Yii::$app->user->identity->role === 'client') { // a client has not found a consultant profile
+        } elseif ($model === null && Yii::$app->user->identity->isPatientAccount()) { // a client has not found a consultant profile
             // email the consultant via identity email address, then redirect to home page
             Yii::$app->session->setFlash('error', 'The requested profile does not exist, we have notified the consultant.');
             return $this->redirect(Url::toRoute(['site/index']), 302);
         }
 
         // consultant view
-        if (!$model && Yii::$app->user->identity->role === 'consultant') {
+        if (!$model && Yii::$app->user->identity->isConsultantAccount()) {
 
             // Attempt to find a consultant profile for this user
             $user = User::findIdentity($id);
@@ -180,12 +180,14 @@ class ConsultantController extends Controller
     public function actionUpdate($id)
     {
         $profile = $this->findModel($id);
-        // An unclaimed legacy profile is "own" only for a consultant, who claims it by editing it
+        // An unclaimed legacy profile is "own" only for a consultant account, which claims it by editing it
         $ownProfile = $profile->user_id === null
-            ? Yii::$app->user->identity->role === 'consultant'
+            ? Yii::$app->user->identity->isConsultantAccount()
             : (int) $profile->user_id === (int) Yii::$app->user->id;
-        // Admins edit anyone's profile; everyone else only their own
-        $model = !$ownProfile && AdminAccessControl::isAdmin() ? $this->findModel($id) : $this->findOwnModel($id);
+        // Someone else's profile only with permission to edit it (admins); otherwise only one's own
+        $model = !$ownProfile && Yii::$app->user->can(RbacHelper::PERM_UPDATE_CONSULTANT_PROFILE, ['consultant' => $profile])
+            ? $profile
+            : $this->findOwnModel($id);
         $model->loadSubSpecialities();
 
         if ($this->request->isPost && $model->load($this->request->post()) && $model->save()) {
