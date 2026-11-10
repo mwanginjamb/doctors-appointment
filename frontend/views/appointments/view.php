@@ -1,11 +1,13 @@
 <?php
 
+use frontend\models\Appointments;
 use yii\helpers\Html;
+use yii\helpers\Url;
 use yii\helpers\VarDumper;
 use yii\widgets\DetailView;
 
 /** @var yii\web\View $this */
-/** @var app\models\Appointments $model */
+/** @var frontend\models\Appointments $model */
 
 $this->title = $model->id;
 $this->params['breadcrumbs'][] = ['label' => Yii::t('app', 'Appointments'), 'url' => ['index']];
@@ -20,14 +22,27 @@ $this->params['breadcrumbs'][] = $this->title;
 
     <p>
         <?php Html::a(Yii::t('app', 'Update'), ['update', 'id' => $model->id], ['class' => 'btn btn-primary']) ?>
-        <?= Html::a(Yii::t('app', 'Cancel'), ['delete', 'id' => $model->id], [
-            'class' => 'btn btn-danger',
-            'data' => [
-                'confirm' => Yii::t('app', 'Are you sure you want to delete this item?'),
-                'method' => 'post',
-            ],
-        ]) ?>
+        <?php if ($model->canBeCancelled()): ?>
+            <?= Html::button(Yii::t('app', 'Cancel appointment'), [
+                'class' => 'btn btn-danger',
+                'data' => ['bs-toggle' => 'modal', 'bs-target' => '#cancelAppointmentModal'],
+            ]) ?>
+        <?php endif; ?>
     </p>
+    <?= $model->canBeCancelled() ? $this->render('_cancel_modal', ['action' => Url::to(['cancel', 'id' => $model->id])]) : '' ?>
+
+    <?php if ($model->status === Appointments::STATUS_CANCELLED): ?>
+        <div class="alert alert-secondary" role="status">
+            <strong><?= Yii::t('app', 'Cancelled') ?></strong>
+            <?php if ($model->updater): ?>
+                <?= Yii::t('app', 'by {name}', ['name' => Html::encode($model->updater->full_name ?: $model->updater->username)]) ?>
+            <?php endif; ?>
+            <?= Yii::t('app', 'on {date}', ['date' => Yii::$app->formatter->asDatetime($model->updated_at)]) ?>.
+            <?php if ($model->cancellation_note): ?>
+                <div class="mt-2"><?= Yii::t('app', 'Reason') ?>: <?= nl2br(Html::encode($model->cancellation_note)) ?></div>
+            <?php endif; ?>
+        </div>
+    <?php endif; ?>
 
 
     <header class="mb-5">
