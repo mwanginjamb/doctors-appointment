@@ -3,7 +3,10 @@
 namespace frontend\tests\unit\models;
 
 use frontend\models\Appointments;
+use frontend\models\ConsultantTimeOff;
 use frontend\models\ConsultantWorkingHours;
+use frontend\models\PublicHoliday;
+use frontend\models\TimeOffForm;
 use frontend\tests\BookingDataTrait;
 
 class AppointmentsTest extends \Codeception\Test\Unit
@@ -132,6 +135,57 @@ class AppointmentsTest extends \Codeception\Test\Unit
             ])
         );
         $this->assertNull(ConsultantWorkingHours::summarize([]));
+    }
+
+    public function testCannotBookOnAPublicHoliday()
+    {
+        (new PublicHoliday(['date' => $this->date, 'name' => 'Madaraka Day']))->save(false);
+
+        $appointment = $this->newBooking('10:00');
+        $this->assertFalse($appointment->saveBooking());
+        $this->assertStringContainsString('public holiday (Madaraka Day)', $appointment->getFirstError('time'));
+    }
+
+    public function testCannotBookDuringTimeOffAndThePatientDoesNotSeeTheReason()
+    {
+        (new ConsultantTimeOff([
+            'consultant_id' => $this->consultant->id,
+            'start_at' => $this->date . ' 09:00:00',
+            'end_at' => $this->date . ' 11:00:00',
+            'reason' => 'Dentist appointment',
+        ]))->save(false);
+
+        $during = $this->newBooking('10:00');
+        $this->assertFalse($during->saveBooking());
+        $this->assertStringContainsString('is away', $during->getFirstError('time'));
+        $this->assertStringNotContainsString('Dentist', $during->getFirstError('time'));
+
+        $this->assertFalse($this->newBooking('08:45')->saveBooking(), 'runs into the time off');
+        $this->assertTrue($this->newBooking('08:30')->saveBooking(), 'ends exactly when it starts');
+        $this->assertTrue($this->newBooking('11:00', $this->otherClient)->saveBooking(), 'starts exactly when it ends');
+    }
+
+    public function testWholeDayTimeOffCoversTheLastDay()
+    {
+        $form = new TimeOffForm(['start_date' => $this->date, 'end_date' => date('Y-m-d', strtotime($this->date . ' +1 day'))]);
+        $this->assertTrue($form->save($this->consultant), json_encode($form->errors));
+        $this->assertSame($this->date . ' 00:00:00', $form->timeOff->start_at);
+        $this->assertSame(date('Y-m-d', strtotime($this->date . ' +2 days')) . ' 00:00:00', $form->timeOff->end_at);
+
+        $this->assertFalse($this->newBooking('16:30', null, date('Y-m-d', strtotime($this->date . ' +1 day')))->saveBooking());
+        $this->assertTrue($this->newBooking('08:00', null, date('Y-m-d', strtotime($this->date . ' +2 days')))->saveBooking());
+    }
+
+    public function testTimeOffFormRejectsBackwardsAndPastPeriods()
+    {
+        $backwards = new TimeOffForm(['start_date' => $this->date, 'start_time' => '14:00', 'end_date' => $this->date, 'end_time' => '09:00']);
+        $this->assertFalse($backwards->validate());
+        $this->assertStringContainsString('must end after it starts', $backwards->getFirstError('end_date'));
+
+        $yesterday = date('Y-m-d', strtotime('-1 day'));
+        $past = new TimeOffForm(['start_date' => $yesterday, 'end_date' => $yesterday]);
+        $this->assertFalse($past->validate());
+        $this->assertStringContainsString('already over', $past->getFirstError('end_date'));
     }
 
     public function testPatientsNeedAnHoursNotice()
