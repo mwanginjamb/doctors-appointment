@@ -31,6 +31,32 @@ $this->params['breadcrumbs'][] = $this->title;
     </p>
     <?= $model->canBeCancelled() ? $this->render('_cancel_modal', ['action' => Url::to(['cancel', 'id' => $model->id])]) : '' ?>
 
+    <?php $staffView = \frontend\components\FrontDesk::canRecordOutcome($model); ?>
+    <?php if ($staffView && $model->canRecordOutcome()): ?>
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+            <span class="fw-semibold"><?= Yii::t('app', 'Did the patient come?') ?></span>
+            <?= $this->render('_outcome_buttons', ['model' => $model, 'size' => '']) ?>
+        </div>
+    <?php endif; ?>
+
+    <?php if (in_array($model->status, [Appointments::STATUS_COMPLETED, Appointments::STATUS_NO_SHOW], true)): ?>
+        <div class="alert <?= $model->status === Appointments::STATUS_NO_SHOW ? 'alert-warning' : 'alert-success' ?>" role="status">
+            <strong><?= $model->status === Appointments::STATUS_NO_SHOW ? Yii::t('app', 'No-show') : Yii::t('app', 'Attended') ?></strong>
+            <?php if ($model->outcomeRecorder): ?>
+                <?= Yii::t('app', 'recorded by {name}', ['name' => Html::encode($model->outcomeRecorder->full_name ?: $model->outcomeRecorder->username)]) ?>
+            <?php endif; ?>
+            <?php if ($model->outcome_at): ?>
+                <?= Yii::t('app', 'on {date}', ['date' => Yii::$app->formatter->asDatetime($model->outcome_at)]) ?>.
+            <?php endif; ?>
+        </div>
+    <?php endif; ?>
+
+    <?php if ($staffView && ($noShows = Appointments::countNoShows($model->patient_id)) > 0): ?>
+        <div class="alert alert-light border small" role="note">
+            <?= Yii::t('app', 'This patient has {count} in the last 12 months.', ['count' => $noShows === 1 ? '1 no-show' : "$noShows no-shows"]) ?>
+        </div>
+    <?php endif; ?>
+
     <?php if ($model->status === Appointments::STATUS_CANCELLED): ?>
         <div class="alert alert-secondary" role="status">
             <strong><?= Yii::t('app', 'Cancelled') ?></strong>

@@ -13,13 +13,14 @@ use yii\helpers\Html;
 
 $f = Yii::$app->formatter;
 $cancellations = $stats->getCancellations();
+$outcomes = $stats->getOutcomes();
 $booked = $stats->getBookedLastSevenDays();
 $perDay = $stats->getPerDay();
 $busiest = $stats->getBusiest();
 
 /** One stat tile: label, headline number, one line of context. Text colours only; no colour coding. */
 $tile = function ($label, $value, $context) {
-    return '<div class="col-6 col-lg-3"><div class="card h-100 border-0 shadow-sm stat-tile"><div class="card-body">'
+    return '<div class="col-6 col-md-4 col-xl"><div class="card h-100 border-0 shadow-sm stat-tile"><div class="card-body">'
         . '<div class="text-muted small">' . Html::encode($label) . '</div>'
         . '<div class="display-6 fw-semibold my-1">' . Html::encode($value) . '</div>'
         . '<div class="small text-muted">' . Html::encode($context) . '</div>'
@@ -39,6 +40,14 @@ $tile = function ($label, $value, $context) {
             $cancellations['total'] > 0
                 ? $cancellations['cancelled'] . ' of ' . $cancellations['total'] . ' appointments'
                 : 'no appointments in that period'
+        ) ?>
+        <?= $tile(
+            'No-shows (last ' . $stats->cancellationWindowDays . ' days)',
+            $outcomes['noShowRate'] === null ? '—' : $outcomes['noShowRate'] . '%',
+            ($outcomes['attended'] + $outcomes['noShows'] > 0
+                ? $outcomes['noShows'] . ' of ' . ($outcomes['attended'] + $outcomes['noShows']) . ' with an outcome'
+                : 'no outcomes recorded')
+            . ($outcomes['unmarked'] > 0 ? ' · ' . $outcomes['unmarked'] . ' need an outcome' : '')
         ) ?>
     </div>
 

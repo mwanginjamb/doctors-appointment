@@ -84,8 +84,12 @@ $this->params['breadcrumbs'][] = $this->title;
                 /*'urlCreator' => function ($action, Appointments $model, $key, $index, $column) {
                         return Url::toRoute([$action, 'id' => $model->id]);
                     }*/
-                'template' => '{view} {update} {cancel} {confirm}',
+                'template' => '{view} {update} {cancel} {confirm} {outcome}',
                 'buttons' => [
+                    // Attended / No-show once the appointment has started (consultant only on this list)
+                    'outcome' => function ($url, $model, $key) {
+                            return $this->render('_outcome_buttons', ['model' => $model]);
+                        },
                     'confirm' => function ($url, $model, $key) {
                             return Html::a('<span class="btn btn-sm btn-outline-success">Confirm</span>', ['appointments/confirm', 'id' => $model->id], [
                                 'title' => Yii::t('app', 'Confirm Appointment'),
@@ -120,6 +124,9 @@ $this->params['breadcrumbs'][] = $this->title;
 
                 ],
                 'visibleButtons' => [
+                    'outcome' => function ($model) {
+                            return $model->canRecordOutcome() && \frontend\components\FrontDesk::canRecordOutcome($model);
+                        },
                     'update' => function ($model) {
                             return Yii::$app->user->identity->role === 'consultant' && $model->status === Appointments::STATUS_SCHEDULED;
                         },

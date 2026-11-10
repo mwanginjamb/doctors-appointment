@@ -80,6 +80,19 @@ class FrontDesk
         return AdminAccessControl::isAdmin() || self::canBookFor($appointment->consultant_id);
     }
 
+    /**
+     * Whether the current user may record attended / no-show: the appointment's consultant,
+     * front desk assigned to them, or an admin. Never the patient.
+     */
+    public static function canRecordOutcome(Appointments $appointment)
+    {
+        if (Yii::$app->user->isGuest) {
+            return false;
+        }
+
+        return $appointment->isConsultant(Yii::$app->user->id) || self::canHandle($appointment);
+    }
+
     /** Forgets cached assignments (after they change, and between tests). */
     public static function reset()
     {
