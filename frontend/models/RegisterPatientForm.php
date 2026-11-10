@@ -2,6 +2,7 @@
 
 namespace frontend\models;
 
+use common\models\Consent;
 use common\models\User;
 use Yii;
 use yii\base\Model;
@@ -21,6 +22,15 @@ class RegisterPatientForm extends Model
     public $email;
     /** @var bool register even though other patients use this phone (e.g. family members) */
     public $confirm_new = false;
+
+    /** @var bool|string F11: the patient agreed to the privacy notice (verbally, to staff) */
+    public $consent;
+
+    /** @var bool|string|null F11: the patient wants WhatsApp/SMS reminders */
+    public $reminders;
+
+    /** @var string how the consent was given: Consent::METHOD_FRONT_DESK, or METHOD_BOOKING_LINK */
+    public $consentMethod = Consent::METHOD_FRONT_DESK;
 
     /** @var User[] active patients already using the phone */
     public $matches = [];
@@ -44,6 +54,10 @@ class RegisterPatientForm extends Model
             [['email'], 'string', 'max' => 255],
             [['email'], 'unique', 'targetClass' => User::class, 'message' => Yii::t('app', 'An account already uses this email. Look the patient up by email instead.')],
             [['confirm_new'], 'boolean'],
+            // F11: never registered without consent; the reminders question needs an answer
+            [['consent'], 'compare', 'compareValue' => 1, 'operator' => '==', 'skipOnEmpty' => false, 'when' => function () { return Consent::isEnabled(); }, 'message' => Yii::t('app', "Confirm the patient's consent first.")],
+            [['reminders'], 'required', 'when' => function () { return Consent::isEnabled(); }, 'message' => Yii::t('app', 'Ask whether the patient wants WhatsApp/SMS reminders.')],
+            [['reminders'], 'boolean'],
         ];
     }
 
@@ -100,7 +114,20 @@ class RegisterPatientForm extends Model
             return null;
         }
         Yii::info("Walk-in patient #{$user->id} registered by user #" . Yii::$app->user->id, 'front-desk');
+        $this->recordConsent($user->id);
 
         return $user;
+    }
+
+    /**
+     * Records the consent given with this registration (also for an existing patient chosen instead).
+     */
+    public function recordConsent($userId)
+    {
+        if (!Consent::isEnabled()) {
+            return;
+        }
+        $form = new ConsentForm(['data' => '1', 'reminders' => filter_var($this->reminders, FILTER_VALIDATE_BOOLEAN) ? '1' : '0']);
+        $form->save($userId, $this->consentMethod);
     }
 }

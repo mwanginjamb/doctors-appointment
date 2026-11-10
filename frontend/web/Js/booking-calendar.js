@@ -154,11 +154,21 @@
         $('#appointments-patient_id').val(patient.id);
         $('#patient-lookup-results').empty();
         $('#patient-selected').text('Booking for: ' + patient.name + noShowNote(patient));
+        // F11: no consent on record -> staff ask and record it with the booking
+        $('#patient-consent-given').prop('checked', false);
+        $('input[name="patient-consent-reminders"]').prop('checked', false);
+        $('#patient-consent').toggleClass('d-none', patient.consent !== false);
+    }
+
+    function checkedValue(name) {
+        var input = $('input[name="' + name + '"]:checked');
+        return input.length ? input.val() : '';
     }
 
     function listPatients(results, patients) {
         patients.forEach(function (patient) {
-            var details = [patient.email, patient.phone].filter(Boolean).join(' · ') + noShowNote(patient);
+            var details = [patient.email, patient.phone].filter(Boolean).join(' · ') + noShowNote(patient)
+                + (patient.consent === false ? ' · consent not recorded' : '');
             $('<button type="button" class="list-group-item list-group-item-action">')
                 .text(patient.name + (details ? ' (' + details + ')' : ''))
                 .on('click', function () { choosePatient(patient); $('#walk-in-form').addClass('d-none'); })
@@ -201,6 +211,8 @@
                 full_name: $('#walk-in-name').val(),
                 phone: $('#walk-in-phone').val(),
                 email: $('#walk-in-email').val(),
+                consent: $('#walk-in-consent').is(':checked'), // ignored while consent recording is off
+                reminders: checkedValue('walk-in-reminders'),
                 confirm_new: confirmNew
             })
         }).done(function (response) {
@@ -243,6 +255,19 @@
             patient: $('#appointments-patient_id').val(),
             consultant: $('#appointments-consultant_id').val()
         };
+        // The consent box only exists while consent recording is on
+        if ($('#patient-consent').length && !$('#patient-consent').hasClass('d-none')) {
+            if (!$('#patient-consent-given').is(':checked')) {
+                alert("Confirm the patient's consent first.");
+                return;
+            }
+            if (!checkedValue('patient-consent-reminders')) {
+                alert('Ask whether the patient wants WhatsApp/SMS reminders.');
+                return;
+            }
+            appointment.consent = true;
+            appointment.reminders = checkedValue('patient-consent-reminders');
+        }
         if (!appointment.consultant) {
             alert('Choose a consultant first.');
             return;

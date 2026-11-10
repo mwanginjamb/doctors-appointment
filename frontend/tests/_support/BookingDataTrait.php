@@ -2,6 +2,7 @@
 
 namespace frontend\tests;
 
+use common\models\Consent;
 use common\models\User;
 use frontend\models\Appointments;
 use frontend\models\Consultant;
@@ -64,6 +65,13 @@ trait BookingDataTrait
         $user->setPassword('password_0');
         $user->generateAuthKey();
         $user->save(false);
+
+        // Patients have agreed to the current privacy notice and to WhatsApp/SMS (F11), so they are
+        // not held on the consent page; consent tests set up their own
+        if ($role === 'client') {
+            Consent::record($user->id, Consent::PURPOSE_DATA, true, Consent::METHOD_ONLINE);
+            Consent::record($user->id, Consent::PURPOSE_REMINDERS, true, Consent::METHOD_ONLINE);
+        }
 
         return $user;
     }

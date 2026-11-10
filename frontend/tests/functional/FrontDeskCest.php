@@ -176,7 +176,7 @@ class FrontDeskCest
     {
         $I->amLoggedInAs($this->frontDesk);
 
-        $registered = $I->sendJsonPost(['/api/register-patient'], ['full_name' => 'Achieng Walk-in', 'phone' => '+254 733 111 222']);
+        $registered = $I->sendJsonPost(['/api/register-patient'], ['consent' => true, 'reminders' => true, 'full_name' => 'Achieng Walk-in', 'phone' => '+254 733 111 222']);
         $I->assertSame('success', $registered['status'], json_encode($registered));
 
         $patient = User::findOne($registered['patient']['id']);
@@ -197,12 +197,12 @@ class FrontDeskCest
         $I->amLoggedInAs($this->frontDesk);
 
         // The fixture patients all use 0712345678
-        $first = $I->sendJsonPost(['/api/register-patient'], ['full_name' => 'Family Member', 'phone' => '0712 345 678']);
+        $first = $I->sendJsonPost(['/api/register-patient'], ['consent' => true, 'reminders' => true, 'full_name' => 'Family Member', 'phone' => '0712 345 678']);
         $I->assertSame('exists', $first['status']);
         $I->assertCount(2, $first['patients']);
         $I->assertFalse(User::find()->where(['full_name' => 'Family Member'])->exists());
 
-        $confirmed = $I->sendJsonPost(['/api/register-patient'], ['full_name' => 'Family Member', 'phone' => '0712 345 678', 'confirm_new' => true]);
+        $confirmed = $I->sendJsonPost(['/api/register-patient'], ['consent' => true, 'reminders' => true, 'full_name' => 'Family Member', 'phone' => '0712 345 678', 'confirm_new' => true]);
         $I->assertSame('success', $confirmed['status'], json_encode($confirmed));
     }
 
@@ -210,7 +210,7 @@ class FrontDeskCest
     {
         $I->amLoggedInAs($this->frontDesk);
 
-        $response = $I->sendJsonPost(['/api/register-patient'], ['full_name' => 'Someone', 'phone' => '0799000111', 'email' => 'client@example.com']);
+        $response = $I->sendJsonPost(['/api/register-patient'], ['consent' => true, 'reminders' => true, 'full_name' => 'Someone', 'phone' => '0799000111', 'email' => 'client@example.com']);
         $I->assertSame('error', $response['status']);
         $I->assertStringContainsString('already uses this email', $response['message']);
     }
@@ -222,7 +222,7 @@ class FrontDeskCest
         $I->seeResponseCodeIs(403);
 
         $I->amLoggedInAs($this->consultantUser);
-        $response = $I->sendJsonPost(['/api/register-patient'], ['full_name' => 'Walk In', 'phone' => '0799000333']);
+        $response = $I->sendJsonPost(['/api/register-patient'], ['consent' => true, 'reminders' => true, 'full_name' => 'Walk In', 'phone' => '0799000333']);
         $I->assertSame('success', $response['status'], json_encode($response));
     }
 }

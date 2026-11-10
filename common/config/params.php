@@ -32,6 +32,19 @@ return [
     // Audit log entries older than this are removed by `php yii audit/purge` (daily timer).
     // 7 years, a common period for health records.
     'audit.retentionYears' => (int) env('AUDIT_RETENTION_YEARS', 7),
+    // Privacy notice (F11, Kenya Data Protection Act). Change privacy.version whenever the notice
+    // text changes: signed-in patients are then asked to accept it again. The controller's details
+    // come from .env so each deployment states its own; missing ones show as "to be provided".
+    'privacy.version' => '2026-11',
+    // F11 can be switched off with CONSENT_ENABLED=false, e.g. outside Kenya or for demos. Required
+    // for Kenyan deployments under the Data Protection Act; admins see a warning while it is off.
+    'consent.enabled' => filter_var(env('CONSENT_ENABLED', 'true'), FILTER_VALIDATE_BOOLEAN),
+    'privacy.controllerName' => env('PRIVACY_CONTROLLER_NAME', ''),
+    'privacy.controllerAddress' => env('PRIVACY_CONTROLLER_ADDRESS', ''),
+    'privacy.contactEmail' => env('PRIVACY_CONTACT_EMAIL', ''),
+    'privacy.contactPhone' => env('PRIVACY_CONTACT_PHONE', ''),
+    'privacy.dpoContact' => env('PRIVACY_DPO_CONTACT', ''),
+    'privacy.odpcRegistration' => env('ODPC_REGISTRATION_NUMBER', ''),
     // Default notification schedules to create for new users
     'defaultNotificationSchedules' => [
         [

@@ -70,6 +70,15 @@ $menuItems = [
         'visible' => $user->can(RbacHelper::PERM_MANAGE_RBAC),
     ],
     [
+        // F11: patients who withdrew consent
+        'label' => 'Closure Requests' . (($open = $user->can(RbacHelper::PERM_MANAGE_USERS) ? \common\models\AccountClosureRequest::find()->where(['status' => 'open'])->count() : 0) ? " ($open)" : ''),
+        'url' => ['/closure-request/index'],
+        'icon' => 'person_off',
+        'match' => ['closure-request'],
+        // Hidden while consent recording is off, unless requests are still open
+        'visible' => $user->can(RbacHelper::PERM_MANAGE_USERS) && (\common\models\Consent::isEnabled() || $open),
+    ],
+    [
         'label' => 'Audit Log',
         'url' => ['/audit/index'],
         'icon' => 'history',

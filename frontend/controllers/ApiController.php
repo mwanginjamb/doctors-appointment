@@ -9,6 +9,8 @@ use frontend\models\RegisterPatientForm;
 use frontend\models\Appointments;
 use frontend\models\Consultant;
 use frontend\services\BookingService;
+use frontend\models\ConsentForm;
+use common\models\Consent;
 use Yii;
 use yii\filters\AccessControl;
 use yii\filters\VerbFilter;
@@ -158,6 +160,17 @@ class ApiController extends Controller
             $model->consultant_id = $data['consultant'] ?? null;
         }
 
+        // F11: staff booking a patient with no consent on record confirm the patient's verbal consent
+        if (Consent::isEnabled() && ($user->isConsultantAccount() || $user->isFrontDeskAccount()) && $model->patient_id && !Consent::hasDataConsent($model->patient_id)) {
+            $consent = new ConsentForm(['verbal' => true, 'data' => !empty($data['consent']) ? '1' : '0']);
+            $consent->reminders = isset($data['reminders']) && $data['reminders'] !== '' ? (filter_var($data['reminders'], FILTER_VALIDATE_BOOLEAN) ? '1' : '0') : null;
+            if (!$consent->validate()) {
+                $errors = $consent->getFirstErrors();
+                return ['status' => 'error', 'message' => reset($errors), 'needsConsent' => true];
+            }
+            $consent->save($model->patient_id, Consent::METHOD_FRONT_DESK);
+        }
+
         if (Yii::createObject(BookingService::class)->book($model)) {
             return ['status' => 'success', 'message' => 'Appointment #' . $model->id . ' booked successfully!'];
         }
@@ -272,6 +285,9 @@ class ApiController extends Controller
             'phone' => $p->phone_number ? '••••' . substr($p->phone_number, -3) : null,
             // Staff only (both callers require consultant or front desk): no-shows in the last 12 months
             'noShows' => Appointments::countNoShows($p->id),
+            // F11: staff ask for verbal consent when none is on record
+            'consent' => !Consent::isEnabled() || Consent::hasDataConsent($p->id),
+            'consentStatus' => Consent::statusLabels()[Consent::status($p->id)],
         ];
     }
 

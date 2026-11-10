@@ -9,10 +9,10 @@ _Last reviewed: 10 November 2026._
 
 | | Score | Summary |
 |---|---|---|
-| Functional | **8.5 / 10** | Covers every way an appointment is made (online, by staff, walk-in, remote walk-in link), realistic availability, the full appointment lifecycle and a usable back office. Patients are told about changes and can reschedule or cancel from a link. No payments yet. |
-| Technical | **7.5 / 10** | Booking rules live in a tested service, locked against double booking; RBAC is the single permission system; the calendar scripts are out of the views; changes and sign-ins are audited; debug mode is off in production. There is no CI or error tracking yet. |
+| Functional | **9 / 10** | Covers every way an appointment is made (online, by staff, walk-in, remote walk-in link), realistic availability, the full appointment lifecycle and a usable back office. Patients are told about changes and can reschedule or cancel from a link. Consent is recorded under the Kenya Data Protection Act. No payments yet. |
+| Technical | **8 / 10** | Booking rules live in a tested service, locked against double booking; RBAC is the single permission system; the calendar scripts are out of the views; changes and sign-ins are audited; debug mode is off in production. There is no CI or error tracking yet. |
 
-Doing **Next up** below should bring the app to about 9 functionally and 8 technically.
+Doing **Next up** below should bring the app to about 9.5 functionally and 8.5 technically.
 
 ---
 
@@ -69,7 +69,8 @@ Doing **Next up** below should bring the app to about 9 functionally and 8 techn
 |---|---|---|
 | T8 One permission system | RBAC is the only source of permissions: checks name an action (`bookForConsultant`, `recordOutcome`…), ownership is a rule (`isTheConsultant`, `assignedConsultant`), and `user.role` is only the account type. A test fails if a role-string permission check comes back. Run `php yii rbac/init` on deploy. | `dd5b303` |
 | T6 Logic out of views | `BookingService` holds the slot rules as separately tested methods, with `book()` / `reschedule()` as the ways in; `CalendarViewModel` prepares the calendar page; the calendar script is `Js/booking-calendar.js` and the booking-link and self-service pages share `Js/slot-picker.js`. | `6f538ee` |
-| T7 Audit log | An append-only `audit_log`: who (staff, patient, booking link, self-service link, system), what, which record, old → new values and IP. Records appointments, accounts, consultants, time off, holidays and booking links automatically; weekly hours, front-desk assignments, sign-ins, failed sign-ins and role changes explicitly. Passwords, keys and symptom details are never stored. Admins read it under **Audit Log**; staff see an appointment's **History**. Kept 7 years (`AUDIT_RETENTION_YEARS`), purged daily by `doctors-appointment-audit-purge.timer`. | `feature/audit-log` |
+| T7 Audit log | An append-only `audit_log`: who (staff, patient, booking link, self-service link, system), what, which record, old → new values and IP. Records appointments, accounts, consultants, time off, holidays and booking links automatically; weekly hours, front-desk assignments, sign-ins, failed sign-ins and role changes explicitly. Passwords, keys and symptom details are never stored. Admins read it under **Audit Log**; staff see an appointment's **History**. Kept 7 years (`AUDIT_RETENTION_YEARS`), purged daily by `doctors-appointment-audit-purge.timer`. | `7820f94` |
+| F11 Consent (Kenya Data Protection Act) | A versioned privacy notice at `/site/privacy`, with the controller's details from `.env`. Consent to data processing (required) and to WhatsApp/SMS reminders (opt-in) is asked at email sign-up, on booking links, and by front desk for walk-ins (verbal consent, with who recorded it). Google/Microsoft/LinkedIn sign-ups, existing patients and everyone after a notice change are held on a consent page until they answer. Existing patients keep WhatsApp reminders until they answer (legacy carry-over). Answers are kept in an append-only `consent` table and in the audit log. Patients switch reminders and withdraw consent under **Privacy & messages**; withdrawing cancels upcoming appointments and opens an account-closure request for admins (**Closure Requests**). Staff see "consent not recorded" in patient lookup, and consent status on **System Users**. It can be switched off with `CONSENT_ENABLED=false` (outside Kenya, demos): nobody is asked, answers already given are kept, explicit "no" answers to WhatsApp/SMS still count, and admins see a warning on the dashboard. | `feature/consent` |
 
 ---
 
@@ -99,6 +100,37 @@ earlier are covered by the general steps: `php yii migrate`, `php yii rbac/init`
 6. **Check:**
    - sign in as an admin and open **Audit Log**: your own sign-in is the newest entry;
    - `sudo -u www-data php yii audit/purge --dry-run` reports 0 entries to remove.
+
+### F11 Consent
+
+1. **Database:** `php yii migrate` creates the `consent` and `account_closure_request` tables
+   (`m261121_090000_create_consent_tables`).
+2. **Privacy notice details** in `.env`. They appear on `/site/privacy`; a missing one shows as
+   "to be provided":
+   ```
+   PRIVACY_CONTROLLER_NAME="Legal name of the clinic"
+   PRIVACY_CONTROLLER_ADDRESS="Postal and physical address"
+   PRIVACY_CONTACT_EMAIL=privacy@example.co.ke
+   PRIVACY_CONTACT_PHONE="+254 ..."
+   PRIVACY_DPO_CONTACT="Name and email of the data protection contact"
+   ODPC_REGISTRATION_NUMBER="..."   # or leave empty until registered
+   CONSENT_ENABLED=true              # default; false switches consent recording off
+   ```
+   Keep `CONSENT_ENABLED` on for clinics in Kenya: the Data Protection Act requires the consent
+   records. Switching it off keeps recorded answers, and switching it back on asks everyone without
+   current consent again.
+3. **Legal review:** have the notice wording in `frontend/views/site/privacy.php` reviewed before
+   going live. Whenever its text changes, change `privacy.version` in `common/config/params.php`;
+   signed-in patients are then asked to accept it again.
+4. **Restart** the background services so the queue worker and scheduler respect WhatsApp/SMS consent:
+   `sudo systemctl restart doctors-appointment.target`.
+5. **Tell the front desk:** when booking a patient marked "consent not recorded", read them the
+   summary of the notice and tick that they agreed, and ask about WhatsApp/SMS reminders. New walk-ins
+   cannot be registered without this.
+6. **Check:**
+   - `/site/privacy` shows your details;
+   - sign in as a patient created before this release: you are taken to the consent page first;
+   - as an admin, **System Users** shows a Consent column and **Closure Requests** is in the sidebar.
 
 ---
 
@@ -148,7 +180,7 @@ Priority: **P1** do next, **P2** soon, **P3** when there is time. Impact is the 
 
 | # | Item | Priority | Impact |
 |---|---|---|---|
-| F11 | Explicit consent at sign-up and walk-in registration. | P2 | +0.5 (with T7) |
+| ~~F11~~ | ~~Explicit consent at sign-up and walk-in registration.~~ **Done.** | — | +0.5 (with T7) |
 | F12 | Patients can export and delete their data; retention rules for old records. | P2 | |
 
 ### Technical
@@ -184,7 +216,7 @@ Priority: **P1** do next, **P2** soon, **P3** when there is time. Impact is the 
 
 ## Next up
 
-1. **F11** Consent, recorded in the audit log (needs the privacy notice text and data controller details, and a decision on opt-in or opt-out for WhatsApp/SMS reminders).
-2. **T2** Error tracking and queue alerts (approach to be agreed).
-3. **T4** CI on every push.
+1. **T2** Error tracking and queue alerts (approach to be agreed).
+2. **T4** CI on every push.
+3. **F12** Patients export and delete their data (completes the closure requests from F11).
 4. **F5** M-Pesa deposits, once Daraja credentials are available.

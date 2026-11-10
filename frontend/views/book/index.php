@@ -64,6 +64,12 @@ $this->title = 'Book with ' . $consultant->names;
                     <div class="col-md-6"><?= $f->field($form, 'email')->input('email', ['maxlength' => 255, 'readonly' => $form->isLocked('email')]) ?></div>
                 </div>
                 <?= $f->field($form, 'reason')->textarea(['rows' => 2, 'maxlength' => 500]) ?>
+                <?php if (\common\models\Consent::isEnabled()): ?>
+                    <p class="mb-2 small"><?= Html::a('Read the privacy notice', ['/site/privacy'], ['target' => '_blank']) ?> (opens in a new tab)</p>
+                    <?= $f->field($form, 'consent_data')->checkbox() ?>
+                    <?= $f->field($form, 'consent_reminders')->radioList(\frontend\models\ConsentForm::reminderChoices())
+                        ->hint('Emails are sent either way.') ?>
+                <?php endif; ?>
                 <?= Html::submitButton('Book this time', ['class' => 'btn btn-primary', 'id' => 'book-button', 'disabled' => !$form->time]) ?>
                 <?php ActiveForm::end(); ?>
             </div>

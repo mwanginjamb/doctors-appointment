@@ -66,6 +66,19 @@ $canAssign = Yii::$app->user->can(\common\components\RbacHelper::PERM_MANAGE_RBA
                         },
                     ],
                     [
+                        // F11: only patients give consent
+                        'label' => 'Consent',
+                        'format' => 'raw',
+                        'value' => function ($user) {
+                            if (!$user->isPatientAccount() || !\common\models\Consent::isEnabled()) {
+                                return '';
+                            }
+                            $status = \common\models\Consent::status($user->id);
+                            $class = ['given' => 'text-bg-success', 'old_notice' => 'text-bg-info', 'withdrawn' => 'text-bg-danger', 'none' => 'text-bg-light'][$status];
+                            return Html::tag('span', \common\models\Consent::statusLabels()[$status], ['class' => "badge $class"]);
+                        },
+                    ],
+                    [
                         'attribute' => 'auth_provider',
                         'label' => 'Sign-in',
                         'value' => function ($user) {

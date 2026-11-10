@@ -139,6 +139,8 @@ class BookingLinkCest
         $I->submitForm('#remote-walk-in-form', [
             'RemoteWalkInForm[date]' => $this->date,
             'RemoteWalkInForm[time]' => '14:30',
+            'RemoteWalkInForm[consent_data]' => '1',
+            'RemoteWalkInForm[consent_reminders]' => '1',
             'RemoteWalkInForm[full_name]' => 'Client',
             'RemoteWalkInForm[phone]' => '0700000000', // ignored: the link's number is fixed
             'RemoteWalkInForm[reason]' => 'Follow-up',
@@ -162,6 +164,8 @@ class BookingLinkCest
         $I->submitForm('#remote-walk-in-form', [
             'RemoteWalkInForm[date]' => $this->date,
             'RemoteWalkInForm[time]' => '14:00',
+            'RemoteWalkInForm[consent_data]' => '1',
+            'RemoteWalkInForm[consent_reminders]' => '1',
             'RemoteWalkInForm[full_name]' => 'New Person',
         ]);
 
@@ -179,6 +183,8 @@ class BookingLinkCest
         $I->submitForm('#remote-walk-in-form', [
             'RemoteWalkInForm[date]' => $this->date,
             'RemoteWalkInForm[time]' => '14:00',
+            'RemoteWalkInForm[consent_data]' => '1',
+            'RemoteWalkInForm[consent_reminders]' => '1',
             'RemoteWalkInForm[full_name]' => 'Client',
         ]);
         $I->see('Your appointment is booked');
@@ -211,6 +217,8 @@ class BookingLinkCest
         $I->submitForm('#remote-walk-in-form', [
             'RemoteWalkInForm[date]' => $this->date,
             'RemoteWalkInForm[time]' => '14:30',
+            'RemoteWalkInForm[consent_data]' => '1',
+            'RemoteWalkInForm[consent_reminders]' => '1',
             'RemoteWalkInForm[full_name]' => 'Client',
         ]);
 
@@ -225,6 +233,8 @@ class BookingLinkCest
         $I->submitForm('#remote-walk-in-form', [
             'RemoteWalkInForm[date]' => $this->date,
             'RemoteWalkInForm[time]' => '14:00',
+            'RemoteWalkInForm[consent_data]' => '1',
+            'RemoteWalkInForm[consent_reminders]' => '1',
             'RemoteWalkInForm[full_name]' => 'Client',
         ]);
         [$open] = $this->issue([], $this->frontDesk);
