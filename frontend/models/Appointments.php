@@ -18,6 +18,7 @@ use yii\behaviors\TimestampBehavior;
  * @property int $id
  * @property string|null $date
  * @property string|null $time
+ * @property int $duration_minutes length it was booked with; set by validateSlot()
  * @property int|null $patient_id
  * @property int|null $speciality_id
  * @property int|null $service_id
@@ -60,6 +61,7 @@ class Appointments extends \yii\db\ActiveRecord
         'reminder_5hrs_sent',
         'reminder_2hrs_sent',
         'cancellation_note',
+        'duration_minutes',
     ];
 
     public $patient_age;
@@ -92,6 +94,7 @@ class Appointments extends \yii\db\ActiveRecord
             [['location', 'symptoms_brief'], 'string'],
             [['status'], 'string', 'max' => 20],
             [['cancellation_note'], 'string', 'max' => 500],
+            [['duration_minutes'], 'integer', 'min' => 5, 'max' => 240],
             [['status'], 'in', 'range' => array_keys(self::getStatusList())],
             [['status'], 'default', 'value' => self::STATUS_SCHEDULED],
             [['date', 'time', 'patient_id', 'consultant_id'], 'required'],
@@ -164,9 +167,22 @@ class Appointments extends \yii\db\ActiveRecord
             return;
         }
 
+        // A new booking (or one moved to another consultant) takes that consultant's current length;
+        // a rescheduled appointment keeps the length it was booked with
+        if ($this->isNewRecord || $this->isAttributeChanged('consultant_id', false) || !$this->duration_minutes) {
+            $this->duration_minutes = $this->consultant ? $this->consultant->getSessionMinutes() : self::defaultSessionMinutes();
+        }
         $duration = $this->getDurationMinutes();
         $endTs = $startTs + $duration * 60;
         $this->time = date('H:i:s', $startTs);
+
+        // Starts fall on 5-minute marks (10:05 yes, 10:07 no)
+        if ((int) date('i', $startTs) % 5 !== 0 || (int) date('s', $startTs) !== 0) {
+            $this->addError($attribute, Yii::t('app', 'Choose a start time on a 5-minute mark, such as {example}.', [
+                'example' => date('H:', $startTs) . sprintf('%02d', intdiv((int) date('i', $startTs), 5) * 5),
+            ]));
+            return;
+        }
 
         if ($startTs <= time()) {
             $this->addError($attribute, Yii::t('app', 'Appointments must be booked in the future.'));
@@ -236,13 +252,13 @@ class Appointments extends \yii\db\ActiveRecord
         }
 
         // Two slots overlap when each one starts before the other ends.
-        // Existing appointments are assumed to share this consultant's session length.
+        // Each existing appointment is measured by its own stored length.
         $conflict = self::find()
             ->where(['date' => $this->date, 'consultant_id' => $this->consultant_id])
             ->andWhere(['or', ['status' => null], ['<>', 'status', self::STATUS_CANCELLED]])
             ->andWhere(['<', 'time', date('H:i:s', $endTs)])
-            ->andWhere(new \yii\db\Expression('ADDTIME([[time]], SEC_TO_TIME(:duration)) > :start', [
-                ':duration' => $duration * 60,
+            ->andWhere(new \yii\db\Expression('ADDTIME([[time]], SEC_TO_TIME(COALESCE(NULLIF([[duration_minutes]], 0), :fallback) * 60)) > :start', [
+                ':fallback' => self::defaultSessionMinutes(),
                 ':start' => $this->time,
             ]))
             ->andFilterWhere(['<>', 'id', $this->id])
@@ -268,16 +284,22 @@ class Appointments extends \yii\db\ActiveRecord
     }
 
     /**
-     * Session length in minutes: the consultant's setting, otherwise the DURATION env value (seconds).
+     * This appointment's length in minutes: the length stored when it was booked. Before it is
+     * booked, the consultant's current session length.
      */
     public function getDurationMinutes()
     {
-        $consultant = $this->consultant;
-        if ($consultant && $consultant->appointment_session_duration > 0) {
-            return (int) $consultant->appointment_session_duration;
+        if ($this->duration_minutes > 0) {
+            return (int) $this->duration_minutes;
         }
 
-        return (int) (env('DURATION', 30 * 60) / 60);
+        return $this->consultant ? $this->consultant->getSessionMinutes() : self::defaultSessionMinutes();
+    }
+
+    /** The clinic-wide session length, for consultants who have not chosen one. */
+    public static function defaultSessionMinutes()
+    {
+        return (int) (Yii::$app->params['booking.defaultSessionMinutes'] ?? 30);
     }
 
     /**

@@ -188,9 +188,58 @@ class AppointmentsTest extends \Codeception\Test\Unit
         $this->assertStringContainsString('already over', $past->getFirstError('end_date'));
     }
 
+    public function testBookingStoresTheConsultantsSessionLength()
+    {
+        $this->consultant->updateAttributes(['appointment_session_duration' => 45]);
+
+        $appointment = $this->book('10:00');
+
+        $this->assertSame(45, (int) Appointments::findOne($appointment->id)->duration_minutes);
+    }
+
+    public function testChangingTheLengthLeavesExistingBookingsAlone()
+    {
+        $first = $this->book('10:00'); // 30 minutes
+        $this->consultant->updateAttributes(['appointment_session_duration' => 60]);
+
+        // The existing booking still ends at 10:30, so 10:30 is free (it would not be if it were now 60 minutes)
+        $this->assertTrue($this->newBooking('10:30', $this->otherClient)->saveBooking());
+        $this->assertSame(30, (int) Appointments::findOne($first->id)->duration_minutes);
+    }
+
+    public function testOverlapUsesEachAppointmentsOwnLength()
+    {
+        $this->consultant->updateAttributes(['appointment_session_duration' => 60]);
+        $this->book('10:00'); // 10:00-11:00
+        $this->consultant->updateAttributes(['appointment_session_duration' => 15]);
+
+        $this->assertFalse($this->newBooking('10:45', $this->otherClient)->saveBooking(), 'still inside the 60-minute booking');
+        $this->assertTrue($this->newBooking('11:00', $this->otherClient)->saveBooking());
+    }
+
+    public function testReschedulingKeepsTheBookedLength()
+    {
+        $appointment = $this->book('10:00'); // 30 minutes
+        $this->consultant->updateAttributes(['appointment_session_duration' => 60]);
+
+        $appointment = Appointments::findOne($appointment->id);
+        $appointment->time = '11:00';
+        $this->assertTrue($appointment->saveBooking(), json_encode($appointment->errors));
+        $this->assertSame(30, (int) Appointments::findOne($appointment->id)->duration_minutes);
+    }
+
+    public function testStartTimesFallOnFiveMinuteMarks()
+    {
+        $odd = $this->newBooking('10:07');
+        $this->assertFalse($odd->saveBooking());
+        $this->assertStringContainsString('5-minute mark, such as 10:05', $odd->getFirstError('time'));
+
+        $this->assertTrue($this->newBooking('10:05')->saveBooking());
+    }
+
     public function testPatientsNeedAnHoursNotice()
     {
-        $soon = time() + 30 * 60;
+        $soon = (int) ceil((time() + 30 * 60) / 300) * 300; // on a 5-minute mark, under an hour away
         $appointment = $this->newBooking(date('H:i', $soon), null, date('Y-m-d', $soon));
 
         $this->assertFalse($appointment->saveBooking());

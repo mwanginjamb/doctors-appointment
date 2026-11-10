@@ -63,7 +63,9 @@ if (!empty($consultant)) {
         'hiddenDays' => $openDays ? array_values(array_diff(range(0, 6), $openDays)) : [],
         'slotMinTime' => $ranges ? min(array_column($ranges, 'startTime')) : '08:00',
         'slotMaxTime' => $ranges ? max(array_column($ranges, 'endTime')) : '17:00',
-        'duration' => (new \frontend\models\Appointments(['consultant_id' => $consultant->user_id]))->getDurationMinutes(),
+        // Length of new bookings; the grid shows slots of this length
+        'duration' => $consultant->getSessionMinutes(),
+        'slotDuration' => sprintf('%02d:%02d:00', intdiv($consultant->getSessionMinutes(), 60), $consultant->getSessionMinutes() % 60),
         'doctor' => $consultant->names,
         'summary' => $consultant->getHoursSummary(),
     ];
@@ -239,6 +241,7 @@ $script = <<<JS
         hiddenDays: avail ? avail.hiddenDays : [],
         slotMinTime: avail ? avail.slotMinTime : '00:00',
         slotMaxTime: avail ? avail.slotMaxTime : '24:00',
+        slotDuration: avail ? avail.slotDuration : '00:30:00',
         headerToolbar: {
             left: 'prev,next today',
             center: 'title',
@@ -248,7 +251,8 @@ $script = <<<JS
         eventSources: [fetchCalendarEvents, rules.blocked],
         selectable: !rules.readOnly,
         editable: !rules.readOnly,
-        eventDurationEditable: !rules.readOnly,
+        // Appointments keep the length they were booked with: they can be moved, not resized
+        eventDurationEditable: false,
         height: 600,
         dateClick: function(info) {
             // A day in month view has no time yet: open that day to pick one
@@ -276,10 +280,6 @@ $script = <<<JS
             updateEvent(info.event);
         },
         
-        // Handle event resizing
-        eventResize: function(info) {
-            updateEvent(info.event);
-        },
         eventDidMount: function(info) {
                 $(info.el).tooltip({
                 title: info.event.extendedProps.description,

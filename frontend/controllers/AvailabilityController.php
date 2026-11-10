@@ -39,6 +39,7 @@ class AvailabilityController extends Controller
                     'index' => ['GET', 'POST'],
                     'add-time-off' => ['POST'],
                     'delete-time-off' => ['POST'],
+                    'session-length' => ['POST'],
                 ],
             ],
         ];
@@ -132,6 +133,25 @@ class AvailabilityController extends Controller
         }
 
         return $this->renderIndex(new WeeklyScheduleForm($this->consultant), $timeOff);
+    }
+
+    /**
+     * Sets the length of new bookings. Existing appointments keep the length they were booked with.
+     */
+    public function actionSessionLength()
+    {
+        $minutes = (int) $this->request->post('minutes');
+        $allowed = Yii::$app->params['booking.sessionLengths'] ?? [30];
+
+        if (!in_array($minutes, $allowed, true)) {
+            Yii::$app->session->setFlash('error', Yii::t('app', 'Choose one of the listed session lengths.'));
+        } else {
+            // Only this column: the rest of the profile may not pass the full profile rules yet
+            $this->consultant->updateAttributes(['appointment_session_duration' => $minutes, 'updated_at' => time()]);
+            Yii::$app->session->setFlash('success', Yii::t('app', 'New bookings now last {m} minutes. Appointments already booked keep their length.', ['m' => $minutes]));
+        }
+
+        return $this->redirect($this->route('index'));
     }
 
     public function actionDeleteTimeOff($id)

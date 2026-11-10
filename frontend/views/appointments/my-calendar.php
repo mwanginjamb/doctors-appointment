@@ -52,7 +52,7 @@ $script = <<<JS
         events: fetchCalendarEvents, // Load existing appointments
         //selectable: true,
         editable: false,
-        eventDurationEditable: true,
+        eventDurationEditable: false, // appointments keep the length they were booked with
         height: 800,
         eventDidMount: function(info) {
                 $(info.el).tooltip({
