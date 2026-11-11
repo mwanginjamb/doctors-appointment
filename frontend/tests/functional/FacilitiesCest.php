@@ -68,14 +68,14 @@ class FacilitiesCest
         $I->amLoggedInAs($this->admin);
         $I->amOnRoute('facility/create');
         $I->submitForm('#facility-form', [
-            'Facility[name]' => 'Nairobi Hospital',
+            'Facility[name]' => 'Westlands Heart Centre',
             'Facility[address]' => 'Argwings Kodhek Rd',
             'Facility[phone]' => '0703 082 000',
             'Facility[map_url]' => 'maps.example.com/nh',
         ]);
 
-        $I->see('Nairobi Hospital added.');
-        $facility = Facility::findOne(['name' => 'Nairobi Hospital']);
+        $I->see('Westlands Heart Centre added.');
+        $facility = Facility::findOne(['name' => 'Westlands Heart Centre']);
         $I->assertSame('https://maps.example.com/nh', $facility->map_url);
         $I->assertTrue($facility->isActive());
     }

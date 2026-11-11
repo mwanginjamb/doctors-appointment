@@ -145,7 +145,7 @@ $rangeRow = function ($day, $i, $start = '', $end = '', $facility = null) use ($
                     <?= Html::beginForm(['availability/add-facility', 'cid' => $cid], 'post', ['class' => 'row g-2 align-items-end', 'id' => 'add-facility-form']) ?>
                         <div class="col-md-4">
                             <label class="form-label small mb-1" for="new-facility"><?= Yii::t('app', 'Facility') ?></label>
-                            <?= Html::activeDropDownList($newEngagement, 'facility_id', $otherFacilities + ['request' => Yii::t('app', 'Not listed: request it…')], [
+                            <?= Html::activeDropDownList($newEngagement, 'facility_id', Facility::activeGroupedList(array_keys($facilityChoices)) + ['request' => Yii::t('app', 'Not listed: request it…')], [
                                 'class' => 'form-select form-select-sm', 'id' => 'new-facility', 'prompt' => '', 'required' => true,
                                 'value' => $requesting ? 'request' : $newEngagement->facility_id,
                             ]) ?>

@@ -187,7 +187,13 @@ earlier are covered by the general steps: `php yii migrate`, `php yii rbac/init`
    `consultant.facility` value (else the practice name, else "Main clinic"), each consultant engaged
    there with their current session length, and their hours, appointments and booking links moved to it.
    It prints how many facilities and engagements it made. It then applies
-   `m261123_100000_create_facility_request_table` (consultants' requests for unlisted facilities).
+   `m261123_100000_create_facility_request_table` (consultants' requests for unlisted facilities) and
+   `m261124_090000_seed_kenya_facilities`, which adds `facility.ownership` (public, private,
+   faith-based) and lists 82 well-known Kenyan hospitals: national and county referral, major private
+   and mission hospitals, by former province. The source is Wikipedia's "List of hospitals in Kenya"
+   (revision 1379050607, read 11 Nov 2026). Addresses are area, town and county only, and there are
+   no phones or map links. Hospitals already listed under the same name (ignoring case, "The" and
+   punctuation) are skipped, and the migration prints how many it added.
 2. **Permissions:** none new. Facilities use the existing `manageReferenceData` permission, so
    `php yii rbac/init` is not needed for this item.
 3. **Settings (optional):** `CURRENCY` in `.env` sets the fee currency (default `KES`).
@@ -287,7 +293,11 @@ Built as planned below, with these choices made while building it:
   and sees the answer on their Availability page. A listed name, or one they already asked for, cannot
   be requested; at most 5 requests wait per consultant.
 - A new consultant's profile facility is still matched by name or created, so self-registration is
-  not blocked.
+  not blocked. Names match regardless of case, a leading "The" and punctuation ("nairobi hospital" is
+  The Nairobi Hospital), here, for requests and for admins adding a facility.
+- 82 well-known Kenyan hospitals are seeded (see the deploy steps), with ownership where it is clear.
+  Consultants see the list grouped as Public, Private, Faith-based and Other (no ownership set).
+  Phones and map links are left to admins, because they reach patients and could not be checked.
 - `consultant.facility` and `consultant.appointment_session_duration` are kept: the first names a new
   consultant's first facility, the second is the default length for facilities they add.
 - The calendar grid steps by the largest length that divides every facility's length (30 and 45 → 15),
