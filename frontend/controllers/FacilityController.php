@@ -43,8 +43,8 @@ class FacilityController extends Controller
     {
         $dataProvider = new ActiveDataProvider([
             'query' => Facility::find()->with('engagements.consultant'),
-            'sort' => ['defaultOrder' => ['name' => SORT_ASC], 'attributes' => ['name', 'active']],
-            'pagination' => ['pageSize' => 50],
+            'sort' => ['defaultOrder' => ['name' => SORT_ASC], 'attributes' => ['name', 'ownership', 'active']],
+            'pagination' => ['pageSize' => 100],
         ]);
 
         return $this->render('index', ['dataProvider' => $dataProvider, 'pendingRequests' => FacilityRequest::pendingCount()]);

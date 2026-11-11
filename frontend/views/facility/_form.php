@@ -20,6 +20,9 @@ use yii\bootstrap5\Html;
         <div class="col-md-7"><?= $form->field($model, 'map_url')->input('url', ['maxlength' => 500, 'placeholder' => 'https://maps.app.goo.gl/…']) ?></div>
     </div>
 
+    <?= $form->field($model, 'ownership')->dropDownList(\frontend\models\Facility::ownershipLabels(), ['prompt' => 'Not set'])
+        ->hint('Consultants see facilities grouped by this when choosing theirs.') ?>
+
     <?= $form->field($model, 'active')->checkbox() ?>
 
     <div class="form-group">

@@ -55,6 +55,12 @@ $this->params['breadcrumbs'][] = $this->title;
                     return $model->address ? preg_replace('/\s*\R\s*/', ', ', $model->address) : null;
                 },
             ],
+            [
+                'attribute' => 'ownership',
+                'value' => function (Facility $model) {
+                    return $model->getOwnershipLabel();
+                },
+            ],
             'phone',
             [
                 'label' => 'Consultants',

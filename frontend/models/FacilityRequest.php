@@ -96,7 +96,7 @@ class FacilityRequest extends ActiveRecord
     /** A listed facility is chosen from the list, not requested again. */
     public function validateNotListed($attribute)
     {
-        $listed = Facility::find()->where(['name' => $this->$attribute])->one();
+        $listed = Facility::findByName($this->$attribute);
         if ($listed !== null) {
             $this->addError($attribute, $listed->isActive()
                 ? Yii::t('app', '{name} is already listed: choose it from the list.', ['name' => $listed->name])

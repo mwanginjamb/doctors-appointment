@@ -240,6 +240,22 @@ class FacilityBookingTest extends \Codeception\Test\Unit
         $this->assertSame(ConsultantWorkingHours::DEFAULT_WEEK, Consultant::findOne($consultant->id)->getWeek());
     }
 
+    public function testSpellingsOfOneFacilityAreMatched()
+    {
+        $this->assertSame('nairobi hospital', Facility::nameKey('The Nairobi Hospital.'));
+        $this->assertSame(Facility::nameKey("St. Mary's Mission Hospital, Nairobi"), Facility::nameKey('st marys mission hospital nairobi'));
+
+        // A profile naming a seeded hospital is engaged there, not at a copy
+        $seeded = Facility::findOne(['name' => 'The Nairobi Hospital']);
+        $this->assertNotNull($seeded, 'seeded by m261124_090000_seed_kenya_facilities');
+        $this->assertSame(Facility::OWNERSHIP_PRIVATE, $seeded->ownership);
+        $this->assertSame($seeded->id, Facility::findOrCreateByName('nairobi hospital')->id);
+
+        $copy = new Facility(['name' => 'Nairobi Hospital']);
+        $this->assertFalse($copy->validate());
+        $this->assertSame('This is already listed as The Nairobi Hospital.', $copy->getFirstError('name'));
+    }
+
     public function testMessagesSayWhereTheAppointmentIs()
     {
         $appointment = $this->book('14:00');

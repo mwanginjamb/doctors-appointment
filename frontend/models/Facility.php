@@ -19,6 +19,7 @@ use yii\db\ActiveRecord;
  * @property string|null $address
  * @property string|null $phone
  * @property string|null $map_url
+ * @property string|null $ownership public, private or faith_based
  * @property bool|int $active
  * @property int|null $created_at
  * @property int|null $updated_at
@@ -29,6 +30,10 @@ use yii\db\ActiveRecord;
  */
 class Facility extends ActiveRecord
 {
+    const OWNERSHIP_PUBLIC = 'public';
+    const OWNERSHIP_PRIVATE = 'private';
+    const OWNERSHIP_FAITH_BASED = 'faith_based';
+
     /** Name given to a facility made for a consultant who named none. */
     const FALLBACK_NAME = 'Main clinic';
 
@@ -58,6 +63,9 @@ class Facility extends ActiveRecord
             [['name'], 'required'],
             [['name'], 'string', 'max' => 150],
             [['name'], 'unique', 'message' => Yii::t('app', 'There is already a facility with this name.')],
+            [['name'], 'validateNotListedAs', 'skipOnError' => true],
+            [['ownership'], 'default', 'value' => null],
+            [['ownership'], 'in', 'range' => array_keys(self::ownershipLabels())],
             [['address'], 'string', 'max' => 1000],
             [['address', 'phone', 'map_url'], 'default', 'value' => null],
             [['phone'], 'match', 'pattern' => '/^\+?[0-9][0-9 ]{6,18}$/', 'message' => Yii::t('app', 'Enter a phone number such as 0712 345 678.')],
@@ -76,7 +84,66 @@ class Facility extends ActiveRecord
             'phone' => Yii::t('app', 'Phone'),
             'map_url' => Yii::t('app', 'Map link'),
             'active' => Yii::t('app', 'Taking bookings'),
+            'ownership' => Yii::t('app', 'Ownership'),
         ];
+    }
+
+    public static function ownershipLabels()
+    {
+        return [
+            self::OWNERSHIP_PUBLIC => Yii::t('app', 'Public'),
+            self::OWNERSHIP_PRIVATE => Yii::t('app', 'Private'),
+            self::OWNERSHIP_FAITH_BASED => Yii::t('app', 'Faith-based'),
+        ];
+    }
+
+    public function getOwnershipLabel()
+    {
+        return self::ownershipLabels()[$this->ownership] ?? null;
+    }
+
+    /**
+     * Two spellings of one place ("Nairobi Hospital" and "The Nairobi Hospital.") are one facility.
+     */
+    public function validateNotListedAs($attribute)
+    {
+        $same = static::findByName($this->$attribute);
+        if ($same !== null && (int) $same->id !== (int) $this->id) {
+            $this->addError($attribute, Yii::t('app', 'This is already listed as {name}.', ['name' => $same->name]));
+        }
+    }
+
+    /**
+     * How names are compared: case, a leading "The" and punctuation do not count.
+     */
+    public static function nameKey($name)
+    {
+        $name = mb_strtolower(trim((string) $name));
+        $name = preg_replace('/^the\s+/u', '', $name);
+        $name = preg_replace("/['’]/u", '', $name); // St. Mary's = St Marys
+        $name = preg_replace('/[.,()\-]+/u', ' ', $name);
+
+        return trim(preg_replace('/\s+/u', ' ', $name));
+    }
+
+    /**
+     * The facility listed under $name, however it is spelled (see nameKey()), or null.
+     *
+     * @return static|null
+     */
+    public static function findByName($name)
+    {
+        $key = static::nameKey($name);
+        if ($key === '') {
+            return null;
+        }
+        foreach (static::find()->select(['id', 'name'])->asArray()->all() as $row) {
+            if (static::nameKey($row['name']) === $key) {
+                return static::findOne($row['id']);
+            }
+        }
+
+        return null;
     }
 
     public function attributeHints()
@@ -105,13 +172,33 @@ class Facility extends ActiveRecord
     public static function findOrCreateByName($name, $address = null)
     {
         $name = mb_substr(preg_replace('/\s+/', ' ', trim((string) $name)), 0, 150) ?: self::FALLBACK_NAME;
-        $facility = static::find()->where(['name' => $name])->one();
+        $facility = static::findByName($name);
         if ($facility === null) {
             $facility = new static(['name' => $name, 'address' => $address ?: null, 'active' => true]);
             $facility->save(false);
         }
 
         return $facility;
+    }
+
+    /**
+     * Active facilities for a drop-down list, grouped by ownership: group label => (id => name).
+     * Facilities with no ownership set come last, as "Other".
+     *
+     * @param int[] $exclude ids to leave out (e.g. where the consultant is already engaged)
+     */
+    public static function activeGroupedList(array $exclude = [])
+    {
+        $groups = [];
+        foreach (static::find()->where(['active' => true])->andFilterWhere(['not in', 'id', $exclude])->orderBy(['name' => SORT_ASC])->all() as $facility) {
+            $groups[$facility->getOwnershipLabel() ?? Yii::t('app', 'Other')][$facility->id] = $facility->name;
+        }
+        $order = array_flip(array_merge(array_values(self::ownershipLabels()), [Yii::t('app', 'Other')]));
+        uksort($groups, function ($a, $b) use ($order) {
+            return $order[$a] <=> $order[$b];
+        });
+
+        return $groups;
     }
 
     /**
