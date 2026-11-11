@@ -118,6 +118,16 @@ $this->params['breadcrumbs'][] = $this->title;
                     <h2 class="h5 fw-semibold text-dark mb-0">Consultant Details</h2>
                 </div>
                 <div class="card-body p-4">
+                    <?php if ($model->facility): ?>
+                        <!-- F8: where this appointment takes place, and the fee recorded when it was booked -->
+                        <div class="mb-3 appointment-facility">
+                            <div class="form-label mb-0"><?= Yii::t('app', 'Facility') ?></div>
+                            <?= $this->render('//facility/_place', ['facility' => $model->facility, 'fallback' => null]) ?>
+                            <div class="small text-muted mt-1">
+                                <?= (int) $model->getDurationMinutes() ?> minutes<?= $model->getFeeLabel() ? ' · ' . Html::encode($model->getFeeLabel()) : '' ?>
+                            </div>
+                        </div>
+                    <?php endif; ?>
                     <form class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label" for="current-password">Names</label>

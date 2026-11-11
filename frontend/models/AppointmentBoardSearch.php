@@ -82,7 +82,7 @@ class AppointmentBoardSearch extends Model
         $query = Appointments::find()
             ->alias('a')
             ->joinWith(['patient p', 'consultant c'])
-            ->with(['creator'])
+            ->with(['creator', 'facility'])
             ->orderBy(null) // drop AppointmentsQuery's newest-first default; the sort below applies
             ->andWhere(['between', 'a.date', $this->from, $this->to])
             ->andFilterWhere(['a.consultant_id' => $this->consultant]);

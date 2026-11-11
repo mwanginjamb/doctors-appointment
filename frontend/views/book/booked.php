@@ -15,8 +15,9 @@ $this->title = 'Appointment booked';
         <p class="mb-1">
             <?= Html::encode($link->consultant->names) ?>,
             <strong><?= Html::encode(date('l j F Y \a\t H:i', strtotime($appointment->date . ' ' . $appointment->time))) ?></strong>
-            (<?= (int) $appointment->duration_minutes ?> minutes).
+            (<?= (int) $appointment->duration_minutes ?> minutes<?= $appointment->getFeeLabel() ? ', ' . Html::encode($appointment->getFeeLabel()) : '' ?>).
         </p>
+        <div class="mb-2"><?= $this->render('//facility/_place', ['facility' => $appointment->facility, 'fallback' => null]) ?></div>
         <p class="mb-0">
             A confirmation is on its way<?= $link->recipient_phone || $form->phone ? ' by WhatsApp' : '' ?><?= $form->email ? ($link->recipient_phone || $form->phone ? ' and email' : ' by email') : '' ?>.
             Please arrive 15 minutes early. To change or cancel it, contact the clinic.

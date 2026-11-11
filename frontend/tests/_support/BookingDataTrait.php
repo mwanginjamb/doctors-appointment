@@ -6,6 +6,7 @@ use common\models\Consent;
 use common\models\User;
 use frontend\models\Appointments;
 use frontend\models\Consultant;
+use frontend\models\ConsultantFacility;
 use frontend\models\PublicHoliday;
 use frontend\models\UserProfile;
 
@@ -51,6 +52,18 @@ trait BookingDataTrait
         foreach ([$this->client, $this->otherClient] as $user) {
             (new UserProfile(['user_id' => $user->id, 'dob' => '1990-01-01', 'phone' => '0712111111']))->save(false);
         }
+    }
+
+    /**
+     * Sets the length of new bookings with the test consultant: at their facility (F8, where the
+     * length now lives) and as their default for new facilities.
+     */
+    protected function setSessionMinutes($minutes, $consultant = null)
+    {
+        $consultant = $consultant ?? $this->consultant;
+        $consultant->updateAttributes(['appointment_session_duration' => $minutes]);
+        ConsultantFacility::updateAll(['session_minutes' => $minutes], ['consultant_id' => $consultant->id]);
+        unset($consultant->engagements);
     }
 
     protected function createUser($username, $role)

@@ -99,7 +99,8 @@ class SendReminderPushJob extends BaseObject implements \yii\queue\JobInterface
 
         return [
             'title' => 'Appointment Reminder',
-            'body' => "Hello {recipient_name}, your appointment is in {$timeUnit} on {$appointmentDate} at {$appointmentTime}",
+            'body' => "Hello {recipient_name}, your appointment is in {$timeUnit} on {$appointmentDate} at {$appointmentTime}"
+                . ($appointment->facility ? " at {$appointment->facility->name}" : ''),
             'data' => [
                 'appointment_id' => $appointment->id,
                 'type' => 'appointment_reminder',

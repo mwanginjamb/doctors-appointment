@@ -7,8 +7,9 @@ use yii\base\BaseObject;
 /**
  * Works out a consultant's free start times over a range of dates: inside their opening hours (and
  * an optional daily window), in the future, and clear of other appointments (each by its own
- * length), time off and public holidays. Slots step by the consultant's session length from each
- * opening time, so they line up with the calendar grid.
+ * length, at any facility), time off and public holidays. Slots in each block of hours step by the
+ * session length at that block's facility from its opening time, so they line up with the
+ * calendar grid.
  *
  * Used by booking links and by patients rescheduling from their self-service link.
  */
@@ -27,6 +28,10 @@ class SlotFinder extends BaseObject
     public $excludeAppointmentId;
     /** @var int earliest start as a timestamp; defaults to now */
     public $notBefore;
+    /** @var int|null only the hours at this facility (booking links, self-service) */
+    public $facilityId;
+    /** @var bool only facilities where patients can book themselves (self-service) */
+    public $onlineOnly = false;
 
     /**
      * @return array Y-m-d => list of 'H:i' start times (dates without free slots have an empty list)
@@ -44,7 +49,6 @@ class SlotFinder extends BaseObject
         }
 
         $notBefore = $this->notBefore ?? time();
-        $length = $consultant->getSessionMinutes() * 60;
         $holidays = array_map(function ($h) {
             return $h->date;
         }, PublicHoliday::between($this->from, $this->to));
@@ -66,7 +70,11 @@ class SlotFinder extends BaseObject
             if (in_array($date, $holidays, true)) {
                 continue;
             }
-            foreach ($consultant->getRangesFor($date) as [$open, $close]) {
+            foreach ($consultant->getRangesFor($date, $this->facilityId) as [$open, $close, $facilityId]) {
+                if ($this->onlineOnly && !$consultant->getEngagement($facilityId)->isBookingOpen()) {
+                    continue;
+                }
+                $length = $consultant->getSessionMinutes($facilityId) * 60;
                 $from = strtotime($date . ' ' . $open);
                 $to = strtotime($date . ' ' . $close);
                 if ($this->dayStart) {

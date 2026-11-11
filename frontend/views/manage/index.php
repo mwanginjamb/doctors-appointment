@@ -32,8 +32,9 @@ $dates = array_keys($slots);
             <div class="fs-5 fw-semibold"><?= Html::encode($when) ?></div>
             <div class="text-muted">
                 <?= Html::encode($consultant->names ?? '') ?> · <?= $length ?> minutes
-                <?= $consultant && $consultant->practice_name ? ' · ' . Html::encode($consultant->practice_name) : '' ?>
+                <?= $appointment->getFeeLabel() ? ' · ' . Html::encode($appointment->getFeeLabel()) : '' ?>
             </div>
+            <?= $this->render('//facility/_place', ['facility' => $appointment->facility, 'fallback' => $consultant->practice_name ?? null]) ?>
             <?php if ($appointment->status === Appointments::STATUS_CANCELLED): ?>
                 <div class="badge text-bg-secondary mt-2">Cancelled</div>
             <?php elseif (in_array($appointment->status, [Appointments::STATUS_COMPLETED, Appointments::STATUS_NO_SHOW], true) || strtotime($appointment->date . ' ' . $appointment->time) <= time()): ?>
@@ -52,7 +53,7 @@ $dates = array_keys($slots);
     <?php else: ?>
         <h2 class="h5 fw-bold">Choose another time</h2>
         <?php if (!$hasSlots): ?>
-            <p class="text-muted">There are no other free times with <?= Html::encode($consultant->names ?? 'this doctor') ?> in the next <?= count($dates) ?> days. Please call the clinic.</p>
+            <p class="text-muted">There are no other free times with <?= Html::encode($consultant->names ?? 'this doctor') ?><?= $appointment->facility ? ' at ' . Html::encode($appointment->facility->name) : '' ?> in the next <?= count($dates) ?> days. Please call the clinic<?= $appointment->facility && $appointment->facility->phone ? ' on ' . Html::encode($appointment->facility->phone) : '' ?>.</p>
         <?php else: ?>
             <p class="text-muted small">Green times are free. Your current time stays booked until you choose a new one.</p>
             <?= SlotPicker::widget([

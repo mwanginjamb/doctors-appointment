@@ -8,8 +8,10 @@ use yii\base\Model;
 /**
  * Edits a consultant's weekly opening hours on the Availability page.
  *
- * $hours is ISO day (1 = Monday) => list of ['start' => 'HH:MM', 'end' => 'HH:MM'].
- * A day with no ranges is closed; gaps between a day's ranges are breaks.
+ * $hours is ISO day (1 = Monday) => list of ['start' => 'HH:MM', 'end' => 'HH:MM', 'facility' => id].
+ * A day with no ranges is closed; gaps between a day's ranges are breaks. Each range is at one of
+ * the consultant's facilities; with only one, ranges posted without a facility are there. Ranges
+ * may not overlap, even at different facilities: the consultant is in one place at a time.
  */
 class WeeklyScheduleForm extends Model
 {
@@ -27,9 +29,9 @@ class WeeklyScheduleForm extends Model
     public function __construct(Consultant $consultant, $config = [])
     {
         $this->consultant = $consultant;
-        foreach ($consultant->getWeek() as $day => $ranges) {
-            foreach ($ranges as [$start, $end]) {
-                $this->hours[$day][] = ['start' => substr($start, 0, 5), 'end' => substr($end, 0, 5)];
+        foreach ($consultant->getBlocks() as $day => $ranges) {
+            foreach ($ranges as [$start, $end, $facilityId]) {
+                $this->hours[$day][] = ['start' => substr($start, 0, 5), 'end' => substr($end, 0, 5), 'facility' => $facilityId];
             }
         }
         parent::__construct($config);
@@ -58,8 +60,9 @@ class WeeklyScheduleForm extends Model
             foreach ($ranges as $range) {
                 $start = trim((string) ($range['start'] ?? ''));
                 $end = trim((string) ($range['end'] ?? ''));
+                $facility = ctype_digit((string) ($range['facility'] ?? '')) ? (int) $range['facility'] : null;
                 if ($start !== '' || $end !== '') {
-                    $this->hours[$day][] = ['start' => $start, 'end' => $end];
+                    $this->hours[$day][] = ['start' => $start, 'end' => $end, 'facility' => $facility];
                 }
             }
         }
@@ -71,6 +74,9 @@ class WeeklyScheduleForm extends Model
     public function validate($attributeNames = null, $clearErrors = true)
     {
         $this->dayErrors = [];
+        $engaged = array_map(function ($e) {
+            return (int) $e->facility_id;
+        }, $this->consultant->engagements);
 
         foreach ($this->hours as $day => $ranges) {
             $name = ConsultantWorkingHours::DAYS[$day];
@@ -86,6 +92,16 @@ class WeeklyScheduleForm extends Model
                 }
                 if ($range['start'] >= $range['end']) {
                     $this->dayErrors[$day][] = Yii::t('app', '{day}: {start}–{end} must end after it starts.', ['day' => $name] + $range);
+                    continue 2;
+                }
+            }
+
+            // Each range is at one of the consultant's facilities; with only one, it is there
+            foreach ($ranges as $i => $range) {
+                if (($range['facility'] ?? null) === null && count($engaged) === 1) {
+                    $ranges[$i]['facility'] = $engaged[0];
+                } elseif (!in_array($range['facility'] ?? null, $engaged, true)) {
+                    $this->dayErrors[$day][] = Yii::t('app', '{day}: choose where you are for {start}–{end}.', ['day' => $name] + $range);
                     continue 2;
                 }
             }
@@ -122,17 +138,18 @@ class WeeklyScheduleForm extends Model
         $week = [];
         foreach ($this->hours as $day => $ranges) {
             foreach ($ranges as $range) {
-                $week[$day][] = [$range['start'] . ':00', $range['end'] . ':00'];
+                $week[$day][] = [$range['start'] . ':00', $range['end'] . ':00', $range['facility']];
             }
         }
         ConsultantWorkingHours::replaceWeek($this->consultant->id, $week);
-        unset($this->consultant->workingHours); // reload on next access
+        unset($this->consultant->workingHours, $this->consultant->engagements); // reload on next access
 
         return true;
     }
 
     /**
-     * Upcoming active appointments that no longer fit the saved week. They are kept; the consultant decides.
+     * Upcoming active appointments that no longer fit the saved week at their facility. They are
+     * kept; the consultant decides.
      *
      * @return Appointments[]
      */
@@ -146,7 +163,7 @@ class WeeklyScheduleForm extends Model
             ->all();
 
         return array_values(array_filter($upcoming, function (Appointments $a) {
-            return $a->isFuture() && !$this->consultant->isOpenFor($a->date, $a->time, $a->getDurationMinutes());
+            return $a->isFuture() && !$this->consultant->isOpenFor($a->date, $a->time, $a->getDurationMinutes(), $a->facility_id);
         }));
     }
 

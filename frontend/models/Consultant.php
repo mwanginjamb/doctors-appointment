@@ -20,7 +20,7 @@ use yii\helpers\ArrayHelper;
  * @property string|null $sub_speciality
  * @property string|null $kmpdc_registration_number
  * @property int|null $user_id
- * @property string|null $facility
+ * @property string|null $facility legacy free text; names the first facility of a new consultant (see ConsultantFacility)
  * @property string|null $physical_address
  * @property int|null $created_at
  * @property int|null $updated_at
@@ -271,10 +271,49 @@ class Consultant extends \yii\db\ActiveRecord
         if ($this->sub_specialities !== null) {
             $this->syncSubSpecialities($this->sub_specialities);
         }
-        // A new consultant starts with the default week; they change it on the Availability page
+        // A new consultant starts engaged at the facility on their profile, with the default week
+        // there; they change both on the Availability page
         if ($insert) {
+            ConsultantFacility::createDefault($this);
             ConsultantWorkingHours::replaceWeek($this->id, ConsultantWorkingHours::DEFAULT_WEEK);
         }
+    }
+
+    /**
+     * The facilities the consultant is engaged at, by facility name.
+     */
+    public function getEngagements()
+    {
+        return $this->hasMany(ConsultantFacility::class, ['consultant_id' => 'id'])
+            ->joinWith('facility f', false)
+            ->with('facility')
+            ->orderBy(['f.name' => SORT_ASC]);
+    }
+
+    /**
+     * The engagement at a facility, or null when the consultant is not engaged there.
+     *
+     * @return ConsultantFacility|null
+     */
+    public function getEngagement($facilityId)
+    {
+        foreach ($this->engagements as $engagement) {
+            if ((int) $engagement->facility_id === (int) $facilityId) {
+                return $engagement;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Names of the facilities the consultant is engaged at, e.g. "Avenue Clinic, Nairobi Hospital".
+     */
+    public function getFacilityNames()
+    {
+        return implode(', ', array_map(function (ConsultantFacility $e) {
+            return $e->facility->name ?? '';
+        }, $this->engagements));
     }
 
     public function getWorkingHours()
@@ -284,8 +323,8 @@ class Consultant extends \yii\db\ActiveRecord
     }
 
     /**
-     * The weekly schedule as ISO day (1 = Monday) => list of [start, end] (HH:MM:SS).
-     * Closed days are missing.
+     * The weekly schedule as ISO day (1 = Monday) => list of [start, end] (HH:MM:SS), at every
+     * facility. Closed days are missing.
      */
     public function getWeek()
     {
@@ -298,19 +337,68 @@ class Consultant extends \yii\db\ActiveRecord
     }
 
     /**
-     * Opening ranges on a given date (Y-m-d), as [start, end] pairs.
+     * The weekly schedule as ISO day => list of [start, end, facility_id].
      */
-    public function getRangesFor($date)
+    public function getBlocks()
     {
-        return $this->getWeek()[(int) date('N', strtotime($date))] ?? [];
+        $week = [];
+        foreach ($this->workingHours as $range) {
+            $week[(int) $range->day_of_week][] = [$range->start_time, $range->end_time, (int) $range->facility_id];
+        }
+
+        return $week;
     }
 
     /**
-     * Length of new bookings with this consultant, in minutes: their own setting, otherwise the
-     * clinic default. Existing appointments keep the length they were booked with.
+     * Opening ranges on a given date (Y-m-d), as [start, end, facility_id]: the weekly blocks at
+     * facilities where the engagement runs that day (inside its dates, facility taking bookings).
+     *
+     * @param int|null $facilityId only the ranges at this facility
      */
-    public function getSessionMinutes()
+    public function getRangesFor($date, $facilityId = null)
     {
+        $ranges = [];
+        foreach ($this->getBlocks()[(int) date('N', strtotime($date))] ?? [] as $range) {
+            if ($facilityId !== null && $range[2] !== (int) $facilityId) {
+                continue;
+            }
+            $engagement = $this->getEngagement($range[2]);
+            if ($engagement !== null && $engagement->isRunningOn($date)) {
+                $ranges[] = $range;
+            }
+        }
+
+        return $ranges;
+    }
+
+    /**
+     * The opening range a session starting at $date $time falls in, as [start, end, facility_id],
+     * or null when the consultant is not in then. Ranges never overlap, so there is at most one.
+     */
+    public function rangeAt($date, $time)
+    {
+        $start = strtotime($date . ' ' . $time);
+        foreach ($this->getRangesFor($date) as $range) {
+            if ($start >= strtotime($date . ' ' . $range[0]) && $start < strtotime($date . ' ' . $range[1])) {
+                return $range;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Length of new bookings with this consultant, in minutes. At a facility, the length set for
+     * that engagement; otherwise their own default, else the clinic default. Existing appointments
+     * keep the length they were booked with.
+     *
+     * @param int|null $facilityId
+     */
+    public function getSessionMinutes($facilityId = null)
+    {
+        if ($facilityId !== null && ($engagement = $this->getEngagement($facilityId)) && $engagement->session_minutes > 0) {
+            return (int) $engagement->session_minutes;
+        }
         if ($this->appointment_session_duration > 0) {
             return (int) $this->appointment_session_duration;
         }
@@ -319,13 +407,14 @@ class Consultant extends \yii\db\ActiveRecord
     }
 
     /**
-     * Whether a session of $minutes starting at $date $time fits entirely inside one opening range.
+     * Whether a session of $minutes starting at $date $time fits entirely inside one opening range
+     * (at $facilityId, when given).
      */
-    public function isOpenFor($date, $time, $minutes)
+    public function isOpenFor($date, $time, $minutes, $facilityId = null)
     {
         $start = strtotime($date . ' ' . $time);
         $end = $start + $minutes * 60;
-        foreach ($this->getRangesFor($date) as [$open, $close]) {
+        foreach ($this->getRangesFor($date, $facilityId) as [$open, $close]) {
             if ($start >= strtotime($date . ' ' . $open) && $end <= strtotime($date . ' ' . $close)) {
                 return true;
             }
@@ -335,11 +424,30 @@ class Consultant extends \yii\db\ActiveRecord
     }
 
     /**
-     * e.g. "Mon–Sat 08:00–13:00, 14:00–17:00", or null when every day is closed.
+     * e.g. "Mon–Sat 08:00–13:00, 14:00–17:00", or null when every day is closed. With hours at
+     * several facilities, one summary per facility.
      */
     public function getHoursSummary()
     {
-        return ConsultantWorkingHours::summarize($this->getWeek());
+        return ConsultantWorkingHours::describe($this->getBlocks());
+    }
+
+    /**
+     * Weekly hours per facility, for pages: list of ['engagement' => ConsultantFacility,
+     * 'summary' => string|null], by facility name.
+     */
+    public function getHoursByFacility()
+    {
+        $byFacility = ConsultantWorkingHours::splitByFacility($this->getBlocks());
+        $rows = [];
+        foreach ($this->engagements as $engagement) {
+            $rows[] = [
+                'engagement' => $engagement,
+                'summary' => ConsultantWorkingHours::summarize($byFacility[(int) $engagement->facility_id] ?? []),
+            ];
+        }
+
+        return $rows;
     }
 
     public function getSubSpecialityLinks()

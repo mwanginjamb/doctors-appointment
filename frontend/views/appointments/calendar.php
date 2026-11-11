@@ -39,8 +39,21 @@ $this->title = $calendar->title;
     </div>
 </div>
 <div class="container">
+    <!-- Several facilities (Js/booking-calendar.js fills these in): a colour key and a filter -->
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+        <div id="facility-legend" class="d-none flex-grow-1"></div>
+        <div id="facility-filter" class="d-none">
+            <select class="form-select form-select-sm" aria-label="<?= Yii::t('app', 'Show facility') ?>">
+                <option value=""><?= Yii::t('app', 'All facilities') ?></option>
+            </select>
+        </div>
+    </div>
     <div id="calendar"></div>
 </div>
+<?php
+// Facility blocks are only colour: clicks go through to the time slot underneath
+$this->registerCss('#calendar .facility-block { pointer-events: none; opacity: .18; } #calendar .fc-bg-event.facility-block .fc-event-title { color: #000; font-size: .7rem; }');
+?>
 
 
 <!-- Modal for Booking -->
@@ -113,6 +126,7 @@ $this->title = $calendar->title;
                         <?= $form->field($model, 'time')->textInput(['readonly' => true]) ?>
                     </div>
                 </div>
+                <div id="appointment-facility" class="small fw-semibold border-start border-4 ps-2 mb-3 d-none"></div>
                 <?= $form->field($model, 'symptoms_brief')->textarea(['rows' => 6]) ?>
 
 

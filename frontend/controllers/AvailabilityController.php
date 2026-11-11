@@ -3,8 +3,12 @@
 namespace frontend\controllers;
 
 use common\components\RbacHelper;
+use frontend\models\Appointments;
 use frontend\models\Consultant;
+use frontend\models\ConsultantFacility;
+use frontend\models\ConsultantWorkingHours;
 use frontend\models\ConsultantTimeOff;
+use frontend\models\FacilityRequest;
 use frontend\models\TimeOffForm;
 use frontend\models\WeeklyScheduleForm;
 use Yii;
@@ -14,7 +18,8 @@ use yii\web\Controller;
 use yii\web\NotFoundHttpException;
 
 /**
- * Lets a consultant set the weekly hours patients can book, and the time off when they can't.
+ * Lets a consultant set the facilities they work at (with the session length and fee at each), the
+ * weekly hours at each facility, and the time off when they can't be booked.
  */
 class AvailabilityController extends Controller
 {
@@ -40,7 +45,10 @@ class AvailabilityController extends Controller
                     'index' => ['GET', 'POST'],
                     'add-time-off' => ['POST'],
                     'delete-time-off' => ['POST'],
-                    'session-length' => ['POST'],
+                    'add-facility' => ['POST'],
+                    'update-facility' => ['POST'],
+                    'remove-facility' => ['POST'],
+                    'request-facility' => ['POST'],
                 ],
             ],
         ];
@@ -142,22 +150,101 @@ class AvailabilityController extends Controller
     }
 
     /**
-     * Sets the length of new bookings. Existing appointments keep the length they were booked with.
+     * Adds a facility the consultant works at. Hours there are added in the weekly schedule.
      */
-    public function actionSessionLength()
+    public function actionAddFacility()
     {
-        $minutes = (int) $this->request->post('minutes');
-        $allowed = Yii::$app->params['booking.sessionLengths'] ?? [30];
-
-        if (!in_array($minutes, $allowed, true)) {
-            Yii::$app->session->setFlash('error', Yii::t('app', 'Choose one of the listed session lengths.'));
-        } else {
-            // Only this column: the rest of the profile may not pass the full profile rules yet
-            $this->consultant->updateAttributes(['appointment_session_duration' => $minutes, 'updated_at' => time()]);
-            Yii::$app->session->setFlash('success', Yii::t('app', 'New bookings now last {m} minutes. Appointments already booked keep their length.', ['m' => $minutes]));
+        $engagement = new ConsultantFacility(['session_minutes' => $this->consultant->getSessionMinutes()]);
+        $engagement->load($this->request->post());
+        $engagement->consultant_id = $this->consultant->id;
+        if ($engagement->save()) {
+            Yii::$app->session->setFlash('success', Yii::t('app', '{facility} added. Add your hours there under Weekly hours.', [
+                'facility' => $engagement->facility->name,
+            ]));
+            return $this->redirect($this->route('index', ['#' => 'weekly-hours']));
         }
 
-        return $this->redirect($this->route('index'));
+        return $this->renderIndex(new WeeklyScheduleForm($this->consultant), new TimeOffForm(), $engagement);
+    }
+
+    /**
+     * Changes the session length, fee, online booking or dates at one facility. Appointments
+     * already booked keep the length and fee they were booked with.
+     */
+    public function actionUpdateFacility($id)
+    {
+        $engagement = $this->findEngagement($id);
+        $facilityId = $engagement->facility_id;
+        $engagement->load($this->request->post());
+        $engagement->facility_id = $facilityId; // the facility itself is not changed here
+        if ($engagement->save()) {
+            Yii::$app->session->setFlash('success', Yii::t('app', '{facility} saved. Appointments already booked keep their length and fee.', [
+                'facility' => $engagement->facility->name,
+            ]));
+            return $this->redirect($this->route('index', ['#' => 'facilities']));
+        }
+        $errors = $engagement->getFirstErrors();
+        Yii::$app->session->setFlash('error', $engagement->facility->name . ': ' . reset($errors));
+
+        return $this->redirect($this->route('index', ['#' => 'facilities']));
+    }
+
+    /**
+     * Stops working at a facility. Refused while there are hours or upcoming appointments there,
+     * and for the last facility.
+     */
+    public function actionRemoveFacility($id)
+    {
+        $engagement = $this->findEngagement($id);
+        $name = $engagement->facility->name;
+        $session = Yii::$app->session;
+
+        $upcoming = Appointments::find()
+            ->where(['consultant_id' => $this->consultant->user_id, 'facility_id' => $engagement->facility_id])
+            ->andWhere(['>=', 'date', date('Y-m-d')])
+            ->andWhere(['or', ['status' => null], ['status' => [Appointments::STATUS_SCHEDULED, Appointments::STATUS_CONFIRMED]]])
+            ->count();
+        if (count($this->consultant->engagements) <= 1) {
+            $session->setFlash('error', Yii::t('app', '{facility} is your only facility. Add another before removing it.', ['facility' => $name]));
+        } elseif (ConsultantWorkingHours::find()->where(['consultant_id' => $this->consultant->id, 'facility_id' => $engagement->facility_id])->exists()) {
+            $session->setFlash('error', Yii::t('app', 'Remove your weekly hours at {facility} first.', ['facility' => $name]));
+        } elseif ($upcoming > 0) {
+            $session->setFlash('error', Yii::t('app', '{n} upcoming appointment(s) are at {facility}. Move or cancel them first.', ['n' => $upcoming, 'facility' => $name]));
+        } else {
+            $engagement->delete();
+            $session->setFlash('success', Yii::t('app', '{facility} removed.', ['facility' => $name]));
+        }
+
+        return $this->redirect($this->route('index', ['#' => 'facilities']));
+    }
+
+    /**
+     * Asks the administrator to list a facility that is not on the list yet. When it is created,
+     * the consultant is added there; either way they are told by email and WhatsApp.
+     */
+    public function actionRequestFacility()
+    {
+        $request = new FacilityRequest();
+        $request->load($this->request->post());
+        $request->consultant_id = $this->consultant->id;
+        if ($request->save()) {
+            Yii::$app->session->setFlash('success', Yii::t('app', 'Request for {name} sent. You will be told by email and WhatsApp when the administrator answers.', [
+                'name' => \yii\helpers\Html::encode($request->name),
+            ]));
+            return $this->redirect($this->route('index', ['#' => 'facilities']));
+        }
+
+        return $this->renderIndex(new WeeklyScheduleForm($this->consultant), new TimeOffForm(), null, $request);
+    }
+
+    private function findEngagement($id)
+    {
+        $engagement = ConsultantFacility::findOne(['id' => $id, 'consultant_id' => $this->consultant->id]);
+        if ($engagement === null) {
+            throw new NotFoundHttpException(Yii::t('app', 'Facility not found.'));
+        }
+
+        return $engagement;
     }
 
     public function actionDeleteTimeOff($id)
@@ -173,7 +260,7 @@ class AvailabilityController extends Controller
         return $this->redirect($this->route('index', ['#' => 'time-off']));
     }
 
-    private function renderIndex(WeeklyScheduleForm $form, TimeOffForm $timeOffForm)
+    private function renderIndex(WeeklyScheduleForm $form, TimeOffForm $timeOffForm, ?ConsultantFacility $newEngagement = null, ?FacilityRequest $facilityRequest = null)
     {
         // Current and upcoming time off, each with the appointments booked during it
         $timeOff = ConsultantTimeOff::find()
@@ -188,6 +275,14 @@ class AvailabilityController extends Controller
             'cid' => $this->managedCid,
             'timeOffForm' => $timeOffForm,
             'timeOff' => $timeOff,
+            'newEngagement' => $newEngagement ?? new ConsultantFacility(['session_minutes' => $this->consultant->getSessionMinutes()]),
+            'facilityRequest' => $facilityRequest ?? new FacilityRequest(),
+            // Waiting, and answered in the last 30 days
+            'facilityRequests' => FacilityRequest::find()
+                ->where(['consultant_id' => $this->consultant->id])
+                ->andWhere(['or', ['status' => FacilityRequest::STATUS_PENDING], ['>=', 'decided_at', time() - 30 * 86400]])
+                ->orderBy(['created_at' => SORT_DESC])
+                ->all(),
         ]);
     }
 }

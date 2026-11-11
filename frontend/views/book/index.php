@@ -14,7 +14,8 @@ use yii\bootstrap5\Html;
  */
 
 $consultant = $link->consultant;
-$length = $consultant->getSessionMinutes();
+$length = $link->getSessionMinutes();
+$engagement = $consultant->getEngagement($link->facility_id);
 $slots = $link->openSlots();
 // Days in the link's range with at least one free time
 $hasSlots = (bool) array_filter($slots);
@@ -26,7 +27,11 @@ $this->title = 'Book with ' . $consultant->names;
     <p class="text-muted mb-1">
         <?= Html::encode(Yii::$app->name) ?> invited you to book an appointment of <?= $length ?> minutes.
         Choose one of the green times, then confirm your details.
+        <?php if ($engagement && $engagement->getFeeLabel()): ?>
+            The consultation fee is <?= Html::encode($engagement->getFeeLabel()) ?>.
+        <?php endif; ?>
     </p>
+    <?= $this->render('//facility/_place', ['facility' => $link->facility, 'fallback' => null]) ?>
     <p class="small text-muted">This link works until <strong><?= date('H:i', $link->expires_at) ?></strong> and books one appointment.</p>
 
     <?php if (!$hasSlots): ?>

@@ -101,7 +101,7 @@ $this->title = 'Find a Doctor';
                                                     </div>
                                                 </td> -->
                                                 <td><?= Html::encode($res->genderIdentity->name ?? '') ?></td>
-                                                <td><?= Html::encode($res->facility ?? '') ?></td>
+                                                <td><?= Html::encode($res->getFacilityNames() ?: ($res->facility ?? '')) ?></td>
                                                 <td><?= Html::encode($res->practice_name) ?></td>
                                                 <td>
                                                     <!-- make the buttons responsive -->

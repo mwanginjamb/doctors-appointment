@@ -30,7 +30,8 @@ class AppointmentChangeNotifier
         $consultant = $appointment->consultant;
         $patient = $appointment->patient;
         $doctor = $consultant->names ?? 'your doctor';
-        $clinic = Yii::$app->name;
+        // F8: the facility it is at, with address and map link (the clinic's name for older ones)
+        $place = $appointment->getPlaceText();
 
         $user = Yii::$app->get('user', false);
         $actorId = $user && !$user->isGuest ? (int) $user->id : null;
@@ -49,9 +50,10 @@ class AppointmentChangeNotifier
             $email = $consultant->consultant_email ?? null;
             $phone = $consultant->consultant_phone_number ?? null;
             $subject = $change === self::CANCELLED ? "Appointment cancelled by {$patientName}" : "Appointment moved by {$patientName}";
+            $where = $appointment->facility ? " at {$appointment->facility->name}" : '';
             $text = $change === self::CANCELLED
-                ? "Hello {$doctor},\n\n{$patientName} has cancelled their appointment on {$when}. The slot is free again."
-                : "Hello {$doctor},\n\n{$patientName} has moved their appointment from {$was} to {$when}.";
+                ? "Hello {$doctor},\n\n{$patientName} has cancelled their appointment{$where} on {$when}. The slot is free again."
+                : "Hello {$doctor},\n\n{$patientName} has moved their appointment{$where} from {$was} to {$when}.";
         } else {
             // The clinic changed it: tell the patient
             $name = $patientName;
@@ -60,9 +62,9 @@ class AppointmentChangeNotifier
             $phone = $patient && \common\models\Consent::remindersAllowed($patient->id) ? ($patient->phone_number ?? null) : null;
             $subject = $change === self::CANCELLED ? "Your appointment with {$doctor} is cancelled" : "Your appointment with {$doctor} has moved";
             $text = $change === self::CANCELLED
-                ? "Hello {$patientName},\n\nYour appointment with {$doctor} at {$clinic} on {$when} has been cancelled. "
+                ? "Hello {$patientName},\n\nYour appointment with {$doctor} at {$place} on {$when} has been cancelled. "
                     . 'Please contact the clinic or book a new time.'
-                : "Hello {$patientName},\n\nYour appointment with {$doctor} at {$clinic} has moved from {$was} to {$when}. "
+                : "Hello {$patientName},\n\nYour appointment with {$doctor} has moved from {$was} to {$when}, at {$place}. "
                     . 'If the new time does not suit you, please contact the clinic.';
             // Moved: offer the self-service link while the patient can still use it
             $manageUrl = $change === self::MOVED ? SelfServiceLink::urlIfChangeable($appointment) : null;

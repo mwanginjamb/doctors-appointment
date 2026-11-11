@@ -30,7 +30,21 @@ SpecializationPicker::register($this, '#consultant-speciality', '#consultant-sub
             <?= $form->field($model, 'names')->textInput(['maxlength' => true, 'autofocus' => true, 'placeholder' => 'Title Full Names']) ?>
         </div>
         <div class="col-md-6">
-            <?= $form->field($model, 'facility')->textInput(['maxlength' => true]) ?>
+            <?php if ($model->isNewRecord): ?>
+                <?= $form->field($model, 'facility')->textInput(['maxlength' => true])
+                    ->hint(Yii::t('app', 'Where you see patients. Add more facilities later on the Availability page.')) ?>
+            <?php else: ?>
+                <!-- F8: facilities are managed with their hours, length and fee on the Availability page -->
+                <div class="mb-3">
+                    <label class="form-label"><?= Yii::t('app', 'Facilities') ?></label>
+                    <div class="form-control-plaintext">
+                        <?= \yii\helpers\Html::encode($model->getFacilityNames() ?: Yii::t('app', 'None yet')) ?>
+                        <?php if ((int) $model->user_id === (int) Yii::$app->user->id): ?>
+                            · <?= \yii\helpers\Html::a(Yii::t('app', 'Change'), ['availability/index', '#' => 'facilities']) ?>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            <?php endif; ?>
         </div>
     </div>
     <div class="row">

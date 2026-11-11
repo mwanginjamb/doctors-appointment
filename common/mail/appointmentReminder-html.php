@@ -5,8 +5,11 @@
 
 $patientName = $appointment->patient->full_name ?? 'Patient';
 $consultantName = $consultant->names ?? 'Doctor';
-$location = $consultant->physical_address ?? 'Location not specified';
-$practiceName = $consultant->practice_name ?? 'Practice Name Not Specified';
+// F8: where it takes place is the appointment's facility; older appointments fall back to the profile
+$facility = $appointment->facility;
+$location = $facility ? ($facility->address ?: $facility->name) : ($consultant->physical_address ?? 'Location not specified');
+$practiceName = $facility ? $facility->name : ($consultant->practice_name ?? 'Practice Name Not Specified');
+$mapUrl = $facility->map_url ?? null;
 ?>
 
 <body style='font-family: Arial, sans-serif; line-height: 1.6; color: #333;'>
@@ -23,12 +26,18 @@ $practiceName = $consultant->practice_name ?? 'Practice Name Not Specified';
         <p><strong>Date:</strong> <?= Yii::$app->formatter->asDate($appointment->date, 'long') ?><br>
             <strong>Time:</strong> <?= Yii::$app->formatter->asTime($appointment->time, 'short') ?><br>
             <strong>Doctor:</strong> <?= htmlspecialchars($consultantName ?? 'Doctor') ?><br>
-            <strong>Practice:</strong> <?= htmlspecialchars($practiceName ?? 'Practice Name Not Specified') ?><br>
+            <strong>Facility:</strong> <?= htmlspecialchars($practiceName ?? 'Practice Name Not Specified') ?><br>
+            <?php if ($appointment->getFeeLabel()): ?>
+                <strong>Fee:</strong> <?= htmlspecialchars($appointment->getFeeLabel()) ?><br>
+            <?php endif; ?>
             <hr>
             <strong>Appointment Brief:</strong>
             <?= htmlspecialchars(substr($appointment->symptoms_brief, 0, 200)) ?>
             <hr><br>
-            <strong>Location:</strong> <?= htmlspecialchars($location) ?><br>
+            <strong>Location:</strong> <?= htmlspecialchars($location) ?>
+            <?php if ($mapUrl): ?>
+                (<a href="<?= htmlspecialchars($mapUrl) ?>">map</a>)
+            <?php endif; ?><br>
             <strong>Patient:</strong> <?= htmlspecialchars($patientName ?? 'Patient') ?>
         </p>
 
