@@ -24,6 +24,20 @@
     function localTime(d) { return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':00'; }
     function minutesOf(hhmm) { var p = hhmm.split(':'); return p[0] * 60 + +p[1]; }
 
+    // The block of hours (and so the facility) a session starting at date falls in, or null
+    function blockAt(date) {
+        if (!avail) {
+            return null;
+        }
+        var day = localDate(date);
+        var start = date.getHours() * 60 + date.getMinutes();
+        return avail.blocks.find(function (b) {
+            return b.daysOfWeek[0] === date.getDay()
+                && start >= minutesOf(b.startTime) && start < minutesOf(b.endTime)
+                && (!b.from || day >= b.from) && (!b.to || day <= b.to);
+        }) || null;
+    }
+
     // Why a session starting at date cannot be booked, or null when it can
     function slotProblem(date) {
         if (date.getTime() < Date.now() + rules.noticeMinutes * 60000) {
@@ -31,9 +45,10 @@
                 ? 'Please book at least ' + (rules.noticeMinutes === 60 ? '1 hour' : rules.noticeMinutes + ' minutes') + ' ahead.'
                 : 'Please choose a time in the future.';
         }
-        var sessionMs = (avail ? avail.duration : 30) * 60000;
+        var block = blockAt(date);
+        var duration = block ? block.duration : (avail ? avail.duration : 30);
         var closed = rules.blocked.find(function (b) {
-            return date.getTime() < new Date(b.end).getTime() && date.getTime() + sessionMs > new Date(b.start).getTime();
+            return date.getTime() < new Date(b.end).getTime() && date.getTime() + duration * 60000 > new Date(b.start).getTime();
         });
         if (closed) {
             return closed.reason;
@@ -42,13 +57,55 @@
             return null;
         }
         var start = date.getHours() * 60 + date.getMinutes();
-        var fits = avail.businessHours.some(function (r) {
-            return r.daysOfWeek[0] === date.getDay()
-                && start >= minutesOf(r.startTime)
-                && start + avail.duration <= minutesOf(r.endTime);
+        if (!block || start + duration > minutesOf(block.endTime)) {
+            return 'That time is outside ' + (avail.doctor || 'the doctor') + "'s hours ("
+                + (avail.summary || 'none set') + '). A ' + duration + '-minute session must fit within them.';
+        }
+        var facility = avail.facilities[block.facility];
+        if (avail.patientBooking && facility && !facility.online) {
+            return (avail.doctor || 'The doctor') + " doesn't take online bookings at " + facility.name
+                + '. Please call ' + (facility.phone || 'the clinic') + ' to book.';
+        }
+        return null;
+    }
+
+    // "At Nairobi Hospital (address) · 30 minutes · KES 3,500" in the booking form
+    function describePlace(date) {
+        var block = blockAt(date);
+        var facility = block && avail.facilities[block.facility];
+        if (!facility) {
+            $('#appointment-facility').addClass('d-none');
+            return;
+        }
+        var text = 'At ' + facility.name + (facility.address ? ' (' + facility.address + ')' : '')
+            + ' · ' + block.duration + ' minutes' + (facility.fee ? ' · ' + facility.fee : '');
+        $('#appointment-facility').removeClass('d-none').text(text).css('border-left-color', facility.color);
+    }
+
+    // Several facilities: a colour key, and a filter to show one at a time. Events carry a
+    // "fac-<id>" class and the others are hidden with a style rule, so refetching keeps the filter.
+    var filterStyle = document.createElement('style');
+    document.head.appendChild(filterStyle);
+    var facilityIds = avail ? Object.keys(avail.facilities) : [];
+    if (facilityIds.length > 1 && document.getElementById('facility-filter')) {
+        var select = $('#facility-filter').removeClass('d-none').find('select');
+        facilityIds.forEach(function (id) {
+            $('<option>').val(id).text(avail.facilities[id].name).appendTo(select);
         });
-        return fits ? null : 'That time is outside ' + (avail.doctor || 'the doctor') + "'s hours ("
-            + (avail.summary || 'none set') + '). A ' + avail.duration + '-minute session must fit within them.';
+        select.on('change', function () {
+            var shown = this.value;
+            filterStyle.textContent = shown ? facilityIds.filter(function (id) { return id !== shown; }).map(function (id) {
+                return '#calendar .fac-' + id + ' { display: none; }';
+            }).join('\n') : '';
+        });
+        var legend = $('#facility-legend').removeClass('d-none');
+        facilityIds.forEach(function (id) {
+            var f = avail.facilities[id];
+            $('<span class="me-3 small text-nowrap">')
+                .append($('<span class="d-inline-block rounded-circle me-1">').css({ width: '.7rem', height: '.7rem', background: f.color }))
+                .append(document.createTextNode(f.name + ' · ' + f.duration + ' min' + (f.fee ? ' · ' + f.fee : '') + (f.online ? '' : ' · no online booking')))
+                .appendTo(legend);
+        });
     }
 
     var calendar = new FullCalendar.Calendar(calendarEl, {
@@ -72,8 +129,9 @@
             center: 'title',
             right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
         },
-        // Existing appointments, plus holidays and time off as shaded background
-        eventSources: [fetchCalendarEvents, rules.blocked],
+        // Existing appointments, holidays and time off as shaded background, and the facility of
+        // each block of hours in its colour
+        eventSources: [fetchCalendarEvents, rules.blocked, rules.facilityBlocks || []],
         selectable: !rules.readOnly,
         editable: !rules.readOnly,
         // Appointments keep the length they were booked with: they can be moved, not resized
@@ -95,6 +153,7 @@
             }
             $('#appointments-date').val(localDate(info.date));
             $('#appointments-time').val(localTime(info.date));
+            describePlace(info.date);
             $('#appointmentModal')
                 .on('hidden.bs.modal', function () { location.reload(); })
                 .modal('show');

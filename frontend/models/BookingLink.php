@@ -17,6 +17,7 @@ use yii\helpers\Url;
  * @property int $id
  * @property string $token_hash
  * @property int $consultant_id consultant.id
+ * @property int|null $facility_id the facility whose hours it offers
  * @property string $recipient_name
  * @property string|null $recipient_phone
  * @property string|null $recipient_email
@@ -52,7 +53,7 @@ class BookingLink extends ActiveRecord
     /**
      * Creates a link and returns it with its plain token, which is never stored.
      *
-     * @param array $attributes consultant_id, recipient_*, from_date, to_date, day_start, day_end
+     * @param array $attributes consultant_id, facility_id, recipient_*, from_date, to_date, day_start, day_end
      * @return array [BookingLink, string token]
      */
     public static function issue(array $attributes)
@@ -118,6 +119,19 @@ class BookingLink extends ActiveRecord
         return $this->hasOne(Consultant::class, ['id' => 'consultant_id']);
     }
 
+    public function getFacility()
+    {
+        return $this->hasOne(Facility::class, ['id' => 'facility_id']);
+    }
+
+    /**
+     * Length of a session booked through the link: the consultant's length at its facility.
+     */
+    public function getSessionMinutes()
+    {
+        return $this->consultant->getSessionMinutes($this->facility_id);
+    }
+
     public function getSender()
     {
         return $this->hasOne(User::class, ['id' => 'created_by']);
@@ -140,9 +154,10 @@ class BookingLink extends ActiveRecord
     }
 
     /**
-     * Free start times the link offers: inside the consultant's opening hours and the link's daily
-     * window, in the future, and clear of other appointments (each by its own length), time off and
-     * public holidays. Slots step by the consultant's session length from each opening time.
+     * Free start times the link offers: inside the consultant's opening hours at the link's
+     * facility and the link's daily window, in the future, and clear of other appointments (each by
+     * its own length), time off and public holidays. Slots step by the session length there from
+     * each opening time.
      *
      * @return array Y-m-d => list of 'H:i' start times (dates without free slots have an empty list)
      */
@@ -154,6 +169,7 @@ class BookingLink extends ActiveRecord
             'to' => $this->to_date,
             'dayStart' => $this->day_start,
             'dayEnd' => $this->day_end,
+            'facilityId' => $this->facility_id,
         ]))->find();
     }
 

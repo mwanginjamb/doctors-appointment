@@ -156,7 +156,7 @@ class BookingServiceTest extends \Codeception\Test\Unit
     public function testRescheduleKeepsTheBookedLength()
     {
         $appointment = $this->book('10:00');
-        $this->consultant->updateAttributes(['appointment_session_duration' => 60]);
+        $this->setSessionMinutes(60);
 
         $this->assertTrue((new BookingService())->reschedule($appointment, $this->date, '11:00', true), json_encode($appointment->errors));
 

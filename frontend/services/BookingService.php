@@ -5,6 +5,7 @@ namespace frontend\services;
 use frontend\components\FrontDesk;
 use frontend\models\Appointments;
 use frontend\models\Consultant;
+use frontend\models\ConsultantFacility;
 use frontend\models\ConsultantTimeOff;
 use frontend\models\PublicHoliday;
 use Yii;
@@ -92,9 +93,10 @@ class BookingService extends BaseObject
      * Why the appointment's slot cannot be booked, or null when it can. Rules are checked in order
      * and the first problem is returned.
      *
-     * Also settles the appointment's length (a new booking, or one moved to another consultant,
-     * takes that consultant's current length; a moved one keeps its own) and normalises its time to
-     * H:i:s.
+     * Also settles where and how long the appointment is. Its facility is the one whose block of
+     * the consultant's hours the start falls in. A new booking, or one moved to another consultant
+     * or facility, takes the length and fee set for that consultant at that facility; one moved
+     * within the same facility keeps its own. The time is normalised to H:i:s.
      *
      * @return string|null
      */
@@ -110,18 +112,69 @@ class BookingService extends BaseObject
             return Yii::t('app', 'Invalid appointment time.');
         }
 
-        if ($appointment->isNewRecord || $appointment->isAttributeChanged('consultant_id', false) || !$appointment->duration_minutes) {
-            $appointment->duration_minutes = $appointment->consultant
-                ? $appointment->consultant->getSessionMinutes()
+        $consultant = $appointment->consultant;
+        $consultantChanged = $appointment->isNewRecord || $appointment->isAttributeChanged('consultant_id', false);
+        $facilityChanged = $this->settleFacility($appointment, $startTs);
+        $engagement = $consultant && $appointment->facility_id ? $consultant->getEngagement($appointment->facility_id) : null;
+
+        if ($consultantChanged || $facilityChanged || !$appointment->duration_minutes) {
+            $appointment->duration_minutes = $consultant
+                ? $consultant->getSessionMinutes($appointment->facility_id)
                 : Appointments::defaultSessionMinutes();
+        }
+        if ($consultantChanged || $facilityChanged) {
+            $appointment->fee = $engagement ? $engagement->fee : null;
         }
         $endTs = $startTs + $appointment->getDurationMinutes() * 60;
         $appointment->time = date('H:i:s', $startTs);
+        $clinicSide = $appointment->skipNotice || $this->isClinicSide($appointment);
 
         return $this->startMarkProblem($startTs)
-            ?? $this->timingProblem($startTs, $appointment->skipNotice || $this->isClinicSide($appointment))
-            ?? $this->availabilityProblem($appointment->consultant, $startTs, $endTs)
+            ?? $this->timingProblem($startTs, $clinicSide)
+            ?? $this->availabilityProblem($consultant, $startTs, $endTs)
+            ?? $this->onlineBookingProblem($engagement, $clinicSide || $appointment->changedByPatient, $consultant)
             ?? $this->overlapProblem($appointment->consultant_id, $startTs, $endTs, $appointment->id);
+    }
+
+    /**
+     * Sets the appointment's facility to the one whose block of hours its start falls in (the
+     * consultant can only be at one place at a time, so the time decides it). Left as it is when
+     * the start is outside the consultant's hours: availabilityProblem() then refuses the slot.
+     *
+     * @return bool whether the facility changed (always true for a new booking with a facility)
+     */
+    private function settleFacility(Appointments $appointment, $startTs)
+    {
+        $consultant = $appointment->consultant;
+        $range = $consultant ? $consultant->rangeAt(date('Y-m-d', $startTs), date('H:i:s', $startTs)) : null;
+        if ($range === null) {
+            return false;
+        }
+        $old = $appointment->isNewRecord ? null : $appointment->getOldAttribute('facility_id');
+        $appointment->facility_id = $range[2];
+
+        return $appointment->isNewRecord || (int) $old !== (int) $range[2];
+    }
+
+    /**
+     * Patients can only book themselves where the consultant takes online bookings. The clinic
+     * (the consultant, their front desk, a booking link they sent) can always book.
+     *
+     * @param bool $clinicSide booked by the clinic, or moved by the patient from their self-service
+     *                         link (SlotFinder only offers it slots that are open online)
+     */
+    public function onlineBookingProblem(?ConsultantFacility $engagement, $clinicSide, ?Consultant $consultant = null)
+    {
+        if ($engagement === null || $clinicSide || $engagement->isBookingOpen()) {
+            return null;
+        }
+        $facility = $engagement->facility;
+
+        return Yii::t('app', "{doctor} doesn't take online bookings at {facility}. Please call {phone} to book.", [
+            'doctor' => $consultant->names ?? Yii::t('app', 'The doctor'),
+            'facility' => $facility->name ?? Yii::t('app', 'this facility'),
+            'phone' => $facility && $facility->phone ? $facility->phone : Yii::t('app', 'the clinic'),
+        ]);
     }
 
     /**
@@ -199,6 +252,13 @@ class BookingService extends BaseObject
         // The whole session must fit inside one of the consultant's opening ranges that day
         $ranges = $consultant ? $consultant->getRangesFor($date) : [];
         if (!$ranges) {
+            // Hours that day, but not running then (an engagement's dates, a facility closed)
+            if ($consultant && !empty($consultant->getBlocks()[(int) date('N', $startTs)])) {
+                return Yii::t('app', '{doctor} is not seeing patients on {date}. Please choose another day.', [
+                    'doctor' => $doctor,
+                    'date' => date('l j M', $startTs),
+                ]);
+            }
             return Yii::t('app', "{doctor} doesn't see patients on {day}s.", [
                 'doctor' => $doctor,
                 'day' => date('l', $startTs),

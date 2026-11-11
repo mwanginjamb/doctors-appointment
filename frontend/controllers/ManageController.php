@@ -104,8 +104,9 @@ class ManageController extends Controller
     }
 
     /**
-     * Free slots with the same consultant over the next selfService.rescheduleDays days (within the
-     * booking window and minimum notice), ignoring the appointment's own slot.
+     * Free slots with the same consultant at the same facility over the next
+     * selfService.rescheduleDays days (within the booking window and minimum notice), ignoring the
+     * appointment's own slot.
      */
     private function freeSlots(Appointments $appointment)
     {
@@ -117,6 +118,9 @@ class ManageController extends Controller
             'from' => date('Y-m-d'),
             'to' => date('Y-m-d', strtotime('+' . max(0, $days - 1) . ' days')),
             'excludeAppointmentId' => $appointment->id,
+            // F8: patients move within the same facility, where they can book themselves
+            'facilityId' => $appointment->facility_id,
+            'onlineOnly' => true,
             'notBefore' => time() + (int) ($params['booking.minNoticeMinutes'] ?? 0) * 60,
         ]))->find();
 

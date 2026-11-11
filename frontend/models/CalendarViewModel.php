@@ -81,6 +81,7 @@ class CalendarViewModel extends BaseObject
         return [
             'availability' => $this->availability(),
             'blocked' => $this->blockedPeriods(),
+            'facilityBlocks' => $this->facilityBlocks(),
             // Staff book walk-ins into the consultant's calendar without notice
             'noticeMinutes' => $this->booksForPatients ? 0 : (int) ($params['booking.minNoticeMinutes'] ?? 0),
             'maxDaysAhead' => (int) ($params['booking.maxDaysAhead'] ?? 90),
@@ -90,7 +91,11 @@ class CalendarViewModel extends BaseObject
     }
 
     /**
-     * Opening hours as FullCalendar business hours, and the grid settings that follow from them.
+     * Opening hours as FullCalendar business hours, the facility of each block of hours, and the
+     * grid settings that follow from them.
+     *
+     * Each block carries its facility's session length, so the page knows how long a session
+     * starting there is; the grid steps by the largest length that divides them all.
      *
      * @return array|null null when there is no consultant
      */
@@ -101,30 +106,105 @@ class CalendarViewModel extends BaseObject
             return null;
         }
 
-        $ranges = [];
-        foreach ($consultant->getWeek() as $isoDay => $dayRanges) {
-            foreach ($dayRanges as [$start, $end]) {
+        $blocks = [];
+        foreach ($consultant->getBlocks() as $isoDay => $dayRanges) {
+            foreach ($dayRanges as [$start, $end, $facilityId]) {
+                $engagement = $consultant->getEngagement($facilityId);
+                if ($engagement === null || !$engagement->facility->isActive()) {
+                    continue;
+                }
                 // FullCalendar counts days from Sunday = 0; ISO Sunday is 7
-                $ranges[] = ['daysOfWeek' => [$isoDay % 7], 'startTime' => substr($start, 0, 5), 'endTime' => substr($end, 0, 5)];
+                $blocks[] = [
+                    'daysOfWeek' => [$isoDay % 7],
+                    'startTime' => substr($start, 0, 5),
+                    'endTime' => substr($end, 0, 5),
+                    'facility' => (int) $facilityId,
+                    'duration' => (int) $engagement->session_minutes,
+                    'from' => $engagement->from_date,
+                    'to' => $engagement->to_date,
+                ];
             }
         }
+        $ranges = array_map(function ($b) {
+            return ['daysOfWeek' => $b['daysOfWeek'], 'startTime' => $b['startTime'], 'endTime' => $b['endTime']];
+        }, $blocks);
         $openDays = array_unique(array_map(function ($r) {
             return $r['daysOfWeek'][0];
         }, $ranges));
-        $minutes = $consultant->getSessionMinutes();
+
+        $facilities = [];
+        foreach ($consultant->engagements as $engagement) {
+            $facility = $engagement->facility;
+            $facilities[$facility->id] = [
+                'name' => $facility->name,
+                'color' => $facility->getColor(),
+                'address' => $facility->address ? preg_replace('/\s*\R\s*/', ', ', $facility->address) : null,
+                'phone' => $facility->phone,
+                'duration' => (int) $engagement->session_minutes,
+                'fee' => $engagement->getFeeLabel(),
+                'online' => $engagement->isBookingOpen(),
+            ];
+        }
+        $durations = array_unique(array_column($blocks, 'duration')) ?: [$consultant->getSessionMinutes()];
+        $grid = array_reduce($durations, function ($gcd, $m) {
+            for ($a = $gcd, $b = $m; $b; [$a, $b] = [$b, $a % $b]);
+            return $a;
+        }, 0);
+        $minutes = max(5, $grid);
 
         return [
             'businessHours' => $ranges,
+            'blocks' => $blocks,
+            'facilities' => $facilities,
             // Hide closed days, but never all seven (FullCalendar cannot render that)
             'hiddenDays' => $openDays ? array_values(array_diff(range(0, 6), $openDays)) : [],
             'slotMinTime' => $ranges ? min(array_column($ranges, 'startTime')) : '08:00',
             'slotMaxTime' => $ranges ? max(array_column($ranges, 'endTime')) : '17:00',
-            // Length of new bookings; the grid shows slots of this length
-            'duration' => $minutes,
+            // Length of a session outside any block (only used to explain why it cannot be booked)
+            'duration' => count($durations) === 1 ? (int) reset($durations) : $consultant->getSessionMinutes(),
             'slotDuration' => sprintf('%02d:%02d:00', intdiv($minutes, 60), $minutes % 60),
             'doctor' => $consultant->names,
             'summary' => $consultant->getHoursSummary(),
+            // Patients book themselves: refuse facilities that take no online bookings
+            'patientBooking' => $this->viewer->isPatientAccount(),
         ];
+    }
+
+    /**
+     * Each block of hours as a recurring background event in its facility's colour, so the
+     * consultant sees where they are when. Only shown when there are several facilities.
+     */
+    public function facilityBlocks()
+    {
+        $availability = $this->availability();
+        if ($availability === null || count($availability['facilities']) < 2) {
+            return [];
+        }
+
+        $events = [];
+        foreach ($availability['blocks'] as $block) {
+            $facility = $availability['facilities'][$block['facility']];
+            $event = [
+                'daysOfWeek' => $block['daysOfWeek'],
+                'startTime' => $block['startTime'],
+                'endTime' => $block['endTime'],
+                'display' => 'background',
+                'color' => $facility['color'],
+                'title' => $facility['name'],
+                'classNames' => ['facility-block', 'fac-' . $block['facility']],
+                'extendedProps' => ['facilityId' => $block['facility']],
+            ];
+            // An engagement with dates only shows between them (endRecur is exclusive)
+            if ($block['from']) {
+                $event['startRecur'] = $block['from'];
+            }
+            if ($block['to']) {
+                $event['endRecur'] = date('Y-m-d', strtotime($block['to'] . ' +1 day'));
+            }
+            $events[] = $event;
+        }
+
+        return $events;
     }
 
     /**

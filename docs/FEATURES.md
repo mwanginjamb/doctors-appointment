@@ -3,7 +3,7 @@
 The state of the doctor-appointments app as a clinic booking system: what has been built, what was
 deliberately deferred, and what is still open. Keep this file up to date when an item is done.
 
-_Last reviewed: 10 November 2026._
+_Last reviewed: 11 November 2026._
 
 ## Where it stands
 
@@ -72,6 +72,12 @@ Doing **Next up** below should bring the app to about 9.5 functionally and 8.5 t
 | T7 Audit log | An append-only `audit_log`: who (staff, patient, booking link, self-service link, system), what, which record, old → new values and IP. Records appointments, accounts, consultants, time off, holidays and booking links automatically; weekly hours, front-desk assignments, sign-ins, failed sign-ins and role changes explicitly. Passwords, keys and symptom details are never stored. Admins read it under **Audit Log**; staff see an appointment's **History**. Kept 7 years (`AUDIT_RETENTION_YEARS`), purged daily by `doctors-appointment-audit-purge.timer`. | `7820f94` |
 | F11 Consent (Kenya Data Protection Act) | A versioned privacy notice at `/site/privacy`, with the controller's details from `.env`. Consent to data processing (required) and to WhatsApp/SMS reminders (opt-in) is asked at email sign-up, on booking links, and by front desk for walk-ins (verbal consent, with who recorded it). Google/Microsoft/LinkedIn sign-ups, existing patients and everyone after a notice change are held on a consent page until they answer. Existing patients keep WhatsApp reminders until they answer (legacy carry-over). Answers are kept in an append-only `consent` table and in the audit log. Patients switch reminders and withdraw consent under **Privacy & messages**; withdrawing cancels upcoming appointments and opens an account-closure request for admins (**Closure Requests**). Staff see "consent not recorded" in patient lookup, and consent status on **System Users**. It can be switched off with `CONSENT_ENABLED=false` (outside Kenya, demos): nobody is asked, answers already given are kept, explicit "no" answers to WhatsApp/SMS still count, and admins see a warning on the dashboard. | `32f3cd5` |
 | T2 Monitoring and alerts | Errors from the website, console and queue worker go to a self-hosted GlitchTip (Sentry-compatible), with personal data scrubbed (no request data, frame arguments, contacts or link tokens). `php yii health/check` runs every 5 minutes (`doctors-appointment-health.timer`) and emails `ALERT_EMAILS` when the queue worker stalls, the reminder scheduler stops, messages keep failing, WhatsApp logs out or the database is down: once, a reminder every 6 hours, and when resolved. Each run pings a heartbeat URL (healthchecks.io), and `/health` answers `ok` for an uptime monitor. Admins see **System health** on the dashboard. | `feature/monitoring` |
+
+### Scheduling depth
+
+| Item | What it does | Branch |
+|---|---|---|
+| F8 phase 1 Multiple facilities | Admins keep a list of **Facilities** (name, address, phone, map link, taking bookings). A consultant adds the facilities they work at on **Availability**, each with its own session length, fee, online booking on or off, and optional from/to dates, and says where they are for each range of weekly hours (ranges cannot overlap across facilities). The time of a booking decides its facility, length and fee (`BookingService`); moving it to another facility takes that facility's length and fee. Patients cannot book themselves where online booking is off; the clinic can. The calendar shows each facility in its colour with a filter; booking links are issued for one facility; self-service rescheduling stays at the same facility. Confirmations, reminders and change notices carry the facility's name, address and map link. Patients' location search also matches facilities. A facility that is not listed is requested by the consultant and created or declined by an admin (**Facility Requests**); the consultant is told either way. | `feature/facilities` |
 
 ---
 
@@ -173,6 +179,32 @@ earlier are covered by the general steps: `php yii migrate`, `php yii rbac/init`
    - `sudo -u www-data php yii health/test-error` appears in GlitchTip (once SENTRY_DSN is set);
    - `curl https://<your domain>/health` prints `ok`.
 
+### F8 phase 1 Multiple facilities
+
+1. **Database:** `php yii migrate` applies `m261123_090000_create_facility_tables`. It creates `facility`
+   and `consultant_facility`, and adds `facility_id` to weekly hours, appointments and booking links
+   (and `fee` to appointments). Existing data is attached automatically: one facility per distinct
+   `consultant.facility` value (else the practice name, else "Main clinic"), each consultant engaged
+   there with their current session length, and their hours, appointments and booking links moved to it.
+   It prints how many facilities and engagements it made. It then applies
+   `m261123_100000_create_facility_request_table` (consultants' requests for unlisted facilities).
+2. **Permissions:** none new. Facilities use the existing `manageReferenceData` permission, so
+   `php yii rbac/init` is not needed for this item.
+3. **Settings (optional):** `CURRENCY` in `.env` sets the fee currency (default `KES`).
+4. **Restart:** `sudo systemctl restart doctors-appointment.target`, so the queue worker sends the new
+   reminder wording.
+5. **Tidy the facilities:** as an admin, open **Reference Data → Facilities**. Merge spellings of the
+   same place made from free-text profiles (rename one; move consultants by adding the right facility on
+   their Availability page and removing the other), and fill in addresses, phones and map links: these
+   go to patients with every confirmation and reminder. From now on, consultants request missing
+   facilities; answer them under **Reference Data → Facility Requests** (the menu shows how many wait).
+6. **Check:**
+   - a consultant's **Availability** page lists their facility under **Facilities**, and their hours
+     summary is unchanged;
+   - a new booking shows the facility on the appointment page, and the reminder text in the queue
+     includes its address;
+   - with a second facility added, the calendar shows both colours and the facility filter.
+
 ---
 
 ## Deferred
@@ -214,9 +246,89 @@ Priority: **P1** do next, **P2** soon, **P3** when there is time. Impact is the 
 |---|---|---|---|
 | F6 | Visit types with their own lengths (first consultation, review…); the unused `service_id` column is available. | P2 | |
 | F7 | Recurring appointments (the `recurring_appointment` field exists but nothing uses it). | P3 | |
-| F8 | Rooms and multiple locations. | P3 | |
-| F9 | Calendar sync (iCal / Google) for consultants. | P3 | |
+| F8 | Consultants engaged at several facilities: one calendar, hours, session lengths, fees and front desk per facility, patient history scoped to a facility. In three phases; see **F8 Multiple facilities** below. **Phase 1 done** (`feature/facilities`); phases 2 and 3 open. | P3 | |
+| F9 | Calendar sync (iCal / Google) for consultants. Builds on F8 phase 3. | P3 | |
 | F10 | Swahili translation (see **Deferred**). | P3 | |
+
+#### F8 Multiple facilities
+
+A consultant can hold engagements at several facilities (for example, a hospital on Monday and Wednesday
+mornings and a private clinic on Tuesday and Thursday afternoons) and manage them all from one calendar.
+Each facility sets its own session length and fees, and patient history is scoped to the facility it
+was made at.
+
+**Today:** a consultant has one free-text `consultant.facility`; weekly hours, time off and appointments
+carry no place (`appointments.location` and `provider_id` exist but are unused); front desk is assigned
+to a consultant, so it sees that consultant's appointments everywhere. Booking is already locked per
+consultant, so a consultant cannot be double-booked across facilities, and that stays.
+
+**Decisions taken (11 Nov 2026):**
+
+- Facilities set their own session length and fees for each consultant they engage.
+- Patient history (past appointments, outcomes, no-show record, appointment **History**) is scoped to a
+  facility. Staff at one facility see appointments at other facilities only as "busy", with no patient
+  details. Admins see every facility.
+
+##### Phase 1: facilities, engagements and booking — done
+
+Built as planned below, with these choices made while building it:
+
+- The facility is not picked separately: a block of hours belongs to one facility and blocks never
+  overlap, so the start time decides it. Every way of booking (calendar, staff, booking link,
+  self-service) gets the facility, length and fee the same way.
+- "Online booking off" stops patients booking or moving into that facility themselves; consultants,
+  their front desk and booking links they send still can. Self-service rescheduling only offers
+  facilities open to online booking.
+- Only admins create facilities; consultants choose from the list (decided 11 Nov 2026). A facility
+  that is not listed is requested: "Not listed: request it…" on the list opens a request form (name,
+  address, phone, map link, note). Admins answer under **Reference Data → Facility Requests** with only
+  **Create** (check the details, list the facility, and add it to the consultant's facilities with
+  their usual length) or **Decline** (optional reason). The consultant is told by email and WhatsApp
+  and sees the answer on their Availability page. A listed name, or one they already asked for, cannot
+  be requested; at most 5 requests wait per consultant.
+- A new consultant's profile facility is still matched by name or created, so self-registration is
+  not blocked.
+- `consultant.facility` and `consultant.appointment_session_duration` are kept: the first names a new
+  consultant's first facility, the second is the default length for facilities they add.
+- The calendar grid steps by the largest length that divides every facility's length (30 and 45 → 15),
+  never under 5 minutes, so every facility's start times fall on a grid line (left to Claude's
+  discretion, 11 Nov 2026).
+
+| Part | What it does |
+|---|---|
+| Facilities | A `facility` table (name, address, phone, map link, active). Admins manage them. |
+| Engagements | `consultant_facility`: consultant, facility, from and to dates, online booking on or off, session length and fee for that facility. Replaces `consultant.facility`. |
+| Hours per facility | `consultant_working_hours` gains `facility_id`; each block of hours belongs to one engagement. The Availability page gets a facility for each row, and blocks may not overlap across facilities. |
+| Slots and booking | `SlotFinder` / `BookingService` label each free slot with its facility and use that facility's session length. `appointments.facility_id` is stored on booking (replacing the free-text `location`), and the fee in force is recorded on the appointment. Patients choose a facility first or see slots grouped by facility. |
+| Links | Booking links are issued for one facility. Self-service rescheduling offers slots at the same facility only. |
+| Calendar | The consultant's calendar shows all their facilities in one view, colour-coded, with a facility filter. |
+| Messages | Confirmations, reminders and change notices carry the facility name, address and map link. |
+| Migration | One `facility` per distinct `consultant.facility` value; each consultant gets an engagement there with their current session length; existing hours and past appointments are attached to it. Single-facility consultants notice no change. |
+
+##### Phase 2: front desk, patient history and reporting per facility
+
+| Part | What it does |
+|---|---|
+| Front desk per facility | Front desk is assigned to a facility (and, within it, to consultants). A new RBAC rule `assignedFacility` sits next to `assignedConsultant`; front desk books only into their facility's blocks. |
+| History scoped to a facility | Patient lookup, no-show history, outcomes and appointment **History** only show records from the viewer's facility. Other facilities' appointments show as "busy" on the calendar. The audit log records the facility. |
+| Consent | The privacy notice names the facility as a place data is processed; no change to how consent is asked. |
+| Reporting | The dashboard and appointments board can be filtered per facility: sessions, attendance, no-shows and fees due per facility, for settling up with each one. |
+| Travel buffer | An optional gap (for example 30 minutes) between back-to-back blocks at different facilities, so the last slot before a move is not offered. |
+| Facility closures | A facility can close days of its own on top of the public holiday list. Consultant time off stays consultant-wide. |
+
+##### Phase 3: rotations and sync
+
+| Part | What it does |
+|---|---|
+| Rotations | Hours with effective-from and to dates, and alternate-week patterns (week A / week B), for rotating engagements. |
+| One-off sessions | A dated session at a facility outside the weekly pattern (for example a Saturday outreach clinic). |
+| External engagements | A "busy at <facility>" block for work at facilities that do not use the app, shown as such instead of as time off. |
+| Calendar sync | F9: an iCal feed per consultant, each event with its facility as the location (patient names left out by default). |
+
+**Needs before starting:** the list of facilities and which consultants work where; how fees are set and
+who may change them (consultant, facility admin or clinic admin); whether a consultant sees their own
+patients' history across facilities (assumed **no**, following the scoping above, unless decided
+otherwise); and whether facilities need their own admins.
 
 #### Compliance (Kenya Data Protection Act)
 

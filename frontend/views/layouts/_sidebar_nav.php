@@ -49,6 +49,13 @@ $menuItems = [
         'icon' => 'dataset',
         'group' => true,
         'children' => [
+            ['label' => 'Facilities', 'url' => ['/facility/index'], 'icon' => 'local_hospital', 'match' => ['facility/index', 'facility/create', 'facility/update']],
+            [
+                'label' => 'Facility Requests' . (($n = $user->can(RbacHelper::PERM_MANAGE_REFERENCE_DATA) ? \frontend\models\FacilityRequest::pendingCount() : 0) ? " ($n)" : ''),
+                'url' => ['/facility/requests'],
+                'icon' => 'add_location_alt',
+                'match' => ['facility/requests', 'facility/create-from-request'],
+            ],
             ['label' => 'Specializations', 'url' => ['/specialization/index'], 'icon' => 'medical_services', 'match' => ['specialization']],
             ['label' => 'Genders', 'url' => ['/gender/index'], 'icon' => 'wc', 'match' => ['gender']],
             ['label' => 'Insurance Providers', 'url' => ['/provider/index'], 'icon' => 'health_and_safety', 'match' => ['provider']],

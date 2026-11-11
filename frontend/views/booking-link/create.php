@@ -32,6 +32,14 @@ $this->params['breadcrumbs'][] = $this->title;
     <p class="form-text mt-0">The link goes by WhatsApp to the number and by email to the address; give at least one. The booking stays tied to this contact.</p>
 
     <h2 class="h6 fw-bold mt-4">Slots to offer</h2>
+    <?php $facilities = $form->facilityChoices(); ?>
+    <?php if (count($facilities) > 1): ?>
+        <?= $f->field($form, 'facility_id')->dropDownList($facilities, ['prompt' => ''])
+            ->hint('The link offers the free slots at this facility, with its session length and fee.') ?>
+    <?php else: ?>
+        <?= Html::activeHiddenInput($form, 'facility_id') ?>
+        <?= $f->field($form, 'facility_id', ['template' => '{error}'])->label(false) ?>
+    <?php endif; ?>
     <div class="row g-2">
         <div class="col-6"><?= $f->field($form, 'from_date')->input('date', ['min' => date('Y-m-d')]) ?></div>
         <div class="col-6"><?= $f->field($form, 'to_date')->input('date', ['min' => date('Y-m-d')]) ?></div>

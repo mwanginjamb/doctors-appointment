@@ -13,6 +13,8 @@ return [
     'booking.defaultSessionMinutes' => (int) round(env('DURATION', 1800) / 60),
     // Lengths a consultant can choose on the Availability page (minutes)
     'booking.sessionLengths' => [10, 15, 20, 30, 45, 60, 90, 120],
+    // Currency of consultation fees, set per consultant and facility (F8)
+    'currency' => env('CURRENCY', 'KES'),
     // Booking links (remote walk-ins): minutes a link stays valid after it is created, and the
     // longest date range it may offer
     'bookingLink.ttlMinutes' => (int) env('BOOKING_LINK_TTL_MINUTES', 20),

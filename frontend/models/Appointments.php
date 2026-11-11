@@ -25,7 +25,9 @@ use yii\behaviors\TimestampBehavior;
  * @property int|null $speciality_id
  * @property int|null $service_id
  * @property int|null $provider_id
- * @property string|null $location
+ * @property string|null $location unused free text; see $facility_id
+ * @property int|null $facility_id where it takes place; set by BookingService from the consultant's hours
+ * @property string|null $fee the consultant's fee at the facility when it was booked
  * @property int|null $recurring_appointment
  * @property int|null $walk_in_appointment
  * @property string|null $symptoms_brief
@@ -66,6 +68,8 @@ class Appointments extends \yii\db\ActiveRecord
         'outcome_at',
         'outcome_by',
         'booking_link_id',
+        'facility_id',
+        'fee',
     ];
 
     /** Days during which a recorded outcome can still be changed (attended <-> no-show). */
@@ -116,6 +120,8 @@ class Appointments extends \yii\db\ActiveRecord
             [['status'], 'string', 'max' => 20],
             [['cancellation_note'], 'string', 'max' => 500],
             [['duration_minutes'], 'integer', 'min' => 5, 'max' => 240],
+            [['facility_id'], 'integer'],
+            [['fee'], 'number', 'min' => 0],
             [['status'], 'in', 'range' => array_keys(self::getStatusList())],
             [['status'], 'default', 'value' => self::STATUS_SCHEDULED],
             [['date', 'time', 'patient_id', 'consultant_id'], 'required'],
@@ -191,7 +197,7 @@ class Appointments extends \yii\db\ActiveRecord
             return (int) $this->duration_minutes;
         }
 
-        return $this->consultant ? $this->consultant->getSessionMinutes() : self::defaultSessionMinutes();
+        return $this->consultant ? $this->consultant->getSessionMinutes($this->facility_id) : self::defaultSessionMinutes();
     }
 
     /** The clinic-wide session length, for consultants who have not chosen one. */
@@ -282,6 +288,28 @@ class Appointments extends \yii\db\ActiveRecord
         return $this->save(false);
     }
 
+    public function getFacility()
+    {
+        return $this->hasOne(Facility::class, ['id' => 'facility_id']);
+    }
+
+    /**
+     * Where it is, for messages: the facility's name, address and map link ("Nairobi Hospital,
+     * Argwings Kodhek Rd. Map: https://…"); the clinic's name for appointments without a facility.
+     */
+    public function getPlaceText()
+    {
+        return $this->facility ? $this->facility->getDirections() : Yii::$app->name;
+    }
+
+    /**
+     * The fee recorded when it was booked, e.g. "KES 3,500"; null when none was set.
+     */
+    public function getFeeLabel()
+    {
+        return ConsultantFacility::formatFee($this->fee);
+    }
+
     public function getBookingLink()
     {
         return $this->hasOne(BookingLink::class, ['id' => 'booking_link_id']);
@@ -361,6 +389,8 @@ class Appointments extends \yii\db\ActiveRecord
             'consultant_id' => Yii::t('app', 'Consultant ID'),
             'status' => Yii::t('app', 'Status'),
             'cancellation_note' => Yii::t('app', 'Cancellation note'),
+            'facility_id' => Yii::t('app', 'Facility'),
+            'fee' => Yii::t('app', 'Fee'),
         ];
     }
 

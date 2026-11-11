@@ -225,7 +225,7 @@ class RemoteWalkInForm extends Model
         $when = date('l j M Y \a\t H:i', strtotime($this->appointment->date . ' ' . $this->appointment->time));
         Yii::$app->queue->push(new SendWhatsappTextJob([
             'phone' => $phone,
-            'text' => "Hello {$this->full_name}, your appointment with {$doctor} at " . Yii::$app->name . " is booked for {$when}. "
+            'text' => "Hello {$this->full_name}, your appointment with {$doctor} at " . $this->appointment->getPlaceText() . " is booked for {$when}. "
                 . 'Please arrive 15 minutes early. To change or cancel it, contact the clinic.',
         ]));
     }

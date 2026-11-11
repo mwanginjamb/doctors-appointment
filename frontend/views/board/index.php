@@ -162,6 +162,17 @@ $today = date('Y-m-d');
                 },
             ],
             [
+                'label' => 'Facility',
+                'format' => 'raw',
+                'value' => function (Appointments $model) {
+                    if (!$model->facility) {
+                        return '';
+                    }
+                    return '<span class="d-inline-block rounded-circle me-1" style="width:.6rem;height:.6rem;background:' . Html::encode($model->facility->getColor()) . '"></span>'
+                        . Html::encode($model->facility->name);
+                },
+            ],
+            [
                 'label' => 'Patient',
                 'format' => 'raw',
                 'value' => function (Appointments $model) {

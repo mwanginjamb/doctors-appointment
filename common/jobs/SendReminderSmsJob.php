@@ -86,10 +86,12 @@ class SendReminderSmsJob extends BaseObject implements \yii\queue\JobInterface
         $consultantName = $appointment->consultant->names ?? 'Doctor';
 
         if ($role === 'consultant') {
-            return "Hello {$consultantName}, this is a reminder that you have an appointment with {$patientName} scheduled for {$appointmentDate} at {$appointmentTime} (in {$timeUnit}).";
+            // F8: consultants working at several facilities need to know where
+            $where = $appointment->facility ? " at {$appointment->facility->name}" : '';
+            return "Hello {$consultantName}, this is a reminder that you have an appointment with {$patientName}{$where} scheduled for {$appointmentDate} at {$appointmentTime} (in {$timeUnit}).";
         }
 
-        return "Hello {$patientName}, this is a reminder that your appointment with {$consultantName} is scheduled for {$appointmentDate} at {$appointmentTime} (in {$timeUnit}). Please arrive 15 minutes early."
+        return "Hello {$patientName}, this is a reminder that your appointment with {$consultantName} is scheduled for {$appointmentDate} at {$appointmentTime} (in {$timeUnit}), at {$appointment->getPlaceText()}. Please arrive 15 minutes early."
             . self::manageNote($appointment);
     }
 

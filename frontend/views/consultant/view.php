@@ -67,8 +67,17 @@ $this->params['breadcrumbs'][] = $this->title;
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <div class="border-top pt-3">
-                                <p class="text-muted small mb-1">Facility Name</p>
-                                <p class="fw-medium"><?= Html::encode($model->facility) ?></p>
+                                <p class="text-muted small mb-1">Facilities</p>
+                                <?php foreach ($model->getHoursByFacility() as $row): ?>
+                                    <?php $engagement = $row['engagement']; ?>
+                                    <div class="mb-2">
+                                        <?= $this->render('//facility/_place', ['facility' => $engagement->facility, 'fallback' => null]) ?>
+                                        <div class="small text-muted">
+                                            <?= Html::encode($row['summary'] ?? 'No hours yet') ?>
+                                            · <?= (int) $engagement->session_minutes ?> min<?= $engagement->getFeeLabel() ? ' · ' . Html::encode($engagement->getFeeLabel()) : '' ?>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
                             </div>
                         </div>
                         <div class="col-md-6 mb-3">

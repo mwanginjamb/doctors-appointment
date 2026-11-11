@@ -4,6 +4,7 @@ namespace frontend\tests\functional;
 
 use frontend\models\Appointments;
 use frontend\models\Consultant;
+use frontend\models\ConsultantFacility;
 use frontend\models\ConsultantWorkingHours;
 use frontend\tests\BookingDataTrait;
 use frontend\tests\FunctionalTester;
@@ -111,14 +112,17 @@ class AvailabilityCest
     public function consultantSetsTheSessionLengthForNewBookings(FunctionalTester $I)
     {
         $booked = $this->book('10:00');
+        $engagement = ConsultantFacility::findOne(['consultant_id' => $this->consultant->id]);
         $I->amLoggedInAs($this->consultantUser);
         $I->amOnRoute('availability/index');
-        $I->seeOptionIsSelected('#session-length', '30 minutes');
+        $I->seeElement('.engagement-form select[name="ConsultantFacility[session_minutes]"] option[value="30"][selected]');
 
-        $I->submitForm('#session-length-form', ['minutes' => '45']);
+        $I->postAsLink(['/availability/update-facility', 'id' => $engagement->id], [
+            'ConsultantFacility' => ['session_minutes' => '45', 'fee' => '', 'booking_open' => '1', 'from_date' => '', 'to_date' => ''],
+        ]);
 
-        $I->see('New bookings now last 45 minutes.');
-        $I->assertSame(45, Consultant::findOne($this->consultant->id)->getSessionMinutes());
+        $I->see('Main clinic saved.');
+        $I->assertSame(45, Consultant::findOne($this->consultant->id)->getSessionMinutes($engagement->facility_id));
         $I->assertSame(30, (int) Appointments::findOne($booked->id)->duration_minutes, 'already booked: unchanged');
 
         $I->amOnRoute('appointments/calendar');
@@ -127,21 +131,27 @@ class AvailabilityCest
 
     public function onlyListedSessionLengthsAreAccepted(FunctionalTester $I)
     {
+        $engagement = ConsultantFacility::findOne(['consultant_id' => $this->consultant->id]);
         $I->amLoggedInAs($this->consultantUser);
         $I->amOnRoute('availability/index');
-        $I->postAsLink(['/availability/session-length'], ['minutes' => '37']);
+        $I->postAsLink(['/availability/update-facility', 'id' => $engagement->id], [
+            'ConsultantFacility' => ['session_minutes' => '37'],
+        ]);
 
         $I->see('Choose one of the listed session lengths.');
-        $I->assertSame(30, Consultant::findOne($this->consultant->id)->getSessionMinutes());
+        $I->assertSame(30, Consultant::findOne($this->consultant->id)->getSessionMinutes($engagement->facility_id));
     }
 
     public function adminSetsAnotherConsultantsSessionLength(FunctionalTester $I)
     {
+        $engagement = ConsultantFacility::findOne(['consultant_id' => $this->consultant->id]);
         $I->amLoggedInAs($this->admin);
         $I->amOnRoute('availability/index', ['cid' => $this->consultant->id]);
-        $I->submitForm('#session-length-form', ['minutes' => '20']);
+        $I->postAsLink(['/availability/update-facility', 'id' => $engagement->id, 'cid' => $this->consultant->id], [
+            'ConsultantFacility' => ['session_minutes' => '20'],
+        ]);
 
-        $I->assertSame(20, Consultant::findOne($this->consultant->id)->getSessionMinutes());
+        $I->assertSame(20, Consultant::findOne($this->consultant->id)->getSessionMinutes($engagement->facility_id));
         $I->seeInCurrentUrl('cid=' . $this->consultant->id);
     }
 

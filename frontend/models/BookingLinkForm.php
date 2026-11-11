@@ -9,8 +9,8 @@ use yii\base\Model;
 
 /**
  * Staff form to send a booking link to a potential patient: who it is for (a phone for WhatsApp
- * and/or an email), and which slots it offers (a date range of at most bookingLink.maxDays days,
- * optionally only certain hours each day).
+ * and/or an email), and which slots it offers (at one of the consultant's facilities, over a date
+ * range of at most bookingLink.maxDays days, optionally only certain hours each day).
  */
 class BookingLinkForm extends Model
 {
@@ -21,6 +21,8 @@ class BookingLinkForm extends Model
     public $to_date;
     public $day_start;
     public $day_end;
+    /** @var int|null facility.id; defaults to the consultant's only facility */
+    public $facility_id;
 
     /** @var Consultant the consultant the link books with; set by the controller */
     public $consultant;
@@ -34,6 +36,25 @@ class BookingLinkForm extends Model
         parent::init();
         $this->from_date = $this->from_date ?: date('Y-m-d');
         $this->to_date = $this->to_date ?: date('Y-m-d', strtotime('+' . (self::maxDays() - 1) . ' days'));
+        $choices = $this->consultant ? $this->facilityChoices() : [];
+        if ($this->facility_id === null && count($choices) === 1) {
+            $this->facility_id = (int) key($choices);
+        }
+    }
+
+    /**
+     * The consultant's facilities that are taking bookings, as id => name.
+     */
+    public function facilityChoices()
+    {
+        $choices = [];
+        foreach ($this->consultant->engagements as $engagement) {
+            if ($engagement->facility->isActive()) {
+                $choices[(int) $engagement->facility_id] = $engagement->facility->name;
+            }
+        }
+
+        return $choices;
     }
 
     public static function maxDays()
@@ -47,7 +68,11 @@ class BookingLinkForm extends Model
 
         return [
             [['recipient_name', 'recipient_phone', 'recipient_email', 'day_start', 'day_end'], 'trim'],
-            [['recipient_name', 'from_date', 'to_date'], 'required'],
+            [['recipient_name', 'from_date', 'to_date', 'facility_id'], 'required'],
+            [['facility_id'], 'integer'],
+            [['facility_id'], 'in', 'range' => function () {
+                return array_keys($this->facilityChoices());
+            }, 'message' => Yii::t('app', 'Choose one of the facilities listed.')],
             [['recipient_name'], 'string', 'min' => 2, 'max' => 150],
             [['recipient_phone', 'recipient_email', 'day_start', 'day_end'], 'default', 'value' => null],
             [['recipient_phone'], 'match', 'pattern' => '/^\+?[0-9][0-9 ]{8,16}$/', 'message' => $phoneMessage],
@@ -80,6 +105,7 @@ class BookingLinkForm extends Model
             'to_date' => Yii::t('app', 'to'),
             'day_start' => Yii::t('app', 'Only from (optional)'),
             'day_end' => Yii::t('app', 'until'),
+            'facility_id' => Yii::t('app', 'Facility'),
         ];
     }
 
@@ -132,6 +158,7 @@ class BookingLinkForm extends Model
 
         $attributes = [
             'consultant_id' => $this->consultant->id,
+            'facility_id' => (int) $this->facility_id,
             'recipient_name' => $this->recipient_name,
             'recipient_phone' => $this->getNormalizedPhone(),
             'recipient_email' => $this->recipient_email,
@@ -145,7 +172,10 @@ class BookingLinkForm extends Model
         $preview = new BookingLink($attributes);
         $preview->populateRelation('consultant', $this->consultant);
         if (!array_filter($preview->openSlots())) {
-            $this->addError('to_date', Yii::t('app', '{doctor} has no free slot in that range. Choose other days or hours.', ['doctor' => $this->consultant->names]));
+            $this->addError('to_date', Yii::t('app', '{doctor} has no free slot at {facility} in that range. Choose other days or hours.', [
+                'doctor' => $this->consultant->names,
+                'facility' => $this->facilityChoices()[(int) $this->facility_id],
+            ]));
             return false;
         }
 
@@ -165,7 +195,8 @@ class BookingLinkForm extends Model
             ? date('D j M', strtotime($this->from_date))
             : date('D j M', strtotime($this->from_date)) . ' – ' . date('D j M', strtotime($this->to_date));
         $text = "Hello {$this->recipient_name},\n\n"
-            . "{$sender} from " . Yii::$app->name . " has invited you to book an appointment with {$this->consultant->names} ({$range}).\n\n"
+            . "{$sender} from " . Yii::$app->name . " has invited you to book an appointment with {$this->consultant->names}"
+            . ' at ' . $this->link->facility->getDirections() . " ({$range}).\n\n"
             . 'Choose a time using the link below. It works for ' . BookingLink::ttlMinutes() . " minutes, until {$expires}.";
 
         if ($this->link->recipient_phone) {

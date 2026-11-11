@@ -75,9 +75,21 @@ class ConsultantSearch extends Consultant
         $query->andFilterWhere(['like', 'consultant.names', $this->names])
             ->andFilterWhere(['like', 'license_number', $this->license_number])
             ->andFilterWhere(['like', 'kmpdc_registration_number', $this->kmpdc_registration_number])
-            ->andFilterWhere(['like', 'facility', $this->facility])
-            ->andFilterWhere(['like', 'physical_address', $this->physical_address])
             ->andFilterWhere(['like', 'practice_type', $this->practice_type]);
+
+        // F8: a facility, or a location, also matches the facilities the consultant works at
+        if ((string) $this->facility !== '') {
+            $query->andWhere(['or',
+                ['like', 'consultant.facility', $this->facility],
+                ['consultant.id' => $this->engagedAt(['like', 'f.name', $this->facility])],
+            ]);
+        }
+        if ((string) $this->physical_address !== '') {
+            $query->andWhere(['or',
+                ['like', 'consultant.physical_address', $this->physical_address],
+                ['consultant.id' => $this->engagedAt(['or', ['like', 'f.name', $this->physical_address], ['like', 'f.address', $this->physical_address]])],
+            ]);
+        }
 
         return $dataProvider;
     }
@@ -122,5 +134,17 @@ class ConsultantSearch extends Consultant
             ['in', 'consultant.id', ConsultantSubSpeciality::find()->select('consultant_id')->where(['like', 'name', $term])],
             ['like', 'consultant.speciality', $term],
         ]);
+    }
+
+    /**
+     * Ids of consultants engaged at a facility matching $condition (on facility alias "f").
+     */
+    private function engagedAt(array $condition)
+    {
+        return ConsultantFacility::find()
+            ->alias('cf')
+            ->select('cf.consultant_id')
+            ->innerJoin(Facility::tableName() . ' f', 'f.id = cf.facility_id')
+            ->where($condition);
     }
 }

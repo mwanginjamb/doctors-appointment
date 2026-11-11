@@ -62,7 +62,7 @@ class ApiController extends Controller
 
         // Which calendar this is depends on the account type; who may see a staff calendar, on permissions
         if ($user->isPatientAccount()) {
-            $appointments = Appointments::find()->where(['patient_id' => $user->id])->with('consultant')->all();
+            $appointments = Appointments::find()->where(['patient_id' => $user->id])->with(['consultant', 'facility'])->all();
 
             // The consultant being booked (stored by appointments/calendar), else the patient's latest consultant
             $consultantUserId = null;
@@ -85,7 +85,7 @@ class ApiController extends Controller
         } elseif ($user->isConsultantAccount()) {
             $appointments = Appointments::find()
                 ->where(['or', ['consultant_id' => $user->id], ['created_by' => $user->id]])
-                ->with(['consultant', 'patient'])
+                ->with(['consultant', 'patient', 'facility'])
                 ->all();
         } elseif (FrontDesk::isStaff()) {
             // The consultant whose calendar staff opened from the appointments board
@@ -93,7 +93,7 @@ class ApiController extends Controller
             if ($consultant && (Yii::$app->user->can(RbacHelper::PERM_VIEW_ALL_APPOINTMENTS) || FrontDesk::canBookFor($consultant->user_id))) {
                 $appointments = Appointments::find()
                     ->where(['consultant_id' => $consultant->user_id])
-                    ->with(['consultant', 'patient'])
+                    ->with(['consultant', 'patient', 'facility'])
                     ->all();
             }
         }
@@ -107,6 +107,13 @@ class ApiController extends Controller
                 'title' => $patientName . ' Appointment with ' . $consultantName,
                 'description' => ' Subject: ' . mb_substr((string) $app->symptoms_brief, 0, 200),
             ];
+            // F8: where it is, in the facility's colour; the class lets the page filter by facility
+            if ($app->facility) {
+                $event['title'] .= ' · ' . $app->facility->name;
+                $event['description'] = ' At ' . $app->facility->name . '.' . $event['description'];
+                $event['color'] = $app->facility->getColor();
+                $event['classNames'] = ['fac-' . $app->facility_id];
+            }
             // Cancelled appointments stay visible as history: greyed out and not draggable
             if ($app->status === Appointments::STATUS_CANCELLED) {
                 $event['title'] = 'Cancelled: ' . $event['title'];
@@ -124,6 +131,7 @@ class ApiController extends Controller
                 'title' => 'Booked',
                 'description' => 'This slot is not available',
                 'display' => 'background',
+                'classNames' => $app->facility_id ? ['fac-' . $app->facility_id] : [],
             ] + $this->eventTimes($app);
         }
 
