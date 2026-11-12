@@ -131,6 +131,25 @@ class FrontDeskStaffForm extends Model
         ];
     }
 
+    /**
+     * A posted form with no consultants ticked sends no consultant_ids at all when the empty
+     * "nothing ticked" field does not come through: read that as "none", not "unchanged", so the
+     * last consultant can be unticked.
+     */
+    public function load($data, $formName = null)
+    {
+        $scope = $formName ?? $this->formName();
+        if (!parent::load($data, $formName)) {
+            return false;
+        }
+        $posted = $scope === '' ? $data : ($data[$scope] ?? []);
+        if (!array_key_exists('consultant_ids', (array) $posted)) {
+            $this->consultant_ids = [];
+        }
+
+        return true;
+    }
+
     public function getUser()
     {
         return $this->user;

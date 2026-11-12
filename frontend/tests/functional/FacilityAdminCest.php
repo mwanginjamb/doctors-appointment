@@ -212,6 +212,26 @@ class FacilityAdminCest
         $I->assertSame(FacilityInvitation::STATUS_ACCEPTED, FacilityInvitation::findOne($invitation->id)->status);
     }
 
+    public function changesAndClearsTheirFrontDesksConsultants(FunctionalTester $I)
+    {
+        $desk = $this->createUser('main.desk', FrontDesk::ROLE);
+        $desk->updateAttributes(['facility_id' => $this->mainId]);
+        FrontDeskAssignment::replaceFor($desk->id, [$this->consultant->id]);
+
+        $I->amLoggedInAs($this->facilityAdmin);
+        $I->amOnRoute('front-desk/update', ['id' => $desk->id]);
+        $I->uncheckOption('#front-desk-consultants input[value="' . $this->consultant->id . '"]');
+        $I->checkOption('#front-desk-consultants input[value="' . $this->other->id . '"]');
+        $I->click('Save');
+        $I->assertSame([$this->other->id], FrontDeskAssignment::consultantIdsFor($desk->id));
+
+        $I->amOnRoute('front-desk/update', ['id' => $desk->id]);
+        $I->uncheckOption('#front-desk-consultants input[value="' . $this->other->id . '"]');
+        $I->click('Save');
+        $I->see('saved.');
+        $I->assertSame([], FrontDeskAssignment::consultantIdsFor($desk->id));
+    }
+
     public function decliningAnInvitationRemovesThemFromThatFrontDesk(FunctionalTester $I)
     {
         $desk = $this->createUser('main.desk', FrontDesk::ROLE);

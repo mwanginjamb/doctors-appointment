@@ -289,6 +289,12 @@ earlier are covered by the general steps: `php yii migrate`, `php yii rbac/init`
    - **Calendar feed → Make my feed address**, then add it to a Google or Apple calendar: appointments
      appear as "Appointment · <facility>" within the provider's refresh time (often hours).
 
+### Fix: unticking a front desk's last consultant
+
+Unticking every consultant on **Front Desk Staff → Edit** and saving kept the old assignments: with
+nothing ticked, no consultant field reached the server, and the form read that as "unchanged". It now
+reads it as "none". Code only: no migration, no `rbac/init`, no restart.
+
 ---
 
 ## Deferred
