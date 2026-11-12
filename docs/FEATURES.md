@@ -79,6 +79,7 @@ Doing **Next up** below should bring the app to about 9.5 functionally and 8.5 t
 |---|---|---|
 | F8 phase 1 Multiple facilities | Admins keep a list of **Facilities** (name, address, phone, map link, taking bookings). A consultant adds the facilities they work at on **Availability**, each with its own session length, fee, online booking on or off, and optional from/to dates, and says where they are for each range of weekly hours (ranges cannot overlap across facilities). The time of a booking decides its facility, length and fee (`BookingService`); moving it to another facility takes that facility's length and fee. Patients cannot book themselves where online booking is off; the clinic can. The calendar shows each facility in its colour with a filter; booking links are issued for one facility; self-service rescheduling stays at the same facility. Confirmations, reminders and change notices carry the facility's name, address and map link. Patients' location search also matches facilities. A facility that is not listed is requested by the consultant and created or declined by an admin (**Facility Requests**); the consultant is told either way. | `feature/facilities` |
 | F8 phase 2 Front desk, history and reporting per facility | Each front-desk account works at one facility (set on **Front Desk Staff**, with the consultants who work there). They see, book, move, cancel and record outcomes only for appointments there (RBAC rule `assignedFacility` on top of `assignedConsultant`); their consultants' appointments elsewhere show on the calendar as "Booked", with no patient details. Patient history follows the viewer: a consultant sees their own appointments with a patient at every facility, never other consultants'; front desk sees their facility's; admins see everything. Admins close a facility for a day (**Facilities → Closed days**), on top of public holidays; existing bookings that day are kept and listed to move. A consultant sets a travel time between facilities on **Availability**, and the last slots before a block elsewhere are not offered. The dashboard and board filter by facility, and the dashboard has a monthly **Per facility** table (sessions, attended, no-shows, cancelled, fees due) for settling up. Audit entries record the facility. The privacy notice names the facility and its front desk. | `feature/facilities-phase2` |
+| Facility admins | A new account type that runs one facility, created by consultancy admins under **Facility Admins** (consultancy admins are unchanged). A facility admin sees every consultant's appointments at their facility only (board, calendars, patient history, numbers and the monthly per-facility report on their board), opens, cancels and records outcomes there, but does not book. They create and edit their facility's **Front Desk Staff**, and see every consultant when assigning them: ticking one who does not work there yet invites them (email and WhatsApp), and front desk can book for them once they accept by adding the facility on **Availability** with their hours, length and fee; declining removes them from that facility's front desk. Under **My Facility** they edit its address, phone and map link (not its name or whether it takes bookings) and its closed days, and they read its audit log. RBAC rule `facilityAdmin` on per-facility permissions (`manageFrontDesk`, `manageFacilityClosures`, `editFacilityContact`, `viewFacilityAuditLog`, `handleAppointment`, `recordOutcome`). The same invitations apply when a consultancy admin ticks a consultant from elsewhere. | `feature/facility-admins` |
 
 ---
 
@@ -241,6 +242,28 @@ earlier are covered by the general steps: `php yii migrate`, `php yii rbac/init`
    - the dashboard shows **Per facility** for this month and filters by facility; the audit log has a
      **Facility** filter.
 
+### Facility admins
+
+1. **Database:** `php yii migrate` applies `m261126_090000_create_facility_invitation_table` (invitations
+   to consultants to work at a facility). Facility admin accounts need no new columns: they are users
+   with `role = facility_admin` and their facility in `user.facility_id`.
+2. **Permissions:** `php yii rbac/init`. It adds the role `facility-admin`, the rule `facilityAdmin`,
+   four permissions consultancy admins now hold for every facility (`manageFrontDesk`,
+   `manageFacilityClosures`, `editFacilityContact`, `viewFacilityAuditLog`) and the ruled permissions
+   facility admins hold for their own. Nothing existing changes for consultancy admins.
+3. **Accounts:** as a consultancy admin, open **Facility Admins** and add one per facility (name,
+   email, initial password, facility). They sign in with the email; their RBAC role is given
+   automatically.
+4. **Queue:** invitations are sent by email and WhatsApp through the queue; the worker must be running
+   (it already is for reminders). No restart is needed.
+5. **Check:**
+   - a facility admin's sidebar shows Appointments Board, Front Desk Staff, My Facility and Audit Log,
+     and the board lists only their facility's appointments with its numbers and monthly report;
+   - on **Front Desk Staff → Add**, every consultant is listed, marked "works here", "invited, waiting"
+     or "not here yet"; ticking one not there sends them an invitation, which they see under
+     **Facilities** on their Availability page;
+   - **My Facility** shows only the address, phone and map link, with a link to **Closed days**.
+
 ---
 
 ## Deferred
@@ -389,8 +412,8 @@ Built as planned below, with these choices made on 12 Nov 2026:
 | External engagements | A "busy at <facility>" block for work at facilities that do not use the app, shown as such instead of as time off. |
 | Calendar sync | F9: an iCal feed per consultant, each event with its facility as the location (patient names left out by default). |
 
-**Needs before starting phase 3:** whether facilities need their own admins (today clinic admins run
-every facility), and who may change fees (today the consultant, on Availability).
+**Needs before starting phase 3:** who may change fees (today the consultant, on Availability; facility
+admins, added after phase 2, might set them for their facility instead).
 
 #### Compliance (Kenya Data Protection Act)
 

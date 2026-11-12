@@ -96,6 +96,15 @@ class ConsultantFacility extends ActiveRecord
         ];
     }
 
+    public function afterSave($insert, $changedAttributes)
+    {
+        parent::afterSave($insert, $changedAttributes);
+        // Adding a facility the consultant was invited to accepts the invitation
+        if ($insert) {
+            FacilityInvitation::acceptFor($this->consultant_id, $this->facility_id);
+        }
+    }
+
     public function getFacility()
     {
         return $this->hasOne(Facility::class, ['id' => 'facility_id']);

@@ -13,7 +13,9 @@ use yii\helpers\Url;
 /** @var Appointments[] $needsOutcome started appointments nobody has marked attended / no-show */
 /** @var frontend\models\Consultant[] $bookable front desk: consultants they book for */
 /** @var frontend\models\ClinicStats|null $stats front desk: numbers for their consultants */
-/** @var frontend\models\Facility|null $facility front desk: the facility they work at */
+/** @var frontend\models\Facility|null $facility front desk or facility admin: their facility */
+/** @var frontend\models\Consultant[] $waiting front desk: consultants invited to their facility, not there yet */
+/** @var bool $facilityAdmin the viewer runs $facility */
 
 $this->title = 'Appointments Board';
 $this->params['breadcrumbs'][] = $this->title;
@@ -55,12 +57,30 @@ $today = date('Y-m-d');
                 <?= Html::a('Book with ' . Html::encode($consultant->names), ['/appointments/calendar', 'cid' => $consultant->id], ['class' => 'btn btn-sm btn-success']) ?>
                 <?= Html::a('Send link', ['/booking-link/create', 'cid' => $consultant->id], ['class' => 'btn btn-sm btn-outline-success', 'title' => 'Send a booking link (remote walk-in)']) ?>
             <?php endforeach; ?>
-            <?php if (!$bookable): ?>
+            <?php if (!$bookable && !$waiting): ?>
                 <span class="text-warning">No consultants are assigned to you yet. Ask an administrator.</span>
             <?php endif; ?>
         </div>
+        <?php if ($waiting): ?>
+            <p class="small text-muted" id="waiting-consultants">
+                Invited to work here, not bookable yet: <?= Html::encode(implode(', ', array_map(function ($c) {
+                    return $c->names;
+                }, $waiting))) ?>. You can book for them once they accept and add their hours here.
+            </p>
+        <?php endif; ?>
         <?php if ($bookable && $stats): ?>
             <?= $this->render('@frontend/views/site/_clinic_stats', ['stats' => $stats, 'scopeLabel' => $facility ? 'your consultants at ' . $facility->name : 'your consultants']) ?>
+        <?php endif; ?>
+    <?php elseif ($facilityAdmin): ?>
+        <p class="text-muted">
+            Every consultant's appointments at <strong><?= Html::encode($facility->name ?? 'your facility') ?></strong>.
+            Open one to see the details, cancel it with a note, or record whether the patient came.
+        </p>
+        <?php if ($facility && $stats): ?>
+            <?= $this->render('@frontend/views/site/_clinic_stats', ['stats' => $stats, 'scopeLabel' => $facility->name]) ?>
+            <?= $this->render('@frontend/views/site/_facility_report', ['stats' => $stats, 'month' => preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', (string) Yii::$app->request->get('month')) ? Yii::$app->request->get('month') : date('Y-m'), 'facility' => $facility, 'route' => 'board/index']) ?>
+        <?php elseif (!$facility): ?>
+            <div class="alert alert-warning py-2">The facility you run has not been set. Ask a clinic administrator.</div>
         <?php endif; ?>
     <?php else: ?>
         <p class="text-muted">Every consultant's appointments. Open one to see the details, or cancel it with a note.</p>

@@ -17,6 +17,9 @@ use yii\rbac\ManagerInterface;
  *  - front-desk        : default role for users whose `user.role` is "front_desk"; which consultants
  *                        they book for is kept in front_desk_assignment, and the facility they work
  *                        at in user.facility_id, not in RBAC
+ *  - facility-admin    : default role for users whose `user.role` is "facility_admin"; runs the
+ *                        facility in user.facility_id (its board, front desk, closed days, contact
+ *                        details and audit log), never another
  */
 class RbacHelper
 {
@@ -24,6 +27,7 @@ class RbacHelper
     const ROLE_CONSULTANT = 'consultant';
     const ROLE_PATIENT = 'patient';
     const ROLE_FRONT_DESK = 'front-desk';
+    const ROLE_FACILITY_ADMIN = 'facility-admin';
 
     const PERM_MANAGE_RBAC = 'manageRbac';
     const PERM_MANAGE_USERS = 'manageUsers';
@@ -66,10 +70,24 @@ class RbacHelper
     const PERM_HANDLE_AT_ASSIGNED_FACILITY = 'handleAtAssignedFacility';
     const PERM_RECORD_AT_ASSIGNED_FACILITY = 'recordAtAssignedFacility';
 
+    // Facility admins. The general permissions name the facility in their params
+    // (['facilityId' => …], ['facility' => …] or ['appointment' => …]); consultancy admins hold them
+    // for every facility, facility admins through the facilityAdmin rule for their own.
+    const PERM_MANAGE_FRONT_DESK = 'manageFrontDesk';
+    const PERM_MANAGE_FACILITY_CLOSURES = 'manageFacilityClosures';
+    const PERM_EDIT_FACILITY_CONTACT = 'editFacilityContact';
+    const PERM_VIEW_FACILITY_AUDIT_LOG = 'viewFacilityAuditLog';
+    const PERM_HANDLE_FACILITY_APPOINTMENT = 'handleFacilityAppointment';
+    const PERM_RECORD_FACILITY_OUTCOME = 'recordFacilityOutcome';
+    const PERM_MANAGE_OWN_FACILITY_FRONT_DESK = 'manageOwnFacilityFrontDesk';
+    const PERM_MANAGE_OWN_FACILITY_CLOSURES = 'manageOwnFacilityClosures';
+    const PERM_EDIT_OWN_FACILITY_CONTACT = 'editOwnFacilityContact';
+    const PERM_VIEW_OWN_FACILITY_AUDIT_LOG = 'viewOwnFacilityAuditLog';
+
     /**
      * Roles the application code depends on by name. They cannot be renamed or deleted from the UI.
      */
-    const CORE_ROLES = [self::ROLE_ADMIN, self::ROLE_CONSULTANT, self::ROLE_PATIENT, self::ROLE_FRONT_DESK];
+    const CORE_ROLES = [self::ROLE_ADMIN, self::ROLE_CONSULTANT, self::ROLE_PATIENT, self::ROLE_FRONT_DESK, self::ROLE_FACILITY_ADMIN];
 
     /**
      * Everything `php yii rbac/init` seeds:
@@ -87,6 +105,7 @@ class RbacHelper
                 'isTheConsultant' => \common\rbac\IsTheConsultantRule::class,
                 'assignedConsultant' => \common\rbac\AssignedConsultantRule::class,
                 'assignedFacility' => \common\rbac\AssignedFacilityRule::class,
+                'facilityAdmin' => \common\rbac\FacilityAdminRule::class,
             ],
             'permissions' => [
                 self::PERM_MANAGE_RBAC => 'Manage roles, permissions and user role assignments',
@@ -108,6 +127,10 @@ class RbacHelper
                 self::PERM_UPDATE_CONSULTANT_PROFILE => "Edit a consultant's profile",
                 self::PERM_MANAGE_CONSULTANTS => 'Add consultants and manage front-desk staff',
                 self::PERM_VIEW_AUDIT_LOG => 'Read the audit log: who changed what, sign-ins',
+                self::PERM_MANAGE_FRONT_DESK => "Create and edit a facility's front-desk staff",
+                self::PERM_MANAGE_FACILITY_CLOSURES => "Close a facility for a day",
+                self::PERM_EDIT_FACILITY_CONTACT => "Edit a facility's address, phone and map link",
+                self::PERM_VIEW_FACILITY_AUDIT_LOG => "Read a facility's audit log",
             ],
             'ruledPermissions' => [
                 self::PERM_BOOK_OWN_CALENDAR => ['Book in own calendar', 'isTheConsultant', self::PERM_BOOK_FOR_CONSULTANT],
@@ -122,6 +145,13 @@ class RbacHelper
                 self::PERM_BOOK_AT_ASSIGNED_FACILITY => ["Book for assigned consultants at own facility", 'assignedFacility', self::PERM_BOOK_FOR_ASSIGNED_CONSULTANT],
                 self::PERM_HANDLE_AT_ASSIGNED_FACILITY => ["Open and cancel assigned consultants' appointments at own facility", 'assignedFacility', self::PERM_HANDLE_ASSIGNED_APPOINTMENT],
                 self::PERM_RECORD_AT_ASSIGNED_FACILITY => ["Record outcomes of assigned consultants' appointments at own facility", 'assignedFacility', self::PERM_RECORD_ASSIGNED_OUTCOME],
+                // Facility admins: the same, for the facility they run
+                self::PERM_HANDLE_FACILITY_APPOINTMENT => ["Open and cancel appointments at own facility", 'facilityAdmin', self::PERM_HANDLE_APPOINTMENT],
+                self::PERM_RECORD_FACILITY_OUTCOME => ["Record outcomes at own facility", 'facilityAdmin', self::PERM_RECORD_OUTCOME],
+                self::PERM_MANAGE_OWN_FACILITY_FRONT_DESK => ["Manage own facility's front-desk staff", 'facilityAdmin', self::PERM_MANAGE_FRONT_DESK],
+                self::PERM_MANAGE_OWN_FACILITY_CLOSURES => ['Close own facility for a day', 'facilityAdmin', self::PERM_MANAGE_FACILITY_CLOSURES],
+                self::PERM_EDIT_OWN_FACILITY_CONTACT => ["Edit own facility's contact details", 'facilityAdmin', self::PERM_EDIT_FACILITY_CONTACT],
+                self::PERM_VIEW_OWN_FACILITY_AUDIT_LOG => ["Read own facility's audit log", 'facilityAdmin', self::PERM_VIEW_FACILITY_AUDIT_LOG],
             ],
             'roles' => [
                 self::ROLE_ADMIN => [
@@ -131,6 +161,17 @@ class RbacHelper
                         self::PERM_VIEW_CLINIC_BOARD, self::PERM_VIEW_ALL_APPOINTMENTS, self::PERM_HANDLE_APPOINTMENT,
                         self::PERM_RECORD_OUTCOME, self::PERM_MANAGE_AVAILABILITY, self::PERM_UPDATE_CONSULTANT_PROFILE,
                         self::PERM_MANAGE_CONSULTANTS, self::PERM_VIEW_AUDIT_LOG,
+                        self::PERM_MANAGE_FRONT_DESK, self::PERM_MANAGE_FACILITY_CLOSURES,
+                        self::PERM_EDIT_FACILITY_CONTACT, self::PERM_VIEW_FACILITY_AUDIT_LOG,
+                    ],
+                ],
+                self::ROLE_FACILITY_ADMIN => [
+                    'Facility administrator',
+                    [
+                        self::PERM_VIEW_CLINIC_BOARD,
+                        self::PERM_HANDLE_FACILITY_APPOINTMENT, self::PERM_RECORD_FACILITY_OUTCOME,
+                        self::PERM_MANAGE_OWN_FACILITY_FRONT_DESK, self::PERM_MANAGE_OWN_FACILITY_CLOSURES,
+                        self::PERM_EDIT_OWN_FACILITY_CONTACT, self::PERM_VIEW_OWN_FACILITY_AUDIT_LOG,
                     ],
                 ],
                 self::ROLE_CONSULTANT => [
@@ -178,6 +219,8 @@ class RbacHelper
                 return self::ROLE_CONSULTANT;
             case 'front_desk':
                 return self::ROLE_FRONT_DESK;
+            case 'facility_admin':
+                return self::ROLE_FACILITY_ADMIN;
             default: // "client" and legacy/empty values
                 return self::ROLE_PATIENT;
         }

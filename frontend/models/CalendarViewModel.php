@@ -41,7 +41,7 @@ class CalendarViewModel extends BaseObject
     {
         parent::init();
         $viewer = $this->viewer;
-        if ($viewer->isFrontDeskAccount()) {
+        if ($viewer->isFrontDeskAccount() || $viewer->isFacilityAdminAccount()) {
             $this->facilityId = \common\rbac\AssignedFacilityRule::facilityIdFor($viewer->id);
         }
 

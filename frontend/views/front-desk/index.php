@@ -6,8 +6,9 @@ use yii\helpers\Html;
 /** @var common\models\User[] $staff */
 /** @var array $assigned user id => consultant names */
 /** @var array $facilities facility id => name */
+/** @var frontend\models\Facility|null $facility a facility admin's facility: only its front desk is listed */
 
-$this->title = 'Front Desk Staff';
+$this->title = $facility ? 'Front Desk Staff: ' . $facility->name : 'Front Desk Staff';
 $this->params['breadcrumbs'][] = $this->title;
 ?>
 <div class="front-desk-index">

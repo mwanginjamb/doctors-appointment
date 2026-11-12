@@ -43,6 +43,8 @@ class User extends ActiveRecord implements IdentityInterface
     const ACCOUNT_PATIENT = 'client';
     const ACCOUNT_CONSULTANT = 'consultant';
     const ACCOUNT_FRONT_DESK = 'front_desk';
+    /** Runs one facility (user.facility_id): its board, front desk, closed days and contact details */
+    const ACCOUNT_FACILITY_ADMIN = 'facility_admin';
     const ACCOUNT_ADMIN = 'admin';
 
 

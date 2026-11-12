@@ -32,6 +32,12 @@ class FrontDesk
         return !Yii::$app->user->isGuest && Yii::$app->user->identity->isFrontDeskAccount();
     }
 
+    /** A facility admin account: runs one facility (account type, not a permission). */
+    public static function isFacilityAdmin()
+    {
+        return !Yii::$app->user->isGuest && Yii::$app->user->identity->isFacilityAdminAccount();
+    }
+
     /** May open the appointments board. */
     public static function isStaff()
     {
@@ -40,6 +46,7 @@ class FrontDesk
 
     /**
      * Consultant user ids the current user handles on the board: null means all, [] none.
+     * Facility admins see every consultant, at their facility only (see facilityId()).
      *
      * @return int[]|null
      */
@@ -48,7 +55,7 @@ class FrontDesk
         if (Yii::$app->user->isGuest) {
             return [];
         }
-        if (Yii::$app->user->can(RbacHelper::PERM_VIEW_ALL_APPOINTMENTS)) {
+        if (Yii::$app->user->can(RbacHelper::PERM_VIEW_ALL_APPOINTMENTS) || self::isFacilityAdmin()) {
             return null;
         }
 
@@ -56,18 +63,26 @@ class FrontDesk
     }
 
     /**
-     * The facility the current user handles appointments at: a front-desk account's own facility.
-     * Null means every facility (admins, consultants, and front desk with no facility set yet).
+     * The facility the current user handles appointments at: a front-desk account's or a facility
+     * admin's own facility. Null means every facility (admins, consultants, and front desk with no
+     * facility set yet). A facility admin with none set gets 0, which matches nothing.
      *
      * @return int|null
      */
     public static function facilityId()
     {
-        if (Yii::$app->user->isGuest || !Yii::$app->user->identity->isFrontDeskAccount()) {
+        if (Yii::$app->user->isGuest) {
+            return null;
+        }
+        $identity = Yii::$app->user->identity;
+        if ($identity->isFacilityAdminAccount()) {
+            return AssignedFacilityRule::facilityIdFor($identity->id) ?? 0;
+        }
+        if (!$identity->isFrontDeskAccount()) {
             return null;
         }
 
-        return AssignedFacilityRule::facilityIdFor(Yii::$app->user->id);
+        return AssignedFacilityRule::facilityIdFor($identity->id);
     }
 
     /**
@@ -98,6 +113,7 @@ class FrontDesk
      *  - admins: every one (an empty condition);
      *  - a consultant: their own, at every facility, never other consultants';
      *  - front desk: their consultants' at their facility;
+     *  - a facility admin: every consultant's at their facility;
      *  - anyone else: none.
      *
      * @return array|string '0=1' when none
@@ -120,6 +136,9 @@ class FrontDesk
                 $condition[] = ["$alias.facility_id" => $facilityId];
             }
             return $condition;
+        }
+        if ($identity->isFacilityAdminAccount()) {
+            return ["$alias.facility_id" => self::facilityId()];
         }
 
         return '0=1';

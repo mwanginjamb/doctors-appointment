@@ -8,6 +8,8 @@ use common\components\RbacHelper;
 $user = Yii::$app->user;
 $controllerId = Yii::$app->controller->id;
 $currentRoute = Yii::$app->controller->route;
+// A facility admin's facility (null for everyone else)
+$ownFacilityId = \frontend\components\FrontDesk::isFacilityAdmin() ? (\frontend\components\FrontDesk::facilityId() ?: null) : null;
 
 /*
  * Menu definition.
@@ -41,7 +43,24 @@ $menuItems = [
         'url' => ['/front-desk/index'],
         'icon' => 'support_agent',
         'match' => ['front-desk'],
+        // Consultancy admins for every facility, a facility admin for theirs
+        'visible' => $user->can(RbacHelper::ROLE_ADMIN)
+            || ($ownFacilityId && $user->can(RbacHelper::PERM_MANAGE_FRONT_DESK, ['facilityId' => $ownFacilityId])),
+    ],
+    [
+        'label' => 'Facility Admins',
+        'url' => ['/facility-admin/index'],
+        'icon' => 'domain',
+        'match' => ['facility-admin'],
         'visible' => $user->can(RbacHelper::ROLE_ADMIN),
+    ],
+    [
+        // A facility admin's own facility: contact details and closed days
+        'label' => 'My Facility',
+        'url' => ['/facility/update', 'id' => $ownFacilityId],
+        'icon' => 'local_hospital',
+        'match' => ['facility/update', 'facility/closures'],
+        'visible' => $ownFacilityId && !$user->can(RbacHelper::PERM_MANAGE_REFERENCE_DATA),
     ],
     // ── Reference data used by consultant profiles, search and booking ──
     [
@@ -90,7 +109,8 @@ $menuItems = [
         'url' => ['/audit/index'],
         'icon' => 'history',
         'match' => ['audit'],
-        'visible' => $user->can(RbacHelper::PERM_VIEW_AUDIT_LOG),
+        'visible' => $user->can(RbacHelper::PERM_VIEW_AUDIT_LOG)
+            || ($ownFacilityId && $user->can(RbacHelper::PERM_VIEW_FACILITY_AUDIT_LOG, ['facilityId' => $ownFacilityId])),
     ],
     [
         'label' => 'Back to Site',

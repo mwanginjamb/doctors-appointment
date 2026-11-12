@@ -11,6 +11,7 @@ use yii\helpers\Html;
  * @var frontend\models\ClinicStats $stats
  * @var string $month Y-m
  * @var frontend\models\Facility|null $facility the dashboard's facility filter
+ * @var string|null $route where the month links go; the dashboard by default
  */
 
 $from = $month . '-01';
@@ -18,8 +19,10 @@ $to = date('Y-m-t', strtotime($from));
 $rows = $stats->getByFacility($from, $to);
 $prev = date('Y-m', strtotime($from . ' -1 month'));
 $next = date('Y-m', strtotime($from . ' +1 month'));
-$link = function ($label, $m) use ($facility) {
-    return Html::a($label, ['settings', 'month' => $m, 'facility' => $facility->id ?? null], ['class' => 'btn btn-sm btn-outline-secondary']);
+// Shown on the dashboard (consultancy admins) and on the board (facility admins)
+$route = '/' . ($route ?? 'site/settings');
+$link = function ($label, $m) use ($facility, $route) {
+    return Html::a($label, [$route, 'month' => $m, 'facility' => $facility->id ?? null], ['class' => 'btn btn-sm btn-outline-secondary']);
 };
 $totals = ['sessions' => 0, 'attended' => 0, 'noShows' => 0, 'cancelled' => 0, 'unmarked' => 0, 'fees' => 0.0, 'noFee' => 0];
 foreach ($rows as $row) {

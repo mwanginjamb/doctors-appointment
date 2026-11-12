@@ -146,7 +146,9 @@ class FacilityFrontDeskCest
             'FrontDeskStaffForm[facility_id]' => $elsewhere->id,
             'FrontDeskStaffForm[consultant_ids]' => [$this->consultant->id],
         ]);
-        $I->see('Dr. Test does not work at Westlands Clinic');
+        // Not working there yet: they are invited, not refused
+        $I->see('Dr. Test has been invited to work at Westlands Clinic');
+        $I->amOnRoute('front-desk/update', ['id' => $this->frontDesk->id]);
 
         $I->submitForm('#front-desk-staff-form', [
             'FrontDeskStaffForm[facility_id]' => $this->avenue->id,

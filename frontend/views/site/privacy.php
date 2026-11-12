@@ -71,6 +71,7 @@ $this->params['breadcrumbs'][] = $this->title;
     <ul>
         <li>The doctor you book with. Doctors may work at several facilities; your doctor sees your appointments with them wherever they took place, but never your appointments with other doctors.</li>
         <li>The front-desk staff of the facility where your appointment takes place, named in your confirmation. They see your appointments at that facility only; front desk at other facilities see that the doctor is busy, not who with.</li>
+        <li>The administrator of that facility, who manages its front desk and sees appointments at that facility only.</li>
         <li>Clinic administrators, to run the service.</li>
         <li>Companies that deliver our messages: our email provider, WhatsApp, an SMS provider and Google Firebase for app notifications. They receive only what is needed to deliver each message.</li>
         <li>Our hosting provider, which stores the information for us.</li>

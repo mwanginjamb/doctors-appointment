@@ -26,4 +26,10 @@ trait AccountTypeTrait
     {
         return $this->role === User::ACCOUNT_FRONT_DESK;
     }
+
+    /** Runs one facility (user.facility_id). */
+    public function isFacilityAdminAccount()
+    {
+        return $this->role === User::ACCOUNT_FACILITY_ADMIN;
+    }
 }

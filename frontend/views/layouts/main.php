@@ -92,7 +92,7 @@ $username = Yii::$app->user->identity->username ?? 'User';
                 ],
                 [
                     // Admins reach the board from Administration
-                    'label' => 'Front Desk',
+                    'label' => \frontend\components\FrontDesk::isFacilityAdmin() ? 'My Facility' : 'Front Desk',
                     'url' => ['/board/index'],
                     'visible' => \frontend\components\FrontDesk::isStaff() && !\frontend\components\AdminAccessControl::isAdmin(),
                 ],
