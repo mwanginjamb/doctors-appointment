@@ -88,6 +88,18 @@ class FrontDeskCest
         $I->assertSame([], FrontDeskAssignment::consultantIdsFor($this->frontDesk->id));
     }
 
+    public function adminUnticksTheLastConsultantOnThePage(FunctionalTester $I)
+    {
+        // As in a browser: untick the only box and save. No consultant is posted at all.
+        $I->amLoggedInAs($this->admin);
+        $I->amOnRoute('front-desk/update', ['id' => $this->frontDesk->id]);
+        $I->uncheckOption('#front-desk-consultants input[value="' . $this->consultant->id . '"]');
+        $I->click('Save');
+
+        $I->see('saved.');
+        $I->assertSame([], FrontDeskAssignment::consultantIdsFor($this->frontDesk->id));
+    }
+
     public function onlyAdminsManageFrontDeskStaff(FunctionalTester $I)
     {
         foreach ([$this->frontDesk, $this->consultantUser] as $user) {
