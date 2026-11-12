@@ -96,13 +96,12 @@ class SendReminderSmsJob extends BaseObject implements \yii\queue\JobInterface
     }
 
     /**
-     * " To reschedule or cancel: <link>" for the patient, while they can still change it themselves.
+     * " To confirm you are coming, choose another time or cancel: <link>" for the patient, for what
+     * they can still do themselves (confirm until the start; change outside the cut-off).
      */
     private static function manageNote($appointment)
     {
-        $url = \frontend\services\SelfServiceLink::urlIfChangeable($appointment);
-
-        return $url ? " To reschedule or cancel: {$url}" : '';
+        return \frontend\services\SelfServiceLink::messageNote($appointment);
     }
 
     /**

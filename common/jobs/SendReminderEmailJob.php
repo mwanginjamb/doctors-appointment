@@ -145,7 +145,7 @@ class SendReminderEmailJob extends BaseObject implements \yii\queue\JobInterface
         // Scheduled reminders give the patient (not the consultant) a reschedule / cancel link
         $isReminder = strpos((string) $this->reminderType, '-minute') !== false;
         $patientEmail = $appointment->patient->email ?? null;
-        $manageUrl = $isReminder && $patientEmail ? \frontend\services\SelfServiceLink::urlIfChangeable($appointment) : null;
+        $manageUrl = $isReminder && $patientEmail ? \frontend\services\SelfServiceLink::urlIfUseful($appointment) : null;
 
         foreach ($recipients as $email => $name) {
             try {

@@ -6,8 +6,9 @@ use frontend\services\SelfServiceLink;
 use yii\bootstrap5\Html;
 
 /**
- * The patient's self-service page: their appointment, and (outside the cut-off) a calendar of free
- * times with the same consultant to move to, and a cancel form.
+ * The patient's self-service page: their appointment, a "Yes, I'm coming" button while it is still
+ * only scheduled, and (outside the cut-off) a calendar of free times with the same consultant to
+ * move to, and a cancel form.
  *
  * @var yii\web\View $this
  * @var Appointments $appointment
@@ -37,11 +38,25 @@ $dates = array_keys($slots);
             <?= $this->render('//facility/_place', ['facility' => $appointment->facility, 'fallback' => $consultant->practice_name ?? null]) ?>
             <?php if ($appointment->status === Appointments::STATUS_CANCELLED): ?>
                 <div class="badge text-bg-secondary mt-2">Cancelled</div>
+            <?php elseif ($appointment->status === Appointments::STATUS_CONFIRMED && strtotime($appointment->date . ' ' . $appointment->time) > time()): ?>
+                <div class="badge text-bg-success mt-2" id="confirmed-badge">Confirmed: you are coming</div>
             <?php elseif (in_array($appointment->status, [Appointments::STATUS_COMPLETED, Appointments::STATUS_NO_SHOW], true) || strtotime($appointment->date . ' ' . $appointment->time) <= time()): ?>
                 <div class="badge text-bg-dark mt-2">Past</div>
             <?php endif; ?>
         </div>
     </div>
+
+    <?php if (SelfServiceLink::canConfirm($appointment)): ?>
+        <!-- The patient confirms they are coming (until the start; not limited by the cut-off) -->
+        <div class="card border-success mb-4" id="confirm-card">
+            <div class="card-body d-flex flex-wrap align-items-center gap-3">
+                <span class="me-auto">Are you coming? Let <?= Html::encode($consultant->names ?? 'the clinic') ?> know.</span>
+                <?= Html::beginForm(['manage/confirm', 'id' => $appointment->id, 'sig' => $sig], 'post', ['id' => 'self-confirm-form']) ?>
+                    <?= Html::submitButton("Yes, I'm coming", ['class' => 'btn btn-success']) ?>
+                <?= Html::endForm() ?>
+            </div>
+        </div>
+    <?php endif; ?>
 
     <?php if (!$changeable): ?>
         <?php if (!in_array($appointment->status, [Appointments::STATUS_CANCELLED, Appointments::STATUS_COMPLETED, Appointments::STATUS_NO_SHOW], true)

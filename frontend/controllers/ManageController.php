@@ -27,7 +27,8 @@ class ManageController extends Controller
         return [
             'verbs' => [
                 'class' => VerbFilter::class,
-                'actions' => ['cancel' => ['POST'], 'reschedule' => ['POST']],
+                // POST only: opening the link (or WhatsApp's link preview fetching it) never changes anything
+                'actions' => ['cancel' => ['POST'], 'reschedule' => ['POST'], 'confirm' => ['POST']],
             ],
         ];
     }
@@ -48,6 +49,32 @@ class ManageController extends Controller
             'changeable' => $changeable,
             'slots' => $changeable ? $this->freeSlots($appointment) : [],
         ]);
+    }
+
+    /**
+     * The patient confirms they are coming: the appointment becomes confirmed, as when the
+     * consultant confirms it. Possible until the appointment starts (it is not a change, so the
+     * cut-off does not apply).
+     */
+    public function actionConfirm($id, $sig)
+    {
+        $this->throttle('manage');
+        $appointment = SelfServiceLink::verify($id, $sig);
+        if ($appointment === null) {
+            return $this->render('invalid');
+        }
+        $this->actAsPatient($appointment);
+        if ($appointment->status === Appointments::STATUS_CONFIRMED) {
+            Yii::$app->session->setFlash('info', Yii::t('app', 'Your appointment is already confirmed. See you then.'));
+        } elseif (!SelfServiceLink::canConfirm($appointment)) {
+            Yii::$app->session->setFlash('error', Yii::t('app', 'This appointment can no longer be confirmed.'));
+        } else {
+            $appointment->status = Appointments::STATUS_CONFIRMED;
+            $appointment->save(false, ['status', 'updated_at', 'updated_by']);
+            Yii::$app->session->setFlash('success', Yii::t('app', 'Thank you: your appointment is confirmed. See you then.'));
+        }
+
+        return $this->redirect(['index', 'id' => $id, 'sig' => $sig]);
     }
 
     public function actionCancel($id, $sig)

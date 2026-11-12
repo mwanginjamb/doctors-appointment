@@ -66,10 +66,11 @@ class AppointmentChangeNotifier
                     . 'Please contact the clinic or book a new time.'
                 : "Hello {$patientName},\n\nYour appointment with {$doctor} has moved from {$was} to {$when}, at {$place}. "
                     . 'If the new time does not suit you, please contact the clinic.';
-            // Moved: offer the self-service link while the patient can still use it
-            $manageUrl = $change === self::MOVED ? SelfServiceLink::urlIfChangeable($appointment) : null;
-            if ($manageUrl) {
-                $text .= "\n\nTo choose another time or cancel: {$manageUrl}";
+            // Moved: offer the self-service link for what the patient can still do (confirm the
+            // new time, or move or cancel it outside the cut-off)
+            $note = $change === self::MOVED ? SelfServiceLink::messageNote($appointment) : '';
+            if ($note !== '') {
+                $text .= "\n\n" . ltrim($note);
             }
         }
 

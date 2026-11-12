@@ -295,6 +295,34 @@ Unticking every consultant on **Front Desk Staff → Edit** and saving kept the 
 nothing ticked, no consultant field reached the server, and the form read that as "unchanged". It now
 reads it as "none". Code only: no migration, no `rbac/init`, no restart.
 
+### Fix: front desk calendar days, and the calendar keeping its place
+
+Front desk's calendar showed only the weekdays their own facility is open (so on a Thursday at a
+Mon–Thu facility nothing after today was visible). It now shows every day the consultant works,
+anywhere; hours elsewhere stay greyed out and unbookable, with appointments there shown as "Booked".
+The calendar also returned to this week's week view after every booking or move (the page reloads);
+it now reopens on the view and date last shown, per browser tab. Code and
+`frontend/web/Js/booking-calendar.js` only: no migration, no `rbac/init`, no restart. Users may need a
+hard refresh (Ctrl+F5) once, as the script's address does not change.
+
+### Patients confirm they are coming
+
+The self-service page (`/manage/<id>/<signature>`) has a **Yes, I'm coming** button while an appointment
+is still only scheduled; it marks it confirmed, as when the consultant confirms it, and the audit log
+records it as the patient's self-service link. Confirming is not a change, so it works right up to the
+start, inside the `SELF_SERVICE_CUTOFF_HOURS` cut-off that still limits moving and cancelling. It only
+happens on the button (a POST): opening the link, or a messaging app previewing it, changes nothing.
+
+Reminders (WhatsApp, SMS, email) and "moved" notices now carry the link whenever there is something
+left to do with it, worded for it: "To confirm you are coming, choose another time or cancel", "To
+confirm you are coming" (inside the cut-off), or "To choose another time or cancel" (already
+confirmed). Before, they carried it only outside the cut-off.
+
+1. **Restart:** `sudo systemctl restart doctors-appointment.target`, so the queue worker sends the new
+   wording. No migration, no `rbac/init`.
+2. **Check:** move a scheduled appointment to tomorrow from the calendar: the patient's WhatsApp ends
+   "To confirm you are coming: <link>"; the button on that page marks it confirmed on the board.
+
 ---
 
 ## Deferred

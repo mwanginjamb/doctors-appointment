@@ -50,10 +50,16 @@ $mapUrl = $facility->map_url ?? null;
         <p>Please ensure to arrive a few minutes early to complete any necessary paperwork.</p>
 
         <?php if (!empty($manageUrl)): ?>
-            <p>Need a different time, or can't make it?</p>
+            <?php
+            // What the patient can still do from the link: confirm until the start, change outside the cut-off
+            $canConfirm = \frontend\services\SelfServiceLink::canConfirm($appointment);
+            $canChange = \frontend\services\SelfServiceLink::isChangeable($appointment);
+            $label = $canConfirm && $canChange ? 'Confirm, reschedule or cancel' : ($canConfirm ? "Confirm I'm coming" : 'Reschedule or cancel');
+            ?>
+            <p><?= $canConfirm ? 'Please let us know you are coming' . ($canChange ? ', or choose another time if this one no longer suits you.' : '.') : "Need a different time, or can't make it?" ?></p>
             <p style="margin: 16px 0 24px">
                 <a href="<?= htmlspecialchars($manageUrl) ?>"
-                    style="background:#0d6efd;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none">Reschedule or cancel</a>
+                    style="background:#0d6efd;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none"><?= htmlspecialchars($label) ?></a>
             </p>
         <?php else: ?>
             <p>If you have any questions or need to reschedule, please contact the clinic.</p>
