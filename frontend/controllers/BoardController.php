@@ -52,6 +52,11 @@ class BoardController extends Controller
             'stats' => FrontDesk::isFrontDesk() || FrontDesk::isFacilityAdmin() ? new ClinicStats($scope) : null,
             'facility' => $scope['facilityId'] ? Facility::findOne($scope['facilityId']) : null,
             'facilityAdmin' => FrontDesk::isFacilityAdmin(),
+            // Facility admins open these consultants' calendars and sessions
+            'here' => FrontDesk::isFacilityAdmin() && $scope['facilityId']
+                ? Consultant::find()->innerJoin('{{%consultant_facility}} cf', 'cf.consultant_id = consultant.id')
+                    ->where(['cf.facility_id' => $scope['facilityId']])->orderBy(['names' => SORT_ASC])->all()
+                : [],
         ] + $this->frontDeskConsultants($scope['facilityId']));
     }
 

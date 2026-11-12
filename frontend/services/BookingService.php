@@ -305,9 +305,22 @@ class BookingService extends BaseObject
             ]);
         }
 
+        // Working somewhere that does not use the app then (F8 phase 3)
+        foreach ($consultant ? $consultant->externalOn($date) : [] as [$busyFrom, $busyTo, $place]) {
+            if ($startTs < strtotime($date . ' ' . $busyTo) && $endTs > strtotime($date . ' ' . $busyFrom)) {
+                return Yii::t('app', '{doctor} is busy at {place} from {from} to {to}. Please choose another time.', [
+                    'doctor' => $doctor,
+                    'place' => $place,
+                    'from' => substr($busyFrom, 0, 5),
+                    'to' => substr($busyTo, 0, 5),
+                ]);
+            }
+        }
+
         if (!$ranges) {
-            // Hours that day, but not running then (an engagement's dates, a facility closed)
-            if ($consultant && !empty($consultant->getBlocks()[(int) date('N', $startTs)])) {
+            // Hours that day, but not running then (an engagement's dates, a facility closed, the
+            // other week of a rotation, before or after the hours' own dates)
+            if ($consultant && ($consultant->blocksOn($date) || !empty($consultant->getBlocks()[(int) date('N', $startTs)]))) {
                 return Yii::t('app', '{doctor} is not seeing patients on {date}. Please choose another day.', [
                     'doctor' => $doctor,
                     'date' => date('l j M', $startTs),

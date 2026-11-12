@@ -80,6 +80,7 @@ Doing **Next up** below should bring the app to about 9.5 functionally and 8.5 t
 | F8 phase 1 Multiple facilities | Admins keep a list of **Facilities** (name, address, phone, map link, taking bookings). A consultant adds the facilities they work at on **Availability**, each with its own session length, fee, online booking on or off, and optional from/to dates, and says where they are for each range of weekly hours (ranges cannot overlap across facilities). The time of a booking decides its facility, length and fee (`BookingService`); moving it to another facility takes that facility's length and fee. Patients cannot book themselves where online booking is off; the clinic can. The calendar shows each facility in its colour with a filter; booking links are issued for one facility; self-service rescheduling stays at the same facility. Confirmations, reminders and change notices carry the facility's name, address and map link. Patients' location search also matches facilities. A facility that is not listed is requested by the consultant and created or declined by an admin (**Facility Requests**); the consultant is told either way. | `feature/facilities` |
 | F8 phase 2 Front desk, history and reporting per facility | Each front-desk account works at one facility (set on **Front Desk Staff**, with the consultants who work there). They see, book, move, cancel and record outcomes only for appointments there (RBAC rule `assignedFacility` on top of `assignedConsultant`); their consultants' appointments elsewhere show on the calendar as "Booked", with no patient details. Patient history follows the viewer: a consultant sees their own appointments with a patient at every facility, never other consultants'; front desk sees their facility's; admins see everything. Admins close a facility for a day (**Facilities → Closed days**), on top of public holidays; existing bookings that day are kept and listed to move. A consultant sets a travel time between facilities on **Availability**, and the last slots before a block elsewhere are not offered. The dashboard and board filter by facility, and the dashboard has a monthly **Per facility** table (sessions, attended, no-shows, cancelled, fees due) for settling up. Audit entries record the facility. The privacy notice names the facility and its front desk. | `feature/facilities-phase2` |
 | Facility admins | A new account type that runs one facility, created by consultancy admins under **Facility Admins** (consultancy admins are unchanged). A facility admin sees every consultant's appointments at their facility only (board, calendars, patient history, numbers and the monthly per-facility report on their board), opens, cancels and records outcomes there, but does not book. They create and edit their facility's **Front Desk Staff**, and see every consultant when assigning them: ticking one who does not work there yet invites them (email and WhatsApp), and front desk can book for them once they accept by adding the facility on **Availability** with their hours, length and fee; declining removes them from that facility's front desk. Under **My Facility** they edit its address, phone and map link (not its name or whether it takes bookings) and its closed days, and they read its audit log. RBAC rule `facilityAdmin` on per-facility permissions (`manageFrontDesk`, `manageFacilityClosures`, `editFacilityContact`, `viewFacilityAuditLog`, `handleAppointment`, `recordOutcome`). The same invitations apply when a consultancy admin ticks a consultant from elsewhere. | `feature/facility-admins` |
+| F8 phase 3 Rotations, sessions, busy elsewhere, calendar feed (F9) | Weekly hours can run every week or only in week A / week B of a rotation, and between dates. **One-off sessions** (e.g. a Sunday outreach clinic) are bookable like weekly hours, added by the consultant, their front desk at its facility, or the facility admin; the consultant is told when someone else does; a session cannot overlap their other hours, holidays or closures, and one with bookings cannot be removed. **Busy elsewhere**: weekly hours at places that do not use the app block booking and show as "Busy at …". **Calendar feed**: a secret iCal address per consultant for Google, Apple or Outlook, with no patient details. Fees stay with the consultant. | `feature/facilities-phase3` |
 
 ---
 
@@ -264,6 +265,30 @@ earlier are covered by the general steps: `php yii migrate`, `php yii rbac/init`
      **Facilities** on their Availability page;
    - **My Facility** shows only the address, phone and map link, with a link to **Closed days**.
 
+### F8 phase 3 Rotations, one-off sessions, busy elsewhere and the calendar feed (F9)
+
+1. **Database:** `php yii migrate` applies `m261127_090000_facility_phase3`. It adds `weeks`,
+   `from_date` and `to_date` to weekly hours (empty: every week, open-ended, so existing hours are
+   unchanged), `consultant.rotation_week_a` and `consultant.calendar_feed_hash`, and creates
+   `consultant_session` and `consultant_external_block`.
+2. **Permissions:** `php yii rbac/init`. It adds `manageConsultantSessions` (consultancy admins) and
+   the ruled permissions consultants (`manageOwnSessions`), front desk
+   (`manageAssignedSessionsAtFacility`) and facility admins (`manageFacilitySessions`) hold.
+3. **Public address:** the calendar feed address is built from `APP_PUBLIC_URL` (already needed for
+   self-service links); without it, from the request's host. nginx needs no change: `/calendar/<secret>.ics`
+   goes to the app like any other page. The feed is not behind a sign-in, by design.
+4. **Assets:** `frontend/web/Js/booking-calendar.js` changed (alternate weeks and sessions); browsers
+   pick it up on the next load, as asset URLs are not versioned.
+5. **Check:**
+   - on Availability, a range set to "Week A only" with a day in week A shows "(week A)" in "Patients
+     see", and the calendar shades it only in A weeks;
+   - **One-off sessions → Add** a Sunday session: it shows on the consultant's calendar in the
+     facility's colour and can be booked; front desk see **Sessions** next to each consultant on the
+     board, facility admins next to each consultant at their facility;
+   - **Busy elsewhere**: an added block shows as "Busy at …" on the calendar;
+   - **Calendar feed → Make my feed address**, then add it to a Google or Apple calendar: appointments
+     appear as "Appointment · <facility>" within the provider's refresh time (often hours).
+
 ---
 
 ## Deferred
@@ -305,8 +330,8 @@ Priority: **P1** do next, **P2** soon, **P3** when there is time. Impact is the 
 |---|---|---|---|
 | F6 | Visit types with their own lengths (first consultation, review…); the unused `service_id` column is available. | P2 | |
 | F7 | Recurring appointments (the `recurring_appointment` field exists but nothing uses it). | P3 | |
-| F8 | Consultants engaged at several facilities: one calendar, hours, session lengths, fees and front desk per facility, patient history scoped to a facility. In three phases; see **F8 Multiple facilities** below. **Phases 1 and 2 done** (`feature/facilities`, `feature/facilities-phase2`); phase 3 open. | P3 | |
-| F9 | Calendar sync (iCal / Google) for consultants. Builds on F8 phase 3. | P3 | |
+| F8 | Consultants engaged at several facilities: one calendar, hours, session lengths, fees and front desk per facility, patient history scoped to a facility. In three phases; see **F8 Multiple facilities** below. **All three phases done** (`feature/facilities`, `feature/facilities-phase2`, `feature/facilities-phase3`), plus facility admins (`feature/facility-admins`). | P3 | Done |
+| F9 | Calendar sync (iCal / Google) for consultants. **Done** with F8 phase 3: a read-only iCal feed. Two-way sync (Google Calendar API) is not planned. | P3 | Done |
 | F10 | Swahili translation (see **Deferred**). | P3 | |
 
 #### F8 Multiple facilities
@@ -403,7 +428,28 @@ Built as planned below, with these choices made on 12 Nov 2026:
 | Travel buffer | An optional gap (for example 30 minutes) between back-to-back blocks at different facilities, so the last slot before a move is not offered. |
 | Facility closures | A facility can close days of its own on top of the public holiday list. Consultant time off stays consultant-wide. |
 
-##### Phase 3: rotations and sync
+##### Phase 3: rotations and sync — done
+
+Built as planned below, with these choices made on 12 Nov 2026:
+
+- Fees stay with the consultant (Availability); facility admins see them in their report only.
+- Rotations: each weekly range runs every week, or in week A or week B only, and optionally from and
+  until a date. Week A is counted from a day the consultant picks (saved as that week's Monday,
+  `consultant.rotation_week_a`), not from ISO week numbers, so it survives 53-week years. Ranges may
+  overlap when they can never run on the same day (week A and week B, or dates that do not meet).
+  `Consultant::blocksOn($date)` gives the hours that run on a date; booking, slots, closures, travel
+  time and the calendar all use it.
+- One-off sessions (`consultant_session`) are added by the consultant, by front desk for their
+  consultants at their facility, and by facility admins at theirs (permission
+  `manageConsultantSessions`); the consultant is told by email and WhatsApp when someone else adds or
+  removes one. A session cannot overlap their other hours that day, nor fall on a public holiday or a
+  day the facility is closed, and one with bookings cannot be removed. Weekly hours cannot be moved
+  onto an upcoming session.
+- External engagements (`consultant_external_block`) are weekly, with optional dates, and only the
+  consultant adds them. They may not overlap hours at facilities in the app.
+- Calendar feed (F9): one secret address per consultant, shown once (only its sha256 is stored); a new
+  one stops the old. Events show "Appointment", the facility and the time, never the patient or the
+  visit reason; sessions show as free time. Only the consultant can make or stop it.
 
 | Part | What it does |
 |---|---|
@@ -412,8 +458,6 @@ Built as planned below, with these choices made on 12 Nov 2026:
 | External engagements | A "busy at <facility>" block for work at facilities that do not use the app, shown as such instead of as time off. |
 | Calendar sync | F9: an iCal feed per consultant, each event with its facility as the location (patient names left out by default). |
 
-**Needs before starting phase 3:** who may change fees (today the consultant, on Availability; facility
-admins, added after phase 2, might set them for their facility instead).
 
 #### Compliance (Kenya Data Protection Act)
 

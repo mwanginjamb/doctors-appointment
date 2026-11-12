@@ -115,7 +115,7 @@ class CalendarViewModel extends BaseObject
 
         $blocks = [];
         foreach ($consultant->getBlocks() as $isoDay => $dayRanges) {
-            foreach ($dayRanges as [$start, $end, $facilityId]) {
+            foreach ($dayRanges as [$start, $end, $facilityId, $rotation]) {
                 $engagement = $consultant->getEngagement($facilityId);
                 if ($engagement === null || !$engagement->facility->isActive()) {
                     continue;
@@ -124,24 +124,46 @@ class CalendarViewModel extends BaseObject
                 if ($this->facilityId !== null && (int) $facilityId !== $this->facilityId) {
                     continue;
                 }
-                // FullCalendar counts days from Sunday = 0; ISO Sunday is 7
+                // FullCalendar counts days from Sunday = 0; ISO Sunday is 7. The block runs inside
+                // both the engagement's dates and its own (F8 phase 3), in its week of the rotation.
                 $blocks[] = [
                     'daysOfWeek' => [$isoDay % 7],
                     'startTime' => substr($start, 0, 5),
                     'endTime' => substr($end, 0, 5),
                     'facility' => (int) $facilityId,
                     'duration' => (int) $engagement->session_minutes,
-                    'from' => $engagement->from_date,
-                    'to' => $engagement->to_date,
+                    'from' => max((string) $engagement->from_date, (string) ($rotation['from'] ?? '')) ?: null,
+                    'to' => self::earliest($engagement->to_date, $rotation['to'] ?? null),
+                    'weeks' => $rotation['weeks'] ?? null,
                 ];
             }
+        }
+        // One-off sessions (F8 phase 3), upcoming ones
+        $sessions = [];
+        foreach ($consultant->sessions as $session) {
+            $engagement = $consultant->getEngagement($session->facility_id);
+            if ($session->date < date('Y-m-d') || $engagement === null
+                || ($this->facilityId !== null && (int) $session->facility_id !== $this->facilityId)) {
+                continue;
+            }
+            $sessions[] = [
+                'date' => $session->date,
+                'startTime' => substr($session->start_time, 0, 5),
+                'endTime' => substr($session->end_time, 0, 5),
+                'facility' => (int) $session->facility_id,
+                'duration' => (int) $engagement->session_minutes,
+                'note' => $session->note,
+            ];
         }
         $ranges = array_map(function ($b) {
             return ['daysOfWeek' => $b['daysOfWeek'], 'startTime' => $b['startTime'], 'endTime' => $b['endTime']];
         }, $blocks);
-        $openDays = array_unique(array_map(function ($r) {
+        $openDays = array_unique(array_merge(array_map(function ($r) {
             return $r['daysOfWeek'][0];
-        }, $ranges));
+        }, $ranges), array_map(function ($s) {
+            return (int) date('w', strtotime($s['date']));
+        }, $sessions)));
+        $times = array_merge($ranges, $sessions);
 
         $facilities = [];
         foreach ($consultant->engagements as $engagement) {
@@ -156,7 +178,7 @@ class CalendarViewModel extends BaseObject
                 'online' => $engagement->isBookingOpen(),
             ];
         }
-        $durations = array_unique(array_column($blocks, 'duration')) ?: [$consultant->getSessionMinutes()];
+        $durations = array_unique(array_merge(array_column($blocks, 'duration'), array_column($sessions, 'duration'))) ?: [$consultant->getSessionMinutes()];
         $grid = array_reduce($durations, function ($gcd, $m) {
             for ($a = $gcd, $b = $m; $b; [$a, $b] = [$b, $a % $b]);
             return $a;
@@ -166,11 +188,16 @@ class CalendarViewModel extends BaseObject
         return [
             'businessHours' => $ranges,
             'blocks' => $blocks,
+            'sessions' => $sessions,
+            // Week A of alternate-week hours starts on this Monday
+            'rotationWeekA' => $consultant->rotation_week_a,
+            // Sessions are outside the weekly business hours, so appointments may be dragged to them
+            'constrainToHours' => !$sessions,
             'facilities' => $facilities,
             // Hide closed days, but never all seven (FullCalendar cannot render that)
             'hiddenDays' => $openDays ? array_values(array_diff(range(0, 6), $openDays)) : [],
-            'slotMinTime' => $ranges ? min(array_column($ranges, 'startTime')) : '08:00',
-            'slotMaxTime' => $ranges ? max(array_column($ranges, 'endTime')) : '17:00',
+            'slotMinTime' => $times ? min(array_column($times, 'startTime')) : '08:00',
+            'slotMaxTime' => $times ? max(array_column($times, 'endTime')) : '17:00',
             // Length of a session outside any block (only used to explain why it cannot be booked)
             'duration' => count($durations) === 1 ? (int) reset($durations) : $consultant->getSessionMinutes(),
             'slotDuration' => sprintf('%02d:%02d:00', intdiv($minutes, 60), $minutes % 60),
@@ -181,19 +208,49 @@ class CalendarViewModel extends BaseObject
         ];
     }
 
+    /** The earlier of two optional dates (Y-m-d), or null when neither is set. */
+    private static function earliest($a, $b)
+    {
+        $dates = array_filter([$a, $b]);
+
+        return $dates ? min($dates) : null;
+    }
+
     /**
-     * Each block of hours as a recurring background event in its facility's colour, so the
-     * consultant sees where they are when. Only shown when there are several facilities.
+     * Each block of hours as a background event in its facility's colour, so the consultant sees
+     * where they are when: recurring weekly blocks when there are several facilities, and always
+     * alternate-week blocks (on their weeks only) and one-off sessions (F8 phase 3).
      */
     public function facilityBlocks()
     {
         $availability = $this->availability();
-        if ($availability === null || count($availability['facilities']) < 2) {
+        if ($availability === null) {
             return [];
         }
+        $several = count($availability['facilities']) >= 2;
 
         $events = [];
+        foreach ($availability['sessions'] as $session) {
+            $facility = $availability['facilities'][$session['facility']];
+            $events[] = [
+                'start' => $session['date'] . 'T' . $session['startTime'] . ':00',
+                'end' => $session['date'] . 'T' . $session['endTime'] . ':00',
+                'display' => 'background',
+                'color' => $facility['color'],
+                'title' => 'Session: ' . $facility['name'] . ($session['note'] ? ' (' . $session['note'] . ')' : ''),
+                'classNames' => ['facility-block', 'session-block', 'fac-' . $session['facility']],
+                'extendedProps' => ['facilityId' => $session['facility']],
+            ];
+        }
+
         foreach ($availability['blocks'] as $block) {
+            if ($block['weeks']) {
+                $events = array_merge($events, $this->rotationEvents($block, $availability['facilities'][$block['facility']]));
+                continue;
+            }
+            if (!$several) {
+                continue;
+            }
             $facility = $availability['facilities'][$block['facility']];
             $event = [
                 'daysOfWeek' => $block['daysOfWeek'],
@@ -213,6 +270,36 @@ class CalendarViewModel extends BaseObject
                 $event['endRecur'] = date('Y-m-d', strtotime($block['to'] . ' +1 day'));
             }
             $events[] = $event;
+        }
+
+        return $events;
+    }
+
+    /**
+     * An alternate-week block as dated background events, on the days of its weeks only, from a
+     * week back to the end of the booking window.
+     */
+    private function rotationEvents(array $block, array $facility)
+    {
+        $consultant = $this->consultant;
+        $isoDay = $block['daysOfWeek'][0] ?: 7;
+        $events = [];
+        $end = strtotime('+' . (int) (Yii::$app->params['booking.maxDaysAhead'] ?? 90) . ' days');
+        for ($ts = strtotime('-7 days'); $ts <= $end; $ts = strtotime('+1 day', $ts)) {
+            $date = date('Y-m-d', $ts);
+            if ((int) date('N', $ts) !== $isoDay || ($block['from'] && $date < $block['from']) || ($block['to'] && $date > $block['to'])
+                || $consultant->weekLetter($date) !== $block['weeks']) {
+                continue;
+            }
+            $events[] = [
+                'start' => $date . 'T' . $block['startTime'] . ':00',
+                'end' => $date . 'T' . $block['endTime'] . ':00',
+                'display' => 'background',
+                'color' => $facility['color'],
+                'title' => $facility['name'] . ' (week ' . $block['weeks'] . ')',
+                'classNames' => ['facility-block', 'fac-' . $block['facility']],
+                'extendedProps' => ['facilityId' => $block['facility']],
+            ];
         }
 
         return $events;
@@ -239,7 +326,7 @@ class CalendarViewModel extends BaseObject
 
         $consultant = $this->consultant;
         if ($consultant !== null) {
-            $blocked = array_merge($blocked, $this->closurePeriods($from, $to), $this->travelPeriods($from, $to));
+            $blocked = array_merge($blocked, $this->closurePeriods($from, $to), $this->travelPeriods($from, $to), $this->externalPeriods($from, $to));
             $own = (int) $consultant->user_id === (int) $this->viewer->id;
             foreach (ConsultantTimeOff::overlapping($consultant->id, $from . ' 00:00:00', $to . ' 23:59:59') as $away) {
                 $blocked[] = [
@@ -274,7 +361,7 @@ class CalendarViewModel extends BaseObject
             if (($engagement->from_date && $closure->date < $engagement->from_date) || ($engagement->to_date && $closure->date > $engagement->to_date)) {
                 continue;
             }
-            foreach ($consultant->getBlocks()[(int) date('N', strtotime($closure->date))] ?? [] as [$open, $close, $facilityId]) {
+            foreach ($consultant->blocksOn($closure->date) as [$open, $close, $facilityId]) {
                 if ($facilityId !== (int) $closure->facility_id) {
                     continue;
                 }
@@ -284,6 +371,32 @@ class CalendarViewModel extends BaseObject
                     'end' => $closure->date . 'T' . $close,
                     'title' => $name . ' closed: ' . $closure->reason,
                     'reason' => $name . ' is closed on ' . date('l j M', strtotime($closure->date)) . ' (' . $closure->reason . ').',
+                ];
+            }
+        }
+
+        return $periods;
+    }
+
+    /**
+     * The consultant's hours at places that do not use the app (F8 phase 3), as "Busy at <place>".
+     */
+    private function externalPeriods($from, $to)
+    {
+        $consultant = $this->consultant;
+        if (!$consultant->externalBlocks) {
+            return [];
+        }
+        $periods = [];
+        for ($ts = strtotime($from); $ts <= strtotime($to); $ts = strtotime('+1 day', $ts)) {
+            $date = date('Y-m-d', $ts);
+            foreach ($consultant->externalOn($date) as [$busyFrom, $busyTo, $place]) {
+                $periods[] = [
+                    'start' => $date . 'T' . $busyFrom,
+                    'end' => $date . 'T' . $busyTo,
+                    'title' => 'Busy at ' . $place,
+                    'reason' => ($consultant->names ?: 'The doctor') . ' is busy at ' . $place . ' from ' . substr($busyFrom, 0, 5) . ' to ' . substr($busyTo, 0, 5) . '.',
+                    'color' => '#ced4da',
                 ];
             }
         }

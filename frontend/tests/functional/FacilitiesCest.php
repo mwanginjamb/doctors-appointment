@@ -129,7 +129,7 @@ class FacilitiesCest
         ]);
         $I->see('Working hours saved.');
         $I->see('Avenue Clinic: Tue 14:00–18:00');
-        $I->assertSame([2 => [['08:00:00', '12:00:00', $this->main->id], ['14:00:00', '18:00:00', $this->avenue->id]]], Consultant::findOne($this->consultant->id)->getBlocks());
+        $I->assertSame([2 => [['08:00:00', '12:00:00', $this->main->id, ['weeks' => null, 'from' => null, 'to' => null]], ['14:00:00', '18:00:00', $this->avenue->id, ['weeks' => null, 'from' => null, 'to' => null]]]], Consultant::findOne($this->consultant->id)->getBlocks());
     }
 
     public function aFacilityWithHoursOrTheOnlyOneCannotBeRemoved(FunctionalTester $I)
