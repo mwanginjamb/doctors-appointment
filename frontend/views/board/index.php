@@ -16,6 +16,7 @@ use yii\helpers\Url;
 /** @var frontend\models\Facility|null $facility front desk or facility admin: their facility */
 /** @var frontend\models\Consultant[] $waiting front desk: consultants invited to their facility, not there yet */
 /** @var bool $facilityAdmin the viewer runs $facility */
+/** @var frontend\models\Consultant[] $here facility admin: consultants who work at their facility */
 
 $this->title = 'Appointments Board';
 $this->params['breadcrumbs'][] = $this->title;
@@ -56,6 +57,7 @@ $today = date('Y-m-d');
             <?php foreach ($bookable as $consultant): ?>
                 <?= Html::a('Book with ' . Html::encode($consultant->names), ['/appointments/calendar', 'cid' => $consultant->id], ['class' => 'btn btn-sm btn-success']) ?>
                 <?= Html::a('Send link', ['/booking-link/create', 'cid' => $consultant->id], ['class' => 'btn btn-sm btn-outline-success', 'title' => 'Send a booking link (remote walk-in)']) ?>
+                <?= Html::a('Sessions', ['/session/index', 'cid' => $consultant->id], ['class' => 'btn btn-sm btn-outline-secondary', 'title' => 'Add a one-off session (e.g. an outreach clinic)']) ?>
             <?php endforeach; ?>
             <?php if (!$bookable && !$waiting): ?>
                 <span class="text-warning">No consultants are assigned to you yet. Ask an administrator.</span>
@@ -76,6 +78,16 @@ $today = date('Y-m-d');
             Every consultant's appointments at <strong><?= Html::encode($facility->name ?? 'your facility') ?></strong>.
             Open one to see the details, cancel it with a note, or record whether the patient came.
         </p>
+        <?php if ($facility && $here): ?>
+            <div class="d-flex flex-wrap gap-2 mb-3" id="facility-consultants">
+                <?php foreach ($here as $consultant): ?>
+                    <span class="btn-group btn-group-sm">
+                        <?= Html::a(Html::encode($consultant->names), ['/appointments/calendar', 'cid' => $consultant->id], ['class' => 'btn btn-outline-primary', 'title' => 'Their calendar']) ?>
+                        <?= Html::a('Sessions', ['/session/index', 'cid' => $consultant->id], ['class' => 'btn btn-outline-secondary', 'title' => 'Add a one-off session here']) ?>
+                    </span>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
         <?php if ($facility && $stats): ?>
             <?= $this->render('@frontend/views/site/_clinic_stats', ['stats' => $stats, 'scopeLabel' => $facility->name]) ?>
             <?= $this->render('@frontend/views/site/_facility_report', ['stats' => $stats, 'month' => preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', (string) Yii::$app->request->get('month')) ? Yii::$app->request->get('month') : date('Y-m'), 'facility' => $facility, 'route' => 'board/index']) ?>

@@ -21,6 +21,9 @@ class FacilityBookingTest extends \Codeception\Test\Unit
 {
     use BookingDataTrait;
 
+    /** How weekly hours that run every week, open-ended, look (F8 phase 3) */
+    const EVERY_WEEK = ['weeks' => null, 'from' => null, 'to' => null];
+
     /** @var ConsultantFacility */
     private $main;
     /** @var ConsultantFacility */
@@ -158,7 +161,7 @@ class FacilityBookingTest extends \Codeception\Test\Unit
         Facility::updateAll(['active' => false], ['id' => $this->avenue->facility_id]);
 
         $this->assertFalse($this->newBooking('14:00')->saveBooking());
-        $this->assertSame([['08:00:00', '13:00:00', $this->main->facility_id]], $this->reload()->getRangesFor($this->date));
+        $this->assertSame([['08:00:00', '13:00:00', $this->main->facility_id, self::EVERY_WEEK]], $this->reload()->getRangesFor($this->date));
     }
 
     // ---- Free slots --------------------------------------------------------------------------
@@ -221,7 +224,7 @@ class FacilityBookingTest extends \Codeception\Test\Unit
         ]]]);
 
         $this->assertTrue($form->save());
-        $this->assertSame([3 => [['08:00:00', '12:00:00', $this->main->facility_id], ['14:00:00', '18:00:00', $this->avenue->facility_id]]], $this->reload()->getBlocks());
+        $this->assertSame([3 => [['08:00:00', '12:00:00', $this->main->facility_id, self::EVERY_WEEK], ['14:00:00', '18:00:00', $this->avenue->facility_id, self::EVERY_WEEK]]], $this->reload()->getBlocks());
         $this->assertSame('Avenue Clinic: Wed 14:00–18:00 | Main clinic: Wed 08:00–12:00', $this->consultant->getHoursSummary());
     }
 

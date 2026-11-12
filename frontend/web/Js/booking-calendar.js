@@ -24,17 +24,41 @@
     function localTime(d) { return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':00'; }
     function minutesOf(hhmm) { var p = hhmm.split(':'); return p[0] * 60 + +p[1]; }
 
-    // The block of hours (and so the facility) a session starting at date falls in, or null
+    // 'A' or 'B': the week of the consultant's alternate-week rotation date is in, counted in whole
+    // weeks from rotationWeekA (a Monday); null when there is no rotation
+    function weekLetter(date) {
+        if (!avail || !avail.rotationWeekA) {
+            return null;
+        }
+        var p = avail.rotationWeekA.split('-');
+        var anchor = Date.UTC(+p[0], p[1] - 1, +p[2]);
+        // Monday of date's week, as a UTC day number so daylight saving cannot shift it
+        var monday = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate() - ((date.getDay() + 6) % 7));
+        var weeks = Math.floor(Math.round((monday - anchor) / 86400000) / 7);
+        return ((weeks % 2) + 2) % 2 === 0 ? 'A' : 'B';
+    }
+
+    // The block of hours (and so the facility) a session starting at date falls in, or null: a
+    // one-off session that day, else a weekly block running then (its dates, its week)
     function blockAt(date) {
         if (!avail) {
             return null;
         }
         var day = localDate(date);
         var start = date.getHours() * 60 + date.getMinutes();
+        var inside = function (b) {
+            return start >= minutesOf(b.startTime) && start < minutesOf(b.endTime);
+        };
+        var session = (avail.sessions || []).find(function (s) {
+            return s.date === day && inside(s);
+        });
+        if (session) {
+            return session;
+        }
         return avail.blocks.find(function (b) {
-            return b.daysOfWeek[0] === date.getDay()
-                && start >= minutesOf(b.startTime) && start < minutesOf(b.endTime)
-                && (!b.from || day >= b.from) && (!b.to || day <= b.to);
+            return b.daysOfWeek[0] === date.getDay() && inside(b)
+                && (!b.from || day >= b.from) && (!b.to || day <= b.to)
+                && (!b.weeks || weekLetter(date) === b.weeks);
         }) || null;
     }
 
@@ -119,7 +143,8 @@
         },
         // Grey out closed hours and breaks; drag-and-drop stays inside them
         businessHours: avail ? avail.businessHours : false,
-        eventConstraint: avail ? 'businessHours' : undefined,
+        // One-off sessions are outside the weekly business hours: then the server alone decides
+        eventConstraint: avail && avail.constrainToHours ? 'businessHours' : undefined,
         hiddenDays: avail ? avail.hiddenDays : [],
         slotMinTime: avail ? avail.slotMinTime : '00:00',
         slotMaxTime: avail ? avail.slotMaxTime : '24:00',

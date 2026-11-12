@@ -67,6 +67,13 @@ class SlotFinder extends BaseObject
             $blocked[] = [$start, $start + $appointment->getDurationMinutes() * 60];
         }
 
+        // Hours at places that do not use the app (F8 phase 3)
+        foreach ($dates as $date) {
+            foreach ($consultant->externalOn($date) as [$busyFrom, $busyTo]) {
+                $blocked[] = [strtotime($date . ' ' . $busyFrom), strtotime($date . ' ' . $busyTo)];
+            }
+        }
+
         foreach ($dates as $date) {
             if (in_array($date, $holidays, true)) {
                 continue;

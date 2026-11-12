@@ -8,7 +8,10 @@ use frontend\models\Consultant;
 use frontend\models\ConsultantFacility;
 use frontend\models\ConsultantWorkingHours;
 use frontend\models\ConsultantTimeOff;
+use frontend\models\CalendarFeed;
+use frontend\models\ConsultantExternalBlock;
 use frontend\models\FacilityInvitation;
+use yii\helpers\Html;
 use frontend\models\FacilityRequest;
 use frontend\models\TimeOffForm;
 use frontend\models\WeeklyScheduleForm;
@@ -52,6 +55,9 @@ class AvailabilityController extends Controller
                     'request-facility' => ['POST'],
                     'travel-buffer' => ['POST'],
                     'decline-invitation' => ['POST'],
+                    'add-external' => ['POST'],
+                    'delete-external' => ['POST'],
+                    'calendar-feed' => ['POST'],
                 ],
             ],
         ];
@@ -168,6 +174,55 @@ class AvailabilityController extends Controller
         }
 
         return $this->renderIndex(new WeeklyScheduleForm($this->consultant), new TimeOffForm(), $engagement);
+    }
+
+    /**
+     * Adds weekly hours the consultant works somewhere that does not use the app (F8 phase 3).
+     */
+    public function actionAddExternal()
+    {
+        $block = new ConsultantExternalBlock();
+        $block->load($this->request->post());
+        $block->consultant_id = $this->consultant->id;
+        if ($block->save()) {
+            Yii::$app->session->setFlash('success', Yii::t('app', 'Added: {block}. Nobody can book you then.', ['block' => Html::encode($block->getLabel())]));
+        } else {
+            $errors = $block->getFirstErrors();
+            Yii::$app->session->setFlash('error', Html::encode(reset($errors)));
+        }
+
+        return $this->redirect($this->route('index', ['#' => 'external']));
+    }
+
+    public function actionDeleteExternal($id)
+    {
+        $block = ConsultantExternalBlock::findOne(['id' => $id, 'consultant_id' => $this->consultant->id]);
+        if ($block === null) {
+            throw new NotFoundHttpException(Yii::t('app', 'Not found.'));
+        }
+        $block->delete();
+        Yii::$app->session->setFlash('success', Yii::t('app', 'Removed: {block}.', ['block' => Html::encode($block->getLabel())]));
+
+        return $this->redirect($this->route('index', ['#' => 'external']));
+    }
+
+    /**
+     * Makes a new calendar feed address (F9), stopping any earlier one, and shows it once. Only the
+     * consultant themselves: the address opens their calendar without signing in.
+     */
+    public function actionCalendarFeed()
+    {
+        if ($this->managedCid) {
+            throw new \yii\web\ForbiddenHttpException(Yii::t('app', 'Only the consultant can make their calendar feed.'));
+        }
+        if ($this->request->post('revoke')) {
+            CalendarFeed::revoke($this->consultant);
+            Yii::$app->session->setFlash('success', Yii::t('app', 'Calendar feed stopped. Calendars subscribed to it no longer update.'));
+        } else {
+            Yii::$app->session->setFlash('feedUrl', CalendarFeed::regenerate($this->consultant));
+        }
+
+        return $this->redirect($this->route('index', ['#' => 'calendar-feed']));
     }
 
     /**

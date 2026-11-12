@@ -43,6 +43,11 @@ use yii\helpers\ArrayHelper;
  * @property string|null $token_updated_at
  * @property string|null $practice_establishment_date
  * @property int $travel_buffer_minutes gap needed before a block at another facility (F8 phase 2)
+ * @property string|null $rotation_week_a Y-m-d, the Monday of a week A for alternate-week hours (F8 phase 3)
+ * @property string|null $calendar_feed_hash sha256 of the secret in their iCal feed address (F9)
+ *
+ * @property ConsultantSession[] $sessions one-off sessions
+ * @property ConsultantExternalBlock[] $externalBlocks weekly hours at places that do not use the app
  */
 class Consultant extends \yii\db\ActiveRecord
 {
@@ -338,28 +343,123 @@ class Consultant extends \yii\db\ActiveRecord
     }
 
     /**
-     * The weekly schedule as ISO day => list of [start, end, facility_id].
+     * The weekly schedule as ISO day => list of [start, end, facility_id, rotation], where rotation
+     * is ['weeks' => 'A'|'B'|null, 'from' => Y-m-d|null, 'to' => Y-m-d|null] (F8 phase 3). Rows
+     * that only run in some weeks or between dates are included: see blocksOn() for one date.
      */
     public function getBlocks()
     {
         $week = [];
         foreach ($this->workingHours as $range) {
-            $week[(int) $range->day_of_week][] = [$range->start_time, $range->end_time, (int) $range->facility_id];
+            $week[(int) $range->day_of_week][] = [$range->start_time, $range->end_time, (int) $range->facility_id, $range->getRotation()];
         }
 
         return $week;
     }
 
+    public function getSessions()
+    {
+        // Recent and upcoming ones: older sessions only matter as history
+        return $this->hasMany(ConsultantSession::class, ['consultant_id' => 'id'])
+            ->andWhere(['>=', 'date', date('Y-m-d', strtotime('-31 days'))])
+            ->orderBy(['date' => SORT_ASC, 'start_time' => SORT_ASC]);
+    }
+
+    public function getExternalBlocks()
+    {
+        return $this->hasMany(ConsultantExternalBlock::class, ['consultant_id' => 'id'])
+            ->orderBy(['day_of_week' => SORT_ASC, 'start_time' => SORT_ASC]);
+    }
+
     /**
-     * Opening ranges on a given date (Y-m-d), as [start, end, facility_id]: the weekly blocks at
-     * facilities where the engagement runs that day (inside its dates, facility taking bookings).
+     * 'A' or 'B': which week of the consultant's alternate-week rotation $date (Y-m-d) is in,
+     * counted from rotation_week_a. Null when no rotation is set.
+     */
+    public function weekLetter($date)
+    {
+        if (!$this->rotation_week_a) {
+            return null;
+        }
+        $monday = strtotime('monday this week', strtotime($date));
+        $anchor = strtotime('monday this week', strtotime($this->rotation_week_a));
+        $weeks = (int) floor(round(($monday - $anchor) / 86400) / 7);
+
+        return $weeks % 2 === 0 ? 'A' : 'B';
+    }
+
+    /**
+     * Whether a weekly block runs on $date: inside its dates, and in its week of the rotation.
+     */
+    public function blockRunsOn(array $block, $date)
+    {
+        $rotation = $block[3] ?? [];
+        if (!empty($rotation['from']) && $date < $rotation['from']) {
+            return false;
+        }
+        if (!empty($rotation['to']) && $date > $rotation['to']) {
+            return false;
+        }
+        if (!empty($rotation['weeks'])) {
+            return $this->weekLetter($date) === $rotation['weeks'];
+        }
+
+        return true;
+    }
+
+    /**
+     * The consultant's hours on $date (Y-m-d), wherever they are and whether or not the facility is
+     * open then: the weekly blocks running that day, and their one-off sessions that day (marked
+     * ['session' => id] in the fourth element), by start time.
+     *
+     * @return array list of [start, end, facility_id, extra]
+     */
+    public function blocksOn($date)
+    {
+        $blocks = [];
+        foreach ($this->getBlocks()[(int) date('N', strtotime($date))] ?? [] as $block) {
+            if ($this->blockRunsOn($block, $date)) {
+                $blocks[] = $block;
+            }
+        }
+        foreach ($this->sessions as $session) {
+            if ($session->date === $date) {
+                $blocks[] = [$session->start_time, $session->end_time, (int) $session->facility_id, ['session' => (int) $session->id]];
+            }
+        }
+        usort($blocks, function ($a, $b) {
+            return strcmp($a[0], $b[0]);
+        });
+
+        return $blocks;
+    }
+
+    /**
+     * Where the consultant is busy on $date at places that do not use the app: list of
+     * [start, end, place].
+     */
+    public function externalOn($date)
+    {
+        $busy = [];
+        foreach ($this->externalBlocks as $block) {
+            if ((int) $block->day_of_week === (int) date('N', strtotime($date)) && $block->runsOn($date)) {
+                $busy[] = [$block->start_time, $block->end_time, $block->place];
+            }
+        }
+
+        return $busy;
+    }
+
+    /**
+     * Opening ranges on a given date (Y-m-d), as [start, end, facility_id, extra]: the weekly blocks
+     * running that day (rotation and dates) and one-off sessions, at facilities where the
+     * engagement runs that day (inside its dates, facility taking bookings and not closed).
      *
      * @param int|null $facilityId only the ranges at this facility
      */
     public function getRangesFor($date, $facilityId = null)
     {
         $ranges = [];
-        foreach ($this->getBlocks()[(int) date('N', strtotime($date))] ?? [] as $range) {
+        foreach ($this->blocksOn($date) as $range) {
             if ($facilityId !== null && $range[2] !== (int) $facilityId) {
                 continue;
             }
@@ -464,7 +564,7 @@ class Consultant extends \yii\db\ActiveRecord
     public function closureAt($date, $time)
     {
         $start = strtotime($date . ' ' . $time);
-        foreach ($this->getBlocks()[(int) date('N', $start)] ?? [] as [$open, $close, $facilityId]) {
+        foreach ($this->blocksOn($date) as [$open, $close, $facilityId]) {
             if ($start < strtotime($date . ' ' . $open) || $start >= strtotime($date . ' ' . $close)) {
                 continue;
             }

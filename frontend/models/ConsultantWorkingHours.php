@@ -17,6 +17,9 @@ use yii\db\ActiveRecord;
  * @property int $day_of_week ISO: 1 = Monday ... 7 = Sunday
  * @property string $start_time HH:MM:SS
  * @property string $end_time HH:MM:SS
+ * @property string|null $weeks 'A' or 'B' for alternate weeks (Consultant::weekLetter); null = every week
+ * @property string|null $from_date Y-m-d, first day these hours run; null = already
+ * @property string|null $to_date Y-m-d, last day; null = open-ended
  * @property int|null $created_at
  * @property int|null $updated_at
  */
@@ -59,7 +62,37 @@ class ConsultantWorkingHours extends ActiveRecord
             [['consultant_id', 'facility_id'], 'integer'],
             [['day_of_week'], 'integer', 'min' => 1, 'max' => 7],
             [['start_time', 'end_time'], 'time', 'format' => 'php:H:i:s'],
+            [['weeks'], 'in', 'range' => ['A', 'B']],
+            [['from_date', 'to_date'], 'date', 'format' => 'php:Y-m-d'],
         ];
+    }
+
+    /**
+     * When these hours run (F8 phase 3): ['weeks' => 'A'|'B'|null, 'from' => Y-m-d|null,
+     * 'to' => Y-m-d|null]. All null: every week, open-ended.
+     */
+    public function getRotation()
+    {
+        return ['weeks' => $this->weeks ?: null, 'from' => $this->from_date ?: null, 'to' => $this->to_date ?: null];
+    }
+
+    /**
+     * " (week A)", " (until 31 Jan)", " (week B, from 1 Dec)", or '' for every week, open-ended.
+     */
+    public static function rotationLabel(?array $rotation)
+    {
+        $parts = [];
+        if (!empty($rotation['weeks'])) {
+            $parts[] = 'week ' . $rotation['weeks'];
+        }
+        if (!empty($rotation['from'])) {
+            $parts[] = 'from ' . date('j M', strtotime($rotation['from']));
+        }
+        if (!empty($rotation['to'])) {
+            $parts[] = 'until ' . date('j M', strtotime($rotation['to']));
+        }
+
+        return $parts ? ' (' . implode(', ', $parts) . ')' : '';
     }
 
     public function getFacility()
@@ -68,9 +101,10 @@ class ConsultantWorkingHours extends ActiveRecord
     }
 
     /**
-     * Replaces a consultant's whole week with $week: day => list of [start, end, facility_id], times
-     * as HH:MM:SS. A range without a facility is at the consultant's first engagement (made when
-     * there is none). Callers validate the ranges first; see WeeklyScheduleForm.
+     * Replaces a consultant's whole week with $week: day => list of [start, end, facility_id,
+     * rotation], times as HH:MM:SS, rotation as getRotation() returns it (optional: every week).
+     * A range without a facility is at the consultant's first engagement (made when there is
+     * none). Callers validate the ranges first; see WeeklyScheduleForm.
      *
      * @param int $consultantId consultant.id
      * @param array $week
@@ -91,12 +125,14 @@ class ConsultantWorkingHours extends ActiveRecord
                         $defaultFacility = $defaultFacility ?? self::defaultFacilityId($consultantId);
                         $facilityId = $defaultFacility;
                     }
-                    $rows[] = [$consultantId, (int) $facilityId, $day, $range[0], $range[1], $now, $now];
+                    $rotation = $range[3] ?? [];
+                    $rows[] = [$consultantId, (int) $facilityId, $day, $range[0], $range[1],
+                        $rotation['weeks'] ?? null, $rotation['from'] ?? null, $rotation['to'] ?? null, $now, $now];
                 }
             }
             static::deleteAll(['consultant_id' => $consultantId]);
             if ($rows) {
-                $db->createCommand()->batchInsert(static::tableName(), ['consultant_id', 'facility_id', 'day_of_week', 'start_time', 'end_time', 'created_at', 'updated_at'], $rows)->execute();
+                $db->createCommand()->batchInsert(static::tableName(), ['consultant_id', 'facility_id', 'day_of_week', 'start_time', 'end_time', 'weeks', 'from_date', 'to_date', 'created_at', 'updated_at'], $rows)->execute();
             }
             // Saved in bulk, so the audit behaviour does not see it
             $old = static::describe($before);
@@ -132,7 +168,7 @@ class ConsultantWorkingHours extends ActiveRecord
     {
         $week = [];
         foreach (static::find()->where(['consultant_id' => $consultantId])->orderBy(['day_of_week' => SORT_ASC, 'start_time' => SORT_ASC])->all() as $row) {
-            $week[(int) $row->day_of_week][] = [$row->start_time, $row->end_time, (int) $row->facility_id];
+            $week[(int) $row->day_of_week][] = [$row->start_time, $row->end_time, (int) $row->facility_id, $row->getRotation()];
         }
 
         return $week;
@@ -187,7 +223,7 @@ class ConsultantWorkingHours extends ActiveRecord
                 continue;
             }
             $hours = implode(', ', array_map(function ($r) {
-                return substr($r[0], 0, 5) . '–' . substr($r[1], 0, 5);
+                return substr($r[0], 0, 5) . '–' . substr($r[1], 0, 5) . self::rotationLabel($r[3] ?? null);
             }, $ranges));
 
             $last = count($groups) - 1;

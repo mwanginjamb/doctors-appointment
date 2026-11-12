@@ -40,20 +40,34 @@ $lengthChoices = array_combine(ConsultantFacility::sessionLengths(), array_map(f
 }, ConsultantFacility::sessionLengths()));
 $otherFacilities = Facility::activeList(array_keys($facilityChoices));
 
-/** One editable time range; $day and $i make the input names unique. */
-$rangeRow = function ($day, $i, $start = '', $end = '', $facility = null) use ($several, $facilityChoices) {
+/**
+ * One editable time range; $day and $i make the input names unique. Below it, when it runs (F8
+ * phase 3): every week or week A / B, and optional first and last days.
+ */
+$rangeRow = function ($day, $i, $start = '', $end = '', $facility = null, $weeks = null, $from = '', $to = '') use ($several, $facilityChoices) {
     $where = $several
         ? Html::dropDownList("hours[$day][$i][facility]", $facility, $facilityChoices, [
             'class' => 'form-select', 'required' => true, 'prompt' => Yii::t('app', 'Where?'), 'aria-label' => 'Facility',
         ])
         : Html::hiddenInput("hours[$day][$i][facility]", $facility ?? key($facilityChoices));
 
-    return '<div class="input-group input-group-sm mb-2 range-row" style="max-width: ' . ($several ? '38rem' : '22rem') . '">'
+    return '<div class="range-row mb-2" style="max-width: ' . ($several ? '38rem' : '26rem') . '">'
+        . '<div class="input-group input-group-sm">'
         . Html::input('time', "hours[$day][$i][start]", $start, ['class' => 'form-control', 'required' => true, 'aria-label' => 'Opens'])
         . '<span class="input-group-text">to</span>'
         . Html::input('time', "hours[$day][$i][end]", $end, ['class' => 'form-control', 'required' => true, 'aria-label' => 'Closes'])
         . ($several ? '<span class="input-group-text">at</span>' : '') . $where
         . '<button type="button" class="btn btn-outline-danger remove-range" title="' . Yii::t('app', 'Remove') . '">&times;</button>'
+        . '</div>'
+        . '<div class="input-group input-group-sm mt-1 range-rotation">'
+        . Html::dropDownList("hours[$day][$i][weeks]", $weeks, ['' => Yii::t('app', 'Every week'), 'A' => Yii::t('app', 'Week A only'), 'B' => Yii::t('app', 'Week B only')], [
+            'class' => 'form-select', 'aria-label' => 'Which weeks',
+        ])
+        . '<span class="input-group-text">' . Yii::t('app', 'from') . '</span>'
+        . Html::input('date', "hours[$day][$i][from]", $from, ['class' => 'form-control', 'aria-label' => 'First day (optional)'])
+        . '<span class="input-group-text">' . Yii::t('app', 'until') . '</span>'
+        . Html::input('date', "hours[$day][$i][to]", $to, ['class' => 'form-control', 'aria-label' => 'Last day (optional)'])
+        . '</div>'
         . '</div>';
 };
 ?>
@@ -262,6 +276,19 @@ $rangeRow = function ($day, $i, $start = '', $end = '', $facility = null) use ($
 
     <?= Html::beginForm(['availability/index', 'cid' => $cid], 'post', ['id' => 'weekly-schedule-form']) ?>
     <?= Html::hiddenInput('submitted', 1) ?>
+    <!-- F8 phase 3: alternate weeks are counted from a week A -->
+    <div class="row g-2 align-items-end mb-3">
+        <div class="col-sm-5 col-md-3">
+            <label class="form-label small mb-1" for="rotation-week-a"><?= Yii::t('app', 'A day in a week A') ?></label>
+            <?= Html::input('date', 'rotation_week_a', $form->rotationWeekA, ['class' => 'form-control form-control-sm', 'id' => 'rotation-week-a']) ?>
+        </div>
+        <div class="col-sm-7 col-md-9 form-text">
+            <?= Yii::t('app', 'Only for hours that run every other week (a rotation): pick any day of a week A; weeks then alternate A, B, A… Hours can also start or stop on a date: use "from" and "until".') ?>
+            <?php if ($form->rotationWeekA): ?>
+                <?= Yii::t('app', 'This week is week {letter}.', ['letter' => $consultant->weekLetter(date('Y-m-d'))]) ?>
+            <?php endif; ?>
+        </div>
+    </div>
     <div class="card shadow-sm">
         <ul class="list-group list-group-flush">
             <?php foreach (ConsultantWorkingHours::DAYS as $day => $name): ?>
@@ -272,7 +299,7 @@ $rangeRow = function ($day, $i, $start = '', $end = '', $facility = null) use ($
                         <div class="col-md-10">
                             <div class="ranges">
                                 <?php foreach ($ranges as $i => $range): ?>
-                                    <?= $rangeRow($day, $i, $range['start'], $range['end'], $range['facility'] ?? null) ?>
+                                    <?= $rangeRow($day, $i, $range['start'], $range['end'], $range['facility'] ?? null, $range['weeks'] ?? null, $range['from'] ?? '', $range['to'] ?? '') ?>
                                 <?php endforeach; ?>
                             </div>
                             <span class="badge text-bg-secondary closed-label<?= $ranges ? ' d-none' : '' ?>"><?= Yii::t('app', 'Closed') ?></span>
@@ -287,6 +314,71 @@ $rangeRow = function ($day, $i, $start = '', $end = '', $facility = null) use ($
         <?= Html::submitButton(Yii::t('app', 'Save working hours'), ['class' => 'btn btn-primary']) ?>
     </div>
     <?= Html::endForm() ?>
+
+    <!-- F8 phase 3: one-off sessions, hours elsewhere, calendar feed -->
+    <h2 class="h4 fw-bold mt-5" id="sessions"><?= Yii::t('app', 'One-off sessions') ?></h2>
+    <p class="text-muted">
+        <?= Yii::t('app', 'A session on one date outside your weekly hours, such as a Saturday outreach clinic. Patients can book it like your weekly hours. Front desk and facility admins can add them for you too; you are told when they do.') ?>
+    </p>
+    <p><?= Html::a(Yii::t('app', 'Add or remove sessions'), $cid ? ['session/index', 'cid' => $cid] : ['session/index'], ['class' => 'btn btn-outline-primary btn-sm']) ?></p>
+
+    <h2 class="h4 fw-bold mt-5" id="external"><?= Yii::t('app', 'Busy elsewhere') ?></h2>
+    <p class="text-muted">
+        <?= Yii::t('app', 'Weekly hours you work somewhere that does not use this app, e.g. a public hospital. Nobody can book you then, and calendars show "busy at" the place.') ?>
+    </p>
+    <?php if ($consultant->externalBlocks): ?>
+        <ul class="list-group mb-3" style="max-width: 38rem">
+            <?php foreach ($consultant->externalBlocks as $external): ?>
+                <li class="list-group-item d-flex justify-content-between align-items-center external-block">
+                    <span><?= Html::encode($external->getLabel()) ?></span>
+                    <?= Html::beginForm(['availability/delete-external', 'id' => $external->id, 'cid' => $cid], 'post', ['class' => 'd-inline']) ?>
+                        <?= Html::submitButton(Yii::t('app', 'Remove'), ['class' => 'btn btn-sm btn-outline-danger']) ?>
+                    <?= Html::endForm() ?>
+                </li>
+            <?php endforeach; ?>
+        </ul>
+    <?php endif; ?>
+    <?= Html::beginForm(['availability/add-external', 'cid' => $cid], 'post', ['class' => 'row g-2 align-items-end', 'id' => 'external-form', 'style' => 'max-width: 52rem']) ?>
+        <div class="col-md-4">
+            <label class="form-label small mb-1" for="external-place"><?= Yii::t('app', 'Where') ?></label>
+            <?= Html::textInput('ConsultantExternalBlock[place]', '', ['class' => 'form-control form-control-sm', 'id' => 'external-place', 'required' => true, 'maxlength' => 150, 'placeholder' => 'e.g. Kenyatta National Hospital']) ?>
+        </div>
+        <div class="col-4 col-md-2">
+            <label class="form-label small mb-1"><?= Yii::t('app', 'Day') ?></label>
+            <?= Html::dropDownList('ConsultantExternalBlock[day_of_week]', null, ConsultantWorkingHours::DAYS, ['class' => 'form-select form-select-sm']) ?>
+        </div>
+        <div class="col-4 col-md-2">
+            <label class="form-label small mb-1"><?= Yii::t('app', 'From') ?></label>
+            <?= Html::input('time', 'ConsultantExternalBlock[start_time]', '', ['class' => 'form-control form-control-sm', 'required' => true]) ?>
+        </div>
+        <div class="col-4 col-md-2">
+            <label class="form-label small mb-1"><?= Yii::t('app', 'Until') ?></label>
+            <?= Html::input('time', 'ConsultantExternalBlock[end_time]', '', ['class' => 'form-control form-control-sm', 'required' => true]) ?>
+        </div>
+        <div class="col-md-2"><?= Html::submitButton(Yii::t('app', 'Add'), ['class' => 'btn btn-sm btn-outline-primary']) ?></div>
+    <?= Html::endForm() ?>
+
+    <?php if (!$cid): ?>
+        <h2 class="h4 fw-bold mt-5" id="calendar-feed"><?= Yii::t('app', 'Calendar feed') ?></h2>
+        <p class="text-muted">
+            <?= Yii::t('app', 'See your appointments and sessions in Google, Apple or Outlook calendar: add the feed address there as a calendar "from URL" or "subscription". It shows "Appointment", where and when, never patient names or visit reasons. Anyone with the address can read it: keep it private.') ?>
+        </p>
+        <?php if ($feedUrl = Yii::$app->session->getFlash('feedUrl')): ?>
+            <div class="alert alert-success" id="feed-url">
+                <div class="fw-semibold mb-1"><?= Yii::t('app', 'Your feed address (shown only now; copy it into your calendar):') ?></div>
+                <code class="user-select-all text-break"><?= Html::encode($feedUrl) ?></code>
+            </div>
+        <?php endif; ?>
+        <?= Html::beginForm(['availability/calendar-feed'], 'post', ['class' => 'd-inline', 'id' => 'calendar-feed-form']) ?>
+            <?= Html::submitButton($consultant->calendar_feed_hash ? Yii::t('app', 'Make a new address (the old one stops)') : Yii::t('app', 'Make my feed address'), ['class' => 'btn btn-sm btn-outline-primary']) ?>
+        <?= Html::endForm() ?>
+        <?php if ($consultant->calendar_feed_hash): ?>
+            <?= Html::beginForm(['availability/calendar-feed'], 'post', ['class' => 'd-inline ms-2', 'id' => 'calendar-feed-stop']) ?>
+                <?= Html::hiddenInput('revoke', 1) ?>
+                <?= Html::submitButton(Yii::t('app', 'Stop the feed'), ['class' => 'btn btn-sm btn-outline-danger']) ?>
+            <?= Html::endForm() ?>
+        <?php endif; ?>
+    <?php endif; ?>
 
     <h2 class="h4 fw-bold mt-5" id="time-off"><?= Yii::t('app', 'Time off') ?></h2>
     <p class="text-muted"><?= Yii::t('app', 'Leave, conferences or part of a day. Patients cannot book you during it; they only see the dates, never the reason.') ?></p>
