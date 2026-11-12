@@ -323,6 +323,30 @@ confirmed). Before, they carried it only outside the cut-off.
 2. **Check:** move a scheduled appointment to tomorrow from the calendar: the patient's WhatsApp ends
    "To confirm you are coming: <link>"; the button on that page marks it confirmed on the board.
 
+### Fix: signing in with LinkedIn
+
+LinkedIn sign-in could not work. The library's LinkedIn client asks for the `r_liteprofile` and
+`r_emailaddress` scopes, which LinkedIn retired in 2023; a hand edit inside `vendor/` (not in git, so
+undone by every `composer install`) changed only part of it; and the sign-in read field names from
+LinkedIn's old API. The app now has its own client, `common\authclient\LinkedIn`, for LinkedIn's
+OpenID Connect sign-in (scopes `openid profile email`, the `userinfo` endpoint, a Bearer token), and
+reads both providers' answers in one place (`common\authclient\OauthProfile`).
+
+An email now counts as verified only when the provider says so (before, anything other than Google
+counted as verified), so a provider login takes over an existing account with the same email only
+when the provider has verified it. Google or LinkedIn is offered on the login and signup pages only
+when both its keys are set in `.env`.
+
+1. **LinkedIn app** (linkedin.com/developers → your app):
+   - **Products:** add **Sign In with LinkedIn using OpenID Connect**;
+   - **Auth → Authorized redirect URLs:** `https://<your host>/site/auth?authclient=linkedin`.
+2. **`.env`:** keep `LINKEDIN_CLIENT_ID` and `LINKEDIN_CLIENT_SECRET`; `LINKEDIN_ACCESS_TOKEN` is not
+   used and can go. Google is unchanged (its redirect URL is `.../site/auth?authclient=google`).
+3. **Deploy:** pull, then `composer install`. Code only: no migration, no `rbac/init`. If a hand-edited
+   `vendor/yiisoft/yii2-authclient` was copied to the server, `composer reinstall yiisoft/yii2-authclient`
+   puts back the original (the app no longer uses its LinkedIn client).
+4. **Check:** **Log in → LinkedIn** signs in, or creates a patient account for a new email.
+
 ---
 
 ## Deferred

@@ -10,6 +10,7 @@ use frontend\models\SearchForm;
 use frontend\components\AdminAccessControl;
 use yii\filters\VerbFilter;
 use common\models\LoginForm;
+use common\authclient\OauthProfile;
 use yii\authclient\AuthAction;
 use yii\filters\AccessControl;
 use frontend\models\SignupForm;
@@ -93,34 +94,15 @@ class SiteController extends Controller
 
     public function onAuthSuccess(ClientInterface $client)
     {
-        $attributes = $client->getUserAttributes();
-        $email = $id = $name = null; //initialize values
-        $emailVerified = true;
-
-        // Identify the client
-        if ($client->getId() === 'google') {
-            $email = $attributes['email'] ?? null;
-            $id = $attributes['id'] ?? null;
-            $name = $attributes['name'] ?? null;
-            $emailVerified = (bool) ($attributes['verified_email'] ?? $attributes['email_verified'] ?? false);
-        } elseif ($client->getId() === 'microsoft') {
-            $email = $attributes['mail'] ?? $attributes['userPrincipalName'] ?? null;
-            $id = $attributes['id'] ?? null;
-            $name = $attributes['displayName'] ?? null;
-        } elseif ($client->getId() === 'linkedin') {
-            $email = $attributes['emailAddress'] ?? null;
-            $id = $attributes['id'] ?? null;
-            $name = $attributes['formattedName'] ?? null;
-        }
-
-        if (!$email || !$id) {
-            Yii::warning('OAuth login without email or id from client ' . $client->getId(), 'linkedin');
+        $profile = OauthProfile::fromAttributes($client->getId(), $client->getUserAttributes());
+        if (!$profile->isUsable()) {
+            Yii::warning('OAuth login without email or id from client ' . $client->getId(), __METHOD__);
             Yii::$app->session->setFlash('error', 'We could not get your email address from ' . $client->getTitle() . '. Please sign up with email instead.');
             return $this->redirect(['site/login']);
         }
 
         // Find, link or create user
-        $user = User::createOrUpdateFromOauth($client->getId(), $id, $email, $name, $emailVerified);
+        $user = User::createOrUpdateFromOauth($client->getId(), $profile->id, $profile->email, $profile->name, $profile->emailVerified);
         if ($user && (int) $user->status !== User::STATUS_ACTIVE) {
             Yii::$app->session->setFlash('error', 'Your account is not active yet. Please verify your email address first.');
             return $this->redirect(['site/login']);
