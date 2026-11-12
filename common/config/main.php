@@ -29,18 +29,21 @@ return [
         ],
         'authClientCollection' => [
             'class' => 'yii\authclient\Collection',
-            'clients' => [
-                'google' => [
+            // A provider is offered only when both its keys are set, so a missing key hides its
+            // button instead of showing one that fails
+            'clients' => array_filter([
+                'google' => env('GOOGLE_CLIENT_ID') && env('GOOGLE_CLIENT_SECRET') ? [
                     'class' => 'yii\authclient\clients\Google',
                     'clientId' => env('GOOGLE_CLIENT_ID'),
                     'clientSecret' => env('GOOGLE_CLIENT_SECRET'),
-                ],
-                'linkedin' => [
-                    'class' => 'yii\authclient\clients\LinkedIn',
+                ] : null,
+                'linkedin' => env('LINKEDIN_CLIENT_ID') && env('LINKEDIN_CLIENT_SECRET') ? [
+                    // Our own client: LinkedIn's OpenID Connect sign-in (the library's uses retired scopes)
+                    'class' => \common\authclient\LinkedIn::class,
                     'clientId' => env('LINKEDIN_CLIENT_ID'),
                     'clientSecret' => env('LINKEDIN_CLIENT_SECRET'),
-                ],
-            ],
+                ] : null,
+            ]),
         ],
         'queue' => [
             'class' => \yii\queue\db\Queue::class,
