@@ -5,7 +5,7 @@ namespace frontend\controllers;
 use common\models\User;
 use frontend\components\AdminAccessControl;
 use frontend\components\FrontDesk;
-use frontend\models\Consultant;
+use frontend\models\Facility;
 use frontend\models\FrontDeskAssignment;
 use frontend\models\FrontDeskStaffForm;
 use Yii;
@@ -13,7 +13,8 @@ use yii\web\Controller;
 use yii\web\NotFoundHttpException;
 
 /**
- * Admin page for front-desk staff: create their accounts and choose which consultants each books for.
+ * Admin page for front-desk staff: create their accounts, and choose the facility each works at and
+ * the consultants they book for there.
  */
 class FrontDeskController extends Controller
 {
@@ -36,7 +37,9 @@ class FrontDeskController extends Controller
             }
         }
 
-        return $this->render('index', ['staff' => $staff, 'assigned' => $assigned]);
+        $facilities = Facility::find()->select(['name', 'id'])->where(['id' => array_filter(array_column($staff, 'facility_id'))])->indexBy('id')->column();
+
+        return $this->render('index', ['staff' => $staff, 'assigned' => $assigned, 'facilities' => $facilities]);
     }
 
     public function actionCreate()
@@ -50,7 +53,7 @@ class FrontDeskController extends Controller
             return $this->redirect(['index']);
         }
 
-        return $this->render('form', ['form' => $form, 'consultants' => $this->consultantOptions()]);
+        return $this->renderForm($form);
     }
 
     public function actionUpdate($id)
@@ -66,19 +69,18 @@ class FrontDeskController extends Controller
             return $this->redirect(['index']);
         }
 
-        return $this->render('form', ['form' => $form, 'consultants' => $this->consultantOptions()]);
+        return $this->renderForm($form);
     }
 
-    /**
-     * @return array consultant.id => "Name (practice)"
-     */
-    private function consultantOptions()
+    private function renderForm(FrontDeskStaffForm $form)
     {
-        $options = [];
-        foreach (Consultant::find()->orderBy(['names' => SORT_ASC])->all() as $consultant) {
-            $options[$consultant->id] = $consultant->names . ($consultant->practice_name ? ' (' . $consultant->practice_name . ')' : '');
-        }
+        [$consultants, $byFacility] = FrontDeskStaffForm::consultantOptions();
 
-        return $options;
+        return $this->render('form', [
+            'form' => $form,
+            'consultants' => $consultants,
+            'byFacility' => $byFacility,
+            'facilities' => Facility::find()->select(['name', 'id'])->orderBy(['name' => SORT_ASC])->indexBy('id')->column(),
+        ]);
     }
 }

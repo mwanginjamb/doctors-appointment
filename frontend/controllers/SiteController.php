@@ -386,11 +386,17 @@ class SiteController extends Controller
 
     // Settings route
 
-    public function actionSettings()
+    public function actionSettings($facility = null, $month = null)
     {
         $this->layout = 'admin';
+        // F8 phase 2: the numbers for one facility, and a month's sessions and fees per facility
+        $facility = ctype_digit((string) $facility) ? \frontend\models\Facility::findOne((int) $facility) : null;
+        $month = preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', (string) $month) ? $month : date('Y-m');
+
         return $this->render('settings', [
-            'stats' => new \frontend\models\ClinicStats(),
+            'stats' => new \frontend\models\ClinicStats(['facilityId' => $facility->id ?? null]),
+            'facility' => $facility,
+            'month' => $month,
         ]);
     }
 

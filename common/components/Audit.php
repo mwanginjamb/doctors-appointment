@@ -48,9 +48,10 @@ class Audit
      * @param array $changes field => [old, new]
      * @param string|null $note
      * @param array|null $actor [type, user id, name] to use instead of the current one
+     * @param int|null $facilityId the facility the entry is about, when it is about one (F8 phase 2)
      * @return bool whether the entry was written
      */
-    public static function log($action, $entityType = null, $entityId = null, array $changes = [], $note = null, ?array $actor = null)
+    public static function log($action, $entityType = null, $entityId = null, array $changes = [], $note = null, ?array $actor = null, $facilityId = null)
     {
         try {
             [$type, $actorId, $name] = $actor ?? self::currentActor();
@@ -62,6 +63,7 @@ class Audit
                 'action' => $action,
                 'entity_type' => $entityType,
                 'entity_id' => $entityId !== null ? (string) $entityId : null,
+                'facility_id' => $facilityId !== null && $facilityId !== '' ? (int) $facilityId : null,
                 'changes' => $changes ? json_encode($changes, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : null,
                 'note' => $note !== null ? mb_substr((string) $note, 0, 255) : null,
                 'ip' => self::ip(),

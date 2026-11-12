@@ -321,15 +321,23 @@ class Appointments extends \yii\db\ActiveRecord
     }
 
     /**
-     * No-shows of a patient in the last $days days, for staff to see when booking or opening an appointment.
+     * No-shows of a patient in the last $days days, for staff to see when booking or opening an
+     * appointment. Only those the viewer may see in the patient's history count (F8 phase 2):
+     * pass FrontDesk::historyCondition().
+     *
+     * @param array|string $scope condition on the appointments table; [] counts every one
      */
-    public static function countNoShows($patientId, $days = 365)
+    public static function countNoShows($patientId, $days = 365, $scope = [])
     {
-        return (int) self::find()
+        $query = self::find()
             ->orderBy(null)
-            ->where(['patient_id' => $patientId, 'status' => self::STATUS_NO_SHOW])
-            ->andWhere(['>=', 'date', date('Y-m-d', strtotime("-{$days} days"))])
-            ->count();
+            ->where(['appointments.patient_id' => $patientId, 'appointments.status' => self::STATUS_NO_SHOW])
+            ->andWhere(['>=', 'appointments.date', date('Y-m-d', strtotime("-{$days} days"))]);
+        if ($scope !== [] && $scope !== null) {
+            $query->andWhere($scope);
+        }
+
+        return (int) $query->count();
     }
 
     /**

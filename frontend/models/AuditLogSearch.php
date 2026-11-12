@@ -18,6 +18,8 @@ class AuditLogSearch extends Model
     public $action;
     public $entity_type;
     public $entity_id;
+    /** @var int|null F8 phase 2: entries about one facility */
+    public $facility;
 
     public function rules()
     {
@@ -27,6 +29,7 @@ class AuditLogSearch extends Model
             [['actor_type'], 'in', 'range' => array_keys(AuditLog::actorTypes())],
             [['action'], 'in', 'range' => array_keys(AuditLog::actions())],
             [['entity_type'], 'in', 'range' => array_keys(AuditLog::entityTypes())],
+            [['facility'], 'integer'],
         ];
     }
 
@@ -42,6 +45,7 @@ class AuditLogSearch extends Model
             'actor_type' => 'As',
             'entity_type' => 'Record',
             'entity_id' => 'Record #',
+            'facility' => 'Facility',
         ];
     }
 
@@ -65,6 +69,7 @@ class AuditLogSearch extends Model
             'action' => $this->action,
             'entity_type' => $this->entity_type,
             'entity_id' => $this->entity_id !== null && $this->entity_id !== '' ? trim($this->entity_id) : null,
+            'facility_id' => $this->facility,
         ]);
         $query->andFilterWhere(['like', 'actor_name', $this->actor]);
         if ($this->from) {

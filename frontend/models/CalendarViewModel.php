@@ -34,10 +34,16 @@ class CalendarViewModel extends BaseObject
     /** @var bool the consultant no longer takes bookings */
     public $deactivated = false;
 
+    /** @var int|null front desk: the facility they book at; their hours elsewhere are not offered */
+    public $facilityId;
+
     public function init()
     {
         parent::init();
         $viewer = $this->viewer;
+        if ($viewer->isFrontDeskAccount()) {
+            $this->facilityId = \common\rbac\AssignedFacilityRule::facilityIdFor($viewer->id);
+        }
 
         if ($viewer->isConsultantAccount()) {
             $this->consultant = Consultant::findOne(['user_id' => $viewer->id]);
@@ -48,7 +54,8 @@ class CalendarViewModel extends BaseObject
         } elseif ($viewer->isConsultantAccount() && $this->consultant) {
             $this->title = 'Consultantations Schedule for ' . ucwords((string) $this->consultant->names);
         } elseif ($viewer->isFrontDeskAccount() && $this->consultant) {
-            $this->title = 'Front desk: ' . $this->consultant->names;
+            $facility = $this->facilityId ? Facility::findOne($this->facilityId) : null;
+            $this->title = 'Front desk: ' . $this->consultant->names . ($facility ? ' at ' . $facility->name : '');
         }
 
         // The consultant themselves, or their front desk
@@ -111,6 +118,10 @@ class CalendarViewModel extends BaseObject
             foreach ($dayRanges as [$start, $end, $facilityId]) {
                 $engagement = $consultant->getEngagement($facilityId);
                 if ($engagement === null || !$engagement->facility->isActive()) {
+                    continue;
+                }
+                // Front desk books only at their facility: the consultant's hours elsewhere are closed to them
+                if ($this->facilityId !== null && (int) $facilityId !== $this->facilityId) {
                     continue;
                 }
                 // FullCalendar counts days from Sunday = 0; ISO Sunday is 7
@@ -228,6 +239,7 @@ class CalendarViewModel extends BaseObject
 
         $consultant = $this->consultant;
         if ($consultant !== null) {
+            $blocked = array_merge($blocked, $this->closurePeriods($from, $to), $this->travelPeriods($from, $to));
             $own = (int) $consultant->user_id === (int) $this->viewer->id;
             foreach (ConsultantTimeOff::overlapping($consultant->id, $from . ' 00:00:00', $to . ' 23:59:59') as $away) {
                 $blocked[] = [
@@ -244,5 +256,75 @@ class CalendarViewModel extends BaseObject
         return array_map(function ($period) {
             return $period + ['display' => 'background', 'color' => '#f1aeb5', 'overlap' => false];
         }, $blocked);
+    }
+
+    /**
+     * Days a facility the consultant works at is closed (F8 phase 2), over the consultant's hours
+     * there that day, so their hours elsewhere that day stay bookable.
+     */
+    private function closurePeriods($from, $to)
+    {
+        $consultant = $this->consultant;
+        $facilityIds = array_map(function ($e) {
+            return (int) $e->facility_id;
+        }, $consultant->engagements);
+        $periods = [];
+        foreach (FacilityClosure::between($facilityIds, $from, $to) as $closure) {
+            $engagement = $consultant->getEngagement($closure->facility_id);
+            if (($engagement->from_date && $closure->date < $engagement->from_date) || ($engagement->to_date && $closure->date > $engagement->to_date)) {
+                continue;
+            }
+            foreach ($consultant->getBlocks()[(int) date('N', strtotime($closure->date))] ?? [] as [$open, $close, $facilityId]) {
+                if ($facilityId !== (int) $closure->facility_id) {
+                    continue;
+                }
+                $name = $engagement->facility->name ?? 'The facility';
+                $periods[] = [
+                    'start' => $closure->date . 'T' . $open,
+                    'end' => $closure->date . 'T' . $close,
+                    'title' => $name . ' closed: ' . $closure->reason,
+                    'reason' => $name . ' is closed on ' . date('l j M', strtotime($closure->date)) . ' (' . $closure->reason . ').',
+                ];
+            }
+        }
+
+        return $periods;
+    }
+
+    /**
+     * The consultant's travel buffer before each block at another facility (F8 phase 2): a session
+     * ending inside it would leave too little time to get there.
+     */
+    private function travelPeriods($from, $to)
+    {
+        $consultant = $this->consultant;
+        $buffer = (int) $consultant->travel_buffer_minutes;
+        if ($buffer <= 0 || count($consultant->engagements) < 2) {
+            return [];
+        }
+        $periods = [];
+        for ($ts = strtotime($from); $ts <= strtotime($to); $ts = strtotime('+1 day', $ts)) {
+            $date = date('Y-m-d', $ts);
+            $ranges = $consultant->getRangesFor($date);
+            foreach ($ranges as [$open, $close, $facilityId]) {
+                $arrive = strtotime($date . ' ' . $open);
+                foreach ($ranges as [$prevOpen, $prevClose, $prevFacility]) {
+                    $leave = strtotime($date . ' ' . $prevClose);
+                    if ($prevFacility === $facilityId || $leave > $arrive || $leave <= $arrive - $buffer * 60) {
+                        continue;
+                    }
+                    $name = $consultant->getEngagement($facilityId)->facility->name ?? 'another facility';
+                    $periods[] = [
+                        'start' => date('Y-m-d\TH:i:s', max(strtotime($date . ' ' . $prevOpen), $arrive - $buffer * 60)),
+                        'end' => date('Y-m-d\TH:i:s', $leave),
+                        'title' => 'Travel to ' . $name,
+                        'reason' => ($consultant->names ?: 'The doctor') . ' leaves for ' . $name . ' (from ' . substr($open, 0, 5) . ') and needs '
+                            . $buffer . ' minutes to get there. Please choose an earlier time.',
+                    ];
+                }
+            }
+        }
+
+        return $periods;
     }
 }

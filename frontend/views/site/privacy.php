@@ -50,7 +50,7 @@ $this->params['breadcrumbs'][] = $this->title;
     <h2 class="h5 fw-bold mt-4">What we collect</h2>
     <ul>
         <li>Your name, phone number, email address and, if you give it, your date of birth.</li>
-        <li>Your appointments: the doctor, date and time, whether you attended, and any cancellation note.</li>
+        <li>Your appointments: the doctor, the facility (hospital or clinic) where you are seen, the date and time, the fee, whether you attended, and any cancellation note.</li>
         <li>What you tell us about the reason for your visit. This is health information, which the law treats as sensitive.</li>
         <li>Records of your sign-ins and of changes to your appointments and account, kept for security.</li>
     </ul>
@@ -69,7 +69,8 @@ $this->params['breadcrumbs'][] = $this->title;
 
     <h2 class="h5 fw-bold mt-4">Who sees it</h2>
     <ul>
-        <li>The doctor you book with, and the clinic's front-desk staff who manage their appointments.</li>
+        <li>The doctor you book with. Doctors may work at several facilities; your doctor sees your appointments with them wherever they took place, but never your appointments with other doctors.</li>
+        <li>The front-desk staff of the facility where your appointment takes place, named in your confirmation. They see your appointments at that facility only; front desk at other facilities see that the doctor is busy, not who with.</li>
         <li>Clinic administrators, to run the service.</li>
         <li>Companies that deliver our messages: our email provider, WhatsApp, an SMS provider and Google Firebase for app notifications. They receive only what is needed to deliver each message.</li>
         <li>Our hosting provider, which stores the information for us.</li>

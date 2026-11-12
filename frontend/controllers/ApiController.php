@@ -91,10 +91,19 @@ class ApiController extends Controller
             // The consultant whose calendar staff opened from the appointments board
             $consultant = Consultant::findOne(Yii::$app->session->get('booking_session_' . $user->id));
             if ($consultant && (Yii::$app->user->can(RbacHelper::PERM_VIEW_ALL_APPOINTMENTS) || FrontDesk::canBookFor($consultant->user_id))) {
-                $appointments = Appointments::find()
+                $all = Appointments::find()
                     ->where(['consultant_id' => $consultant->user_id])
                     ->with(['consultant', 'patient', 'facility'])
                     ->all();
+                // F8 phase 2: front desk sees the consultant's appointments at other facilities only
+                // as busy, with no patient details (cancelled ones there are left out)
+                foreach ($all as $app) {
+                    if (FrontDesk::canHandle($app)) {
+                        $appointments[] = $app;
+                    } elseif ($app->status !== Appointments::STATUS_CANCELLED) {
+                        $otherAppointments[] = $app;
+                    }
+                }
             }
         }
 
@@ -191,7 +200,8 @@ class ApiController extends Controller
         $data = $this->getJsonBody();
 
         $model = Appointments::findOne($data['id'] ?? null);
-        if (!$model || !($model->isParticipant(Yii::$app->user->id) || FrontDesk::canBookFor($model->consultant_id))) {
+        // Front desk moves only appointments at their facility (and BookingService only into it)
+        if (!$model || !($model->isParticipant(Yii::$app->user->id) || FrontDesk::canBookAppointment($model))) {
             return ['status' => 'error', 'message' => 'Appointment not found.'];
         }
 
@@ -292,7 +302,8 @@ class ApiController extends Controller
             'email' => self::mask($p->email, '@'),
             'phone' => $p->phone_number ? '••••' . substr($p->phone_number, -3) : null,
             // Staff only (both callers require consultant or front desk): no-shows in the last 12 months
-            'noShows' => Appointments::countNoShows($p->id),
+            // that the viewer may see (their own as a consultant, their facility's as front desk)
+            'noShows' => Appointments::countNoShows($p->id, 365, FrontDesk::historyCondition()),
             // F11: staff ask for verbal consent when none is on record
             'consent' => !Consent::isEnabled() || Consent::hasDataConsent($p->id),
             'consentStatus' => Consent::statusLabels()[Consent::status($p->id)],

@@ -8,6 +8,7 @@ use frontend\models\Appointments;
 use frontend\models\ConsultantFacility;
 use frontend\models\ConsultantWorkingHours;
 use frontend\models\Facility;
+use frontend\models\FacilityClosure;
 use frontend\models\FacilityRequest;
 use Yii;
 use yii\data\ActiveDataProvider;
@@ -34,7 +35,7 @@ class FacilityController extends Controller
             ],
             'verbs' => [
                 'class' => VerbFilter::class,
-                'actions' => ['delete' => ['POST'], 'decline' => ['POST']],
+                'actions' => ['delete' => ['POST'], 'decline' => ['POST'], 'delete-closure' => ['POST']],
             ],
         ];
     }
@@ -186,6 +187,61 @@ class FacilityController extends Controller
         Yii::$app->session->setFlash('success', Yii::t('app', '{name} removed.', ['name' => $model->name]));
 
         return $this->redirect(['index']);
+    }
+
+    /**
+     * Days the facility is closed (F8 phase 2): the upcoming ones, and a form to add one. Nobody
+     * can be booked there on those days; appointments already booked are kept and listed for staff
+     * to move.
+     */
+    public function actionClosures($id)
+    {
+        $facility = $this->findModel($id);
+        $closure = new FacilityClosure(['facility_id' => $facility->id]);
+        if ($closure->load($this->request->post()) && $closure->save()) {
+            $session = Yii::$app->session;
+            $session->setFlash('success', Yii::t('app', '{name} is closed on {date}.', [
+                'name' => Html::encode($facility->name),
+                'date' => date('l j M Y', strtotime($closure->date)),
+            ]));
+            $booked = $this->upcomingAppointments($facility)->andWhere(['date' => $closure->date])->count();
+            if ($booked > 0) {
+                $session->addFlash('warning', Yii::t('app', '{n} appointment(s) are already booked there that day. They are kept: {link} to move or cancel them.', [
+                    'n' => $booked,
+                    'link' => Html::a(Yii::t('app', 'open them on the board'), ['board/index', 'facility' => $facility->id, 'from' => $closure->date, 'to' => $closure->date]),
+                ]));
+            }
+            return $this->redirect(['closures', 'id' => $facility->id]);
+        }
+
+        $closures = FacilityClosure::find()->where(['facility_id' => $facility->id])
+            ->andWhere(['>=', 'date', date('Y-m-d')])->orderBy(['date' => SORT_ASC])->all();
+        $booked = [];
+        if ($closures) {
+            $rows = $this->upcomingAppointments($facility)->select(['date', 'n' => 'COUNT(*)'])
+                ->andWhere(['date' => array_column($closures, 'date')])->groupBy('date')->orderBy(null)->asArray()->all();
+            $booked = array_column($rows, 'n', 'date');
+        }
+
+        return $this->render('closures', ['facility' => $facility, 'closure' => $closure, 'closures' => $closures, 'booked' => $booked]);
+    }
+
+    /**
+     * Opens the facility again on a day it was closed.
+     */
+    public function actionDeleteClosure($id)
+    {
+        $closure = FacilityClosure::findOne($id);
+        if ($closure === null) {
+            throw new NotFoundHttpException(Yii::t('app', 'Closure not found.'));
+        }
+        $closure->delete();
+        Yii::$app->session->setFlash('success', Yii::t('app', '{name} is open again on {date}.', [
+            'name' => Html::encode($closure->facility->name ?? ''),
+            'date' => date('l j M Y', strtotime($closure->date)),
+        ]));
+
+        return $this->redirect(['closures', 'id' => $closure->facility_id]);
     }
 
     private function upcomingAppointments(Facility $facility)

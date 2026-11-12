@@ -13,6 +13,7 @@ use yii\helpers\Url;
 /** @var Appointments[] $needsOutcome started appointments nobody has marked attended / no-show */
 /** @var frontend\models\Consultant[] $bookable front desk: consultants they book for */
 /** @var frontend\models\ClinicStats|null $stats front desk: numbers for their consultants */
+/** @var frontend\models\Facility|null $facility front desk: the facility they work at */
 
 $this->title = 'Appointments Board';
 $this->params['breadcrumbs'][] = $this->title;
@@ -33,7 +34,7 @@ $statusBadges = [
 /** Same filters with a different date range. */
 $rangeLink = function ($label, $from, $to) use ($search) {
     $active = $search->from === $from && $search->to === $to;
-    return Html::a($label, ['index', 'from' => $from, 'to' => $to, 'consultant' => $search->consultant, 'status' => $search->status, 'q' => $search->q], [
+    return Html::a($label, ['index', 'from' => $from, 'to' => $to, 'consultant' => $search->consultant, 'facility' => $search->facility, 'status' => $search->status, 'q' => $search->q], [
         'class' => 'btn btn-sm ' . ($active ? 'btn-primary' : 'btn-outline-primary'),
     ]);
 };
@@ -43,7 +44,12 @@ $today = date('Y-m-d');
 
     <h1><?= Html::encode($this->title) ?></h1>
     <?php if (\frontend\components\FrontDesk::isFrontDesk()): ?>
-        <p class="text-muted">Appointments for the consultants you work for. Open a consultant's calendar to book, or drag an appointment there to move it.</p>
+        <?php if ($facility): ?>
+            <p class="text-muted">Appointments at <strong><?= Html::encode($facility->name) ?></strong> for the consultants you work for. Open a consultant's calendar to book, or drag an appointment there to move it. Their appointments elsewhere show there only as busy.</p>
+        <?php else: ?>
+            <p class="text-muted">Appointments for the consultants you work for. Open a consultant's calendar to book, or drag an appointment there to move it.</p>
+            <div class="alert alert-warning py-2" id="no-facility-warning">The facility you work at has not been set, so you see your consultants' appointments at every facility. Ask an administrator to set it.</div>
+        <?php endif; ?>
         <div class="d-flex flex-wrap gap-2 mb-3">
             <?php foreach ($bookable as $consultant): ?>
                 <?= Html::a('Book with ' . Html::encode($consultant->names), ['/appointments/calendar', 'cid' => $consultant->id], ['class' => 'btn btn-sm btn-success']) ?>
@@ -54,7 +60,7 @@ $today = date('Y-m-d');
             <?php endif; ?>
         </div>
         <?php if ($bookable && $stats): ?>
-            <?= $this->render('@frontend/views/site/_clinic_stats', ['stats' => $stats, 'scopeLabel' => 'your consultants']) ?>
+            <?= $this->render('@frontend/views/site/_clinic_stats', ['stats' => $stats, 'scopeLabel' => $facility ? 'your consultants at ' . $facility->name : 'your consultants']) ?>
         <?php endif; ?>
     <?php else: ?>
         <p class="text-muted">Every consultant's appointments. Open one to see the details, or cancel it with a note.</p>
@@ -76,10 +82,17 @@ $today = date('Y-m-d');
             <label class="form-label small" for="board-to">To</label>
             <?= Html::input('date', 'to', $search->to, ['class' => 'form-control form-control-sm', 'id' => 'board-to']) ?>
         </div>
-        <div class="col-md-3">
+        <?php $facilityOptions = $search->facilityOptions(); ?>
+        <div class="<?= $facilityOptions ? 'col-md-2' : 'col-md-3' ?>">
             <label class="form-label small" for="board-consultant">Consultant</label>
             <?= Html::dropDownList('consultant', $search->consultant, $search->consultantOptions(), ['class' => 'form-select form-select-sm', 'id' => 'board-consultant', 'prompt' => 'All consultants']) ?>
         </div>
+        <?php if ($facilityOptions): ?>
+            <div class="col-md-2">
+                <label class="form-label small" for="board-facility">Facility</label>
+                <?= Html::dropDownList('facility', $search->facility, $facilityOptions, ['class' => 'form-select form-select-sm', 'id' => 'board-facility', 'prompt' => 'All facilities']) ?>
+            </div>
+        <?php endif; ?>
         <div class="col-md-2">
             <label class="form-label small" for="board-status">Status</label>
             <?= Html::dropDownList('status', $search->status, AppointmentBoardSearch::statusOptions(), ['class' => 'form-select form-select-sm', 'id' => 'board-status', 'prompt' => 'Any status']) ?>

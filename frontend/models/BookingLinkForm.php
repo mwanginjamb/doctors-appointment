@@ -43,12 +43,17 @@ class BookingLinkForm extends Model
     }
 
     /**
-     * The consultant's facilities that are taking bookings, as id => name.
+     * The consultant's facilities that are taking bookings, as id => name. Front desk sends links
+     * only for the facility they work at (F8 phase 2).
      */
     public function facilityChoices()
     {
+        $own = \frontend\components\FrontDesk::facilityId();
         $choices = [];
         foreach ($this->consultant->engagements as $engagement) {
+            if ($own !== null && (int) $engagement->facility_id !== $own) {
+                continue;
+            }
             if ($engagement->facility->isActive()) {
                 $choices[(int) $engagement->facility_id] = $engagement->facility->name;
             }

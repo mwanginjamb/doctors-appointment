@@ -132,8 +132,52 @@ class BookingService extends BaseObject
         return $this->startMarkProblem($startTs)
             ?? $this->timingProblem($startTs, $clinicSide)
             ?? $this->availabilityProblem($consultant, $startTs, $endTs)
+            ?? $this->staffFacilityProblem($appointment)
+            ?? $this->travelProblem($consultant, $startTs, $endTs, $appointment->facility_id)
             ?? $this->onlineBookingProblem($engagement, $clinicSide || $appointment->changedByPatient, $consultant)
             ?? $this->overlapProblem($appointment->consultant_id, $startTs, $endTs, $appointment->id);
+    }
+
+    /**
+     * Front desk books only into the hours at the facility they work at (F8 phase 2). Checked once
+     * the time has settled the facility; the consultant and patients are not limited.
+     */
+    public function staffFacilityProblem(Appointments $appointment)
+    {
+        $user = Yii::$app->get('user', false);
+        if ($user === null || $user->isGuest || !$user->identity->isFrontDeskAccount()) {
+            return null;
+        }
+        if (FrontDesk::canBookAppointment($appointment)) {
+            return null;
+        }
+        $facility = \frontend\models\Facility::findOne(FrontDesk::facilityId());
+
+        return Yii::t('app', 'You book only into the hours at {facility}.', [
+            'facility' => $facility->name ?? Yii::t('app', 'your facility'),
+        ]);
+    }
+
+    /**
+     * The consultant needs their travel buffer before a block at another facility the same day:
+     * a session must end that long before it starts (F8 phase 2).
+     *
+     * @param int|null $facilityId where the session is
+     */
+    public function travelProblem(?Consultant $consultant, $startTs, $endTs, $facilityId)
+    {
+        $next = $consultant ? $consultant->travelClash(date('Y-m-d', $startTs), $endTs, $facilityId) : null;
+        if ($next === null) {
+            return null;
+        }
+        $engagement = $consultant->getEngagement($next[2]);
+
+        return Yii::t('app', '{doctor} leaves for {facility} (from {time}) and needs {minutes} minutes to get there. Please choose an earlier time.', [
+            'doctor' => $consultant->names ?: Yii::t('app', 'The doctor'),
+            'facility' => $engagement->facility->name ?? Yii::t('app', 'another facility'),
+            'time' => substr($next[0], 0, 5),
+            'minutes' => (int) $consultant->travel_buffer_minutes,
+        ]);
     }
 
     /**
@@ -251,6 +295,16 @@ class BookingService extends BaseObject
 
         // The whole session must fit inside one of the consultant's opening ranges that day
         $ranges = $consultant ? $consultant->getRangesFor($date) : [];
+
+        // A facility closed that day, where the consultant would otherwise be then (F8 phase 2)
+        if ($consultant && ($closure = $consultant->closureAt($date, date('H:i:s', $startTs)))) {
+            return Yii::t('app', '{facility} is closed on {date} ({reason}). Please choose another day.', [
+                'facility' => $closure->facility->name ?? Yii::t('app', 'The facility'),
+                'date' => date('l j M', $startTs),
+                'reason' => $closure->reason,
+            ]);
+        }
+
         if (!$ranges) {
             // Hours that day, but not running then (an engagement's dates, a facility closed)
             if ($consultant && !empty($consultant->getBlocks()[(int) date('N', $startTs)])) {
@@ -313,8 +367,9 @@ class BookingService extends BaseObject
             return false;
         }
 
-        // RBAC: the consultant themselves (isTheConsultant) or their front desk (assignedConsultant)
-        return FrontDesk::canBookFor($appointment->consultant_id);
+        // RBAC: the consultant themselves (isTheConsultant) or their front desk (assignedConsultant),
+        // at their facility (assignedFacility)
+        return FrontDesk::canBookAppointment($appointment);
     }
 
     private function now()

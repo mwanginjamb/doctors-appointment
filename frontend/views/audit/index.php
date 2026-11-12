@@ -8,6 +8,7 @@ use yii\helpers\Html;
 /** @var frontend\models\AuditLogSearch $search */
 /** @var yii\data\ActiveDataProvider $dataProvider */
 /** @var int $retentionYears */
+/** @var array $facilities facility id => name */
 
 $this->title = 'Audit Log';
 $this->params['breadcrumbs'][] = $this->title;
@@ -53,6 +54,8 @@ $this->params['breadcrumbs'][] = $this->title;
             <div class="col-12">
                 <?= Html::label('As', 'audit-actor-type', ['class' => 'form-label small me-2']) ?>
                 <?= Html::dropDownList('actor_type', $search->actor_type, AuditLog::actorTypes(), ['id' => 'audit-actor-type', 'class' => 'form-select form-select-sm d-inline-block w-auto', 'prompt' => 'Anyone']) ?>
+                <?= Html::label('Facility', 'audit-facility', ['class' => 'form-label small ms-3 me-2']) ?>
+                <?= Html::dropDownList('facility', $search->facility, $facilities, ['id' => 'audit-facility', 'class' => 'form-select form-select-sm d-inline-block w-auto', 'prompt' => 'Any']) ?>
                 <?= Html::a('Reset', ['index'], ['class' => 'btn btn-sm btn-link']) ?>
             </div>
             <?= Html::endForm() ?>
@@ -92,11 +95,15 @@ $this->params['breadcrumbs'][] = $this->title;
                     [
                         'label' => 'Record',
                         'format' => 'raw',
-                        'value' => function (AuditLog $entry) {
+                        'value' => function (AuditLog $entry) use ($facilities) {
                             $label = Html::encode($entry->getEntityLabel());
-                            return $entry->entity_type === 'appointment' && $entry->entity_id !== null
+                            $record = $entry->entity_type === 'appointment' && $entry->entity_id !== null
                                 ? Html::a($label, ['/appointments/view', 'id' => $entry->entity_id])
                                 : $label;
+                            // F8 phase 2: where it happened
+                            return $record . ($entry->facility_id && isset($facilities[$entry->facility_id])
+                                ? Html::tag('div', Html::encode($facilities[$entry->facility_id]), ['class' => 'small text-muted'])
+                                : '');
                         },
                     ],
                     [

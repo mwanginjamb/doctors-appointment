@@ -15,6 +15,8 @@ use yii\db\AfterSaveEvent;
  *   ['class' => AuditBehavior::class, 'entityType' => 'appointment', 'masked' => ['symptoms_brief']]
  *
  * Masked fields show that they changed but not their values; excluded fields are left out entirely.
+ * Entries record the facility the record is at (its facility_id, F8 phase 2), so the log can be
+ * read per facility.
  */
 class AuditBehavior extends Behavior
 {
@@ -26,6 +28,9 @@ class AuditBehavior extends Behavior
 
     /** @var string[] fields never logged (keys, tokens, device ids) */
     public $exclude = [];
+
+    /** @var string|null the attribute holding the record's facility; null to guess (facility_id when it has one) */
+    public $facilityAttribute;
 
     /** @var string[] bookkeeping fields every model has; not worth an entry of their own */
     public $ignore = ['created_at', 'updated_at', 'created_by', 'updated_by'];
@@ -47,7 +52,7 @@ class AuditBehavior extends Behavior
                 $changes[$name] = [null, $this->value($name, $value)];
             }
         }
-        Audit::log(AuditLog::ACTION_CREATED, $this->entityType, $this->owner->getPrimaryKey(), $changes);
+        Audit::log(AuditLog::ACTION_CREATED, $this->entityType, $this->owner->getPrimaryKey(), $changes, null, null, $this->facilityId());
     }
 
     public function afterUpdate(AfterSaveEvent $event)
@@ -62,7 +67,7 @@ class AuditBehavior extends Behavior
             $changes[$name] = [$this->value($name, $old), $this->value($name, $new)];
         }
         if ($changes) {
-            Audit::log(AuditLog::ACTION_UPDATED, $this->entityType, $this->owner->getPrimaryKey(), $changes);
+            Audit::log(AuditLog::ACTION_UPDATED, $this->entityType, $this->owner->getPrimaryKey(), $changes, null, null, $this->facilityId());
         }
     }
 
@@ -74,7 +79,24 @@ class AuditBehavior extends Behavior
                 $changes[$name] = [$this->value($name, $value), null];
             }
         }
-        Audit::log(AuditLog::ACTION_DELETED, $this->entityType, $this->owner->getPrimaryKey(), $changes);
+        Audit::log(AuditLog::ACTION_DELETED, $this->entityType, $this->owner->getPrimaryKey(), $changes, null, null, $this->facilityId());
+    }
+
+    /**
+     * The facility the record is at, or null.
+     */
+    private function facilityId()
+    {
+        $attribute = $this->facilityAttribute ?? ($this->owner->hasAttribute('facility_id') ? 'facility_id' : null);
+        if ($attribute === null) {
+            return null;
+        }
+        $value = $this->owner->getAttribute($attribute);
+        if (self::isBlank($value)) {
+            $value = $this->owner->getOldAttribute($attribute);
+        }
+
+        return self::isBlank($value) ? null : (int) $value;
     }
 
     private function isLogged($name)

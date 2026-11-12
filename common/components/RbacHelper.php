@@ -15,7 +15,8 @@ use yii\rbac\ManagerInterface;
  *  - consultant        : default role for users whose `user.role` is "consultant"
  *  - patient           : default role for users whose `user.role` is "client"
  *  - front-desk        : default role for users whose `user.role` is "front_desk"; which consultants
- *                        they book for is kept in front_desk_assignment, not in RBAC
+ *                        they book for is kept in front_desk_assignment, and the facility they work
+ *                        at in user.facility_id, not in RBAC
  */
 class RbacHelper
 {
@@ -60,6 +61,11 @@ class RbacHelper
     const PERM_MANAGE_OWN_AVAILABILITY = 'manageOwnAvailability';
     const PERM_UPDATE_OWN_CONSULTANT_PROFILE = 'updateOwnConsultantProfile';
 
+    // F8 phase 2: front desk's assigned-consultant permissions, limited again to their facility
+    const PERM_BOOK_AT_ASSIGNED_FACILITY = 'bookAtAssignedFacility';
+    const PERM_HANDLE_AT_ASSIGNED_FACILITY = 'handleAtAssignedFacility';
+    const PERM_RECORD_AT_ASSIGNED_FACILITY = 'recordAtAssignedFacility';
+
     /**
      * Roles the application code depends on by name. They cannot be renamed or deleted from the UI.
      */
@@ -71,6 +77,8 @@ class RbacHelper
      *  - permissions: name => description
      *  - ruledPermissions: name => [description, rule name, the permission it grants]
      *  - roles: name => [description, permissions and ruled permissions]
+     *  - detached: role => children it no longer holds directly (removed by rbac/init), because a
+     *    ruled permission now stands between them
      */
     public static function definitions()
     {
@@ -78,6 +86,7 @@ class RbacHelper
             'rules' => [
                 'isTheConsultant' => \common\rbac\IsTheConsultantRule::class,
                 'assignedConsultant' => \common\rbac\AssignedConsultantRule::class,
+                'assignedFacility' => \common\rbac\AssignedFacilityRule::class,
             ],
             'permissions' => [
                 self::PERM_MANAGE_RBAC => 'Manage roles, permissions and user role assignments',
@@ -109,6 +118,10 @@ class RbacHelper
                 self::PERM_CONFIRM_OWN_APPOINTMENT => ['Confirm own appointments', 'isTheConsultant', self::PERM_CONFIRM_APPOINTMENT],
                 self::PERM_MANAGE_OWN_AVAILABILITY => ['Edit own availability', 'isTheConsultant', self::PERM_MANAGE_AVAILABILITY],
                 self::PERM_UPDATE_OWN_CONSULTANT_PROFILE => ['Edit own consultant profile', 'isTheConsultant', self::PERM_UPDATE_CONSULTANT_PROFILE],
+                // Both rules on the way: the assigned consultant, at the front desk's own facility
+                self::PERM_BOOK_AT_ASSIGNED_FACILITY => ["Book for assigned consultants at own facility", 'assignedFacility', self::PERM_BOOK_FOR_ASSIGNED_CONSULTANT],
+                self::PERM_HANDLE_AT_ASSIGNED_FACILITY => ["Open and cancel assigned consultants' appointments at own facility", 'assignedFacility', self::PERM_HANDLE_ASSIGNED_APPOINTMENT],
+                self::PERM_RECORD_AT_ASSIGNED_FACILITY => ["Record outcomes of assigned consultants' appointments at own facility", 'assignedFacility', self::PERM_RECORD_ASSIGNED_OUTCOME],
             ],
             'roles' => [
                 self::ROLE_ADMIN => [
@@ -137,9 +150,14 @@ class RbacHelper
                     'Front desk booking for assigned consultants',
                     [
                         self::PERM_MANAGE_CLINIC_BOOKINGS, self::PERM_VIEW_CLINIC_BOARD,
-                        self::PERM_BOOK_FOR_ASSIGNED_CONSULTANT, self::PERM_HANDLE_ASSIGNED_APPOINTMENT,
-                        self::PERM_RECORD_ASSIGNED_OUTCOME, self::PERM_LOOK_UP_PATIENTS, self::PERM_SEND_BOOKING_LINKS,
+                        self::PERM_BOOK_AT_ASSIGNED_FACILITY, self::PERM_HANDLE_AT_ASSIGNED_FACILITY,
+                        self::PERM_RECORD_AT_ASSIGNED_FACILITY, self::PERM_LOOK_UP_PATIENTS, self::PERM_SEND_BOOKING_LINKS,
                     ],
+                ],
+            ],
+            'detached' => [
+                self::ROLE_FRONT_DESK => [
+                    self::PERM_BOOK_FOR_ASSIGNED_CONSULTANT, self::PERM_HANDLE_ASSIGNED_APPOINTMENT, self::PERM_RECORD_ASSIGNED_OUTCOME,
                 ],
             ],
         ];

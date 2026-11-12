@@ -52,7 +52,7 @@ $this->params['breadcrumbs'][] = $this->title;
         </div>
     <?php endif; ?>
 
-    <?php if ($staffView && ($noShows = Appointments::countNoShows($model->patient_id)) > 0): ?>
+    <?php if ($staffView && ($noShows = Appointments::countNoShows($model->patient_id, 365, \frontend\components\FrontDesk::historyCondition())) > 0): ?>
         <div class="alert alert-light border small" role="note">
             <?= Yii::t('app', 'This patient has {count} in the last 12 months.', ['count' => $noShows === 1 ? '1 no-show' : "$noShows no-shows"]) ?>
         </div>
