@@ -80,6 +80,18 @@ class RbacController extends Controller
             }
         }
 
+        // A ruled permission now stands between these roles and permissions they held directly
+        foreach ($defs['detached'] ?? [] as $roleName => $children) {
+            $role = $auth->getRole($roleName);
+            foreach ($children as $childName) {
+                $child = $auth->getPermission($childName);
+                if ($role && $child && $auth->hasChild($role, $child)) {
+                    $auth->removeChild($role, $child);
+                    $this->stdout("  $roleName no longer holds $childName directly\n", Console::FG_YELLOW);
+                }
+            }
+        }
+
         $this->stdout("RBAC roles and permissions are in place.\n", Console::BOLD);
         return ExitCode::OK;
     }

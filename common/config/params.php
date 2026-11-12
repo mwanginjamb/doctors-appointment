@@ -37,7 +37,7 @@ return [
     // Privacy notice (F11, Kenya Data Protection Act). Change privacy.version whenever the notice
     // text changes: signed-in patients are then asked to accept it again. The controller's details
     // come from .env so each deployment states its own; missing ones show as "to be provided".
-    'privacy.version' => '2026-11',
+    'privacy.version' => '2026-11.2', // F8 phase 2: names the facility and its front desk
     // F11 can be switched off with CONSENT_ENABLED=false, e.g. outside Kenya or for demos. Required
     // for Kenyan deployments under the Data Protection Act; admins see a warning while it is off.
     'consent.enabled' => filter_var(env('CONSENT_ENABLED', 'true'), FILTER_VALIDATE_BOOLEAN),

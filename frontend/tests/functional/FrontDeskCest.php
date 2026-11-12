@@ -25,6 +25,8 @@ class FrontDeskCest
     private $assignedAppointment;
     /** @var Appointments with Dr. Other, whom they don't */
     private $otherAppointment;
+    /** @var int the facility both doctors work at (their default one) */
+    private $facilityId;
 
     public function _before(FunctionalTester $I)
     {
@@ -35,7 +37,9 @@ class FrontDeskCest
         $this->otherConsultant = new Consultant(['user_id' => $this->otherDoctor->id, 'names' => 'Dr. Other']);
         $this->otherConsultant->save(false);
 
+        $this->facilityId = (int) \frontend\models\ConsultantFacility::findOne(['consultant_id' => $this->consultant->id])->facility_id;
         $this->frontDesk = $this->createUser('front.desk', FrontDesk::ROLE);
+        $this->frontDesk->updateAttributes(['facility_id' => $this->facilityId]);
         FrontDeskAssignment::replaceFor($this->frontDesk->id, [$this->consultant->id]);
 
         $this->assignedAppointment = $this->book('10:00');
@@ -53,6 +57,7 @@ class FrontDeskCest
             'FrontDeskStaffForm[email]' => 'reception@example.com',
             'FrontDeskStaffForm[phone]' => '0711000000',
             'FrontDeskStaffForm[password]' => 'Secret-pass-1',
+            'FrontDeskStaffForm[facility_id]' => $this->facilityId,
             'FrontDeskStaffForm[consultant_ids]' => [$this->consultant->id, $this->otherConsultant->id],
         ]);
 
@@ -61,6 +66,7 @@ class FrontDeskCest
         $I->assertNotNull($user);
         $I->assertSame(FrontDesk::ROLE, $user->role);
         $I->assertSame('reception@example.com', $user->username);
+        $I->assertSame($this->facilityId, (int) $user->facility_id);
         $I->assertTrue($user->validatePassword('Secret-pass-1'));
         $I->assertNotNull(\Yii::$app->authManager->getAssignment(RbacHelper::ROLE_FRONT_DESK, $user->id));
         $ids = FrontDeskAssignment::consultantIdsFor($user->id);

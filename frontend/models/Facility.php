@@ -52,7 +52,7 @@ class Facility extends ActiveRecord
         return [
             TimestampBehavior::class,
             BlameableBehavior::class,
-            'audit' => ['class' => AuditBehavior::class, 'entityType' => 'facility'],
+            'audit' => ['class' => AuditBehavior::class, 'entityType' => 'facility', 'facilityAttribute' => 'id'],
         ];
     }
 

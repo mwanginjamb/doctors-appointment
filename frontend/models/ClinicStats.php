@@ -8,13 +8,17 @@ use yii\base\BaseObject;
  * Headline numbers for the admin dashboard and the front-desk board.
  *
  * Every figure is limited to $consultantUserIds when given (front desk: their assigned
- * consultants); null means the whole clinic (admins). "Active" means scheduled or confirmed.
+ * consultants) and to $facilityId (front desk: their facility; admins: a filter); null means the
+ * whole clinic (admins). "Active" means scheduled or confirmed.
  * Completed and no-show counts come with issue 6, when those statuses are recorded.
  */
 class ClinicStats extends BaseObject
 {
     /** @var int[]|null consultant user ids to count; null = every consultant */
     public $consultantUserIds;
+
+    /** @var int|null only appointments at this facility (front desk's own, or an admin's filter); null = all */
+    public $facilityId;
 
     /** @var int days counted back for the cancellation rate, today included */
     public $cancellationWindowDays = 30;
@@ -146,12 +150,69 @@ class ClinicStats extends BaseObject
         }, $rows);
     }
 
+    /**
+     * Per facility, for settling up with each one (F8 phase 2): appointments dated from $from to $to
+     * (Y-m-d, inclusive), how they ended, and the fees of those attended.
+     *
+     * Sessions counts every appointment that was not cancelled. Fees due adds up the fee recorded on
+     * each attended appointment (the fee in force when it was booked); attended appointments booked
+     * with no fee set are counted in noFee.
+     *
+     * @return array list of ['facility' => Facility|null, 'sessions', 'attended', 'noShows',
+     *               'cancelled', 'unmarked', 'fees' => float, 'noFee'], busiest first
+     */
+    public function getByFacility($from, $to)
+    {
+        $active = [Appointments::STATUS_SCHEDULED, Appointments::STATUS_CONFIRMED];
+        $rows = $this->scoped()
+            ->select([
+                'facility_id',
+                'sessions' => 'SUM(CASE WHEN [[status]] IS NULL OR [[status]] <> :cancelled THEN 1 ELSE 0 END)',
+                'attended' => 'SUM(CASE WHEN [[status]] = :completed THEN 1 ELSE 0 END)',
+                'noShows' => 'SUM(CASE WHEN [[status]] = :noShow THEN 1 ELSE 0 END)',
+                'cancelled' => 'SUM(CASE WHEN [[status]] = :cancelled THEN 1 ELSE 0 END)',
+                'unmarked' => 'SUM(CASE WHEN ([[status]] IS NULL OR [[status]] IN (:scheduled, :confirmed)) AND [[date]] < :today THEN 1 ELSE 0 END)',
+                'fees' => 'SUM(CASE WHEN [[status]] = :completed THEN COALESCE([[fee]], 0) ELSE 0 END)',
+                'noFee' => 'SUM(CASE WHEN [[status]] = :completed AND [[fee]] IS NULL THEN 1 ELSE 0 END)',
+            ])
+            ->addParams([
+                ':cancelled' => Appointments::STATUS_CANCELLED,
+                ':completed' => Appointments::STATUS_COMPLETED,
+                ':noShow' => Appointments::STATUS_NO_SHOW,
+                ':scheduled' => $active[0],
+                ':confirmed' => $active[1],
+                ':today' => $this->today,
+            ])
+            ->andWhere(['between', 'date', $from, $to])
+            ->groupBy('facility_id')
+            ->orderBy(['sessions' => SORT_DESC, 'facility_id' => SORT_ASC])
+            ->createCommand()
+            ->queryAll();
+        $facilities = Facility::find()->where(['id' => array_filter(array_column($rows, 'facility_id'))])->indexBy('id')->all();
+
+        return array_map(function ($row) use ($facilities) {
+            return [
+                'facility' => $facilities[$row['facility_id']] ?? null,
+                'sessions' => (int) $row['sessions'],
+                'attended' => (int) $row['attended'],
+                'noShows' => (int) $row['noShows'],
+                'cancelled' => (int) $row['cancelled'],
+                'unmarked' => (int) $row['unmarked'],
+                'fees' => (float) $row['fees'],
+                'noFee' => (int) $row['noFee'],
+            ];
+        }, $rows);
+    }
+
     /** Appointments in scope, without AppointmentsQuery's default ordering. */
     private function scoped()
     {
         $query = Appointments::find()->orderBy(null);
         if ($this->consultantUserIds !== null) {
             $query->andWhere(['consultant_id' => $this->consultantUserIds ?: [0]]);
+        }
+        if ($this->facilityId !== null) {
+            $query->andWhere(['facility_id' => $this->facilityId]);
         }
 
         return $query;

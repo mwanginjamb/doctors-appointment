@@ -20,15 +20,20 @@ class AppointmentBoardSearch extends Model
     public $consultant;
     public $status;
     public $q;
+    /** @var int|null facility filter (admins; front desk is held to $facilityId) */
+    public $facility;
 
     /** @var int[]|null consultant user ids the viewer may see; null = all (admins). Not a filter field. */
     public $consultantUserIds;
+
+    /** @var int|null the only facility the viewer may see (front desk); null = all. Not a filter field. */
+    public $facilityId;
 
     public function rules()
     {
         return [
             [['from', 'to'], 'date', 'format' => 'php:Y-m-d'],
-            [['consultant'], 'integer'],
+            [['consultant', 'facility'], 'integer'],
             [['status'], 'in', 'range' => array_merge([self::STATUS_ACTIVE], array_keys(Appointments::getStatusList()))],
             [['q'], 'trim'],
             [['q'], 'string', 'max' => 100],
@@ -52,6 +57,19 @@ class AppointmentBoardSearch extends Model
             ->orderBy(['names' => SORT_ASC])
             ->indexBy('user_id')
             ->column();
+    }
+
+    /**
+     * @return array facility id => name, for the filter: every facility for admins, none for front
+     * desk (they only ever see their own)
+     */
+    public function facilityOptions()
+    {
+        if ($this->facilityId !== null) {
+            return [];
+        }
+
+        return Facility::find()->select(['name', 'id'])->orderBy(['name' => SORT_ASC])->indexBy('id')->column();
     }
 
     public static function statusOptions()
@@ -85,12 +103,9 @@ class AppointmentBoardSearch extends Model
             ->with(['creator', 'facility'])
             ->orderBy(null) // drop AppointmentsQuery's newest-first default; the sort below applies
             ->andWhere(['between', 'a.date', $this->from, $this->to])
-            ->andFilterWhere(['a.consultant_id' => $this->consultant]);
-
-        // Front desk only ever sees their assigned consultants ([0] matches nothing when they have none)
-        if ($this->consultantUserIds !== null) {
-            $query->andWhere(['a.consultant_id' => $this->consultantUserIds ?: [0]]);
-        }
+            ->andFilterWhere(['a.consultant_id' => $this->consultant])
+            ->andFilterWhere(['a.facility_id' => $this->facility]);
+        $this->applyScope($query, 'a');
 
         if ($this->status === self::STATUS_ACTIVE) {
             $query->andWhere(['or', ['a.status' => null], ['a.status' => [Appointments::STATUS_SCHEDULED, Appointments::STATUS_CONFIRMED]]]);
@@ -148,11 +163,23 @@ class AppointmentBoardSearch extends Model
             ->andWhere(['between', 'date', date('Y-m-d', strtotime("-{$days} days")), date('Y-m-d')])
             ->andWhere(['or', ['status' => null], ['status' => [Appointments::STATUS_SCHEDULED, Appointments::STATUS_CONFIRMED]]])
             ->andWhere(['or', ['<', 'date', date('Y-m-d')], ['<=', 'time', date('H:i:s')]]);
-        if ($this->consultantUserIds !== null) {
-            $query->andWhere(['consultant_id' => $this->consultantUserIds ?: [0]]);
-        }
+        $this->applyScope($query, 'appointments');
 
         return $query->limit($limit)->all();
+    }
+
+    /**
+     * Front desk only ever sees their assigned consultants ([0] matches nothing when they have
+     * none), at their facility.
+     */
+    private function applyScope($query, $alias)
+    {
+        if ($this->consultantUserIds !== null) {
+            $query->andWhere(["$alias.consultant_id" => $this->consultantUserIds ?: [0]]);
+        }
+        if ($this->facilityId !== null) {
+            $query->andWhere(["$alias.facility_id" => $this->facilityId]);
+        }
     }
 
     /**

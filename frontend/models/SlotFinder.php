@@ -7,7 +7,8 @@ use yii\base\BaseObject;
 /**
  * Works out a consultant's free start times over a range of dates: inside their opening hours (and
  * an optional daily window), in the future, and clear of other appointments (each by its own
- * length, at any facility), time off and public holidays. Slots in each block of hours step by the
+ * length, at any facility), time off, public holidays and facility closures, leaving the
+ * consultant their travel buffer before a block elsewhere. Slots in each block of hours step by the
  * session length at that block's facility from its opening time, so they line up with the
  * calendar grid.
  *
@@ -88,6 +89,10 @@ class SlotFinder extends BaseObject
                         continue;
                     }
                     $end = $start + $length;
+                    // Time to get to the next facility (travel buffer)
+                    if ($consultant->travelClash($date, $end, $facilityId) !== null) {
+                        continue;
+                    }
                     foreach ($blocked as [$bStart, $bEnd]) {
                         if ($start < $bEnd && $end > $bStart) {
                             continue 2;

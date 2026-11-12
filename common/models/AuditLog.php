@@ -22,6 +22,7 @@ use yii\db\ActiveRecord;
  * @property string|null $changes JSON: field => [old, new]
  * @property string|null $note
  * @property string|null $ip
+ * @property int|null $facility_id the facility the entry is about, when it is about one (F8 phase 2)
  */
 class AuditLog extends ActiveRecord
 {
@@ -116,6 +117,7 @@ class AuditLog extends ActiveRecord
             'facility' => 'Facility',
             'engagement' => 'Facility engagement',
             'facility_request' => 'Facility request',
+            'facility_closure' => 'Facility closed day',
             'booking_link' => 'Booking link',
             'rbac' => 'Role / permission',
             'audit_log' => 'Audit log',

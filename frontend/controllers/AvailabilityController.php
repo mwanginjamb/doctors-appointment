@@ -49,6 +49,7 @@ class AvailabilityController extends Controller
                     'update-facility' => ['POST'],
                     'remove-facility' => ['POST'],
                     'request-facility' => ['POST'],
+                    'travel-buffer' => ['POST'],
                 ],
             ],
         ];
@@ -165,6 +166,34 @@ class AvailabilityController extends Controller
         }
 
         return $this->renderIndex(new WeeklyScheduleForm($this->consultant), new TimeOffForm(), $engagement);
+    }
+
+    /**
+     * Sets the time the consultant needs to get from one facility to the next (F8 phase 2).
+     * Appointments already booked are kept.
+     */
+    public function actionTravelBuffer()
+    {
+        $posted = (string) $this->request->post('travel_buffer_minutes');
+        $minutes = ctype_digit($posted) ? (int) $posted : -1;
+        if (!in_array($minutes, Consultant::TRAVEL_BUFFERS, true)) {
+            Yii::$app->session->setFlash('error', Yii::t('app', 'Choose one of the listed travel times.'));
+        } else {
+            $consultant = $this->consultant;
+            $old = (int) $consultant->travel_buffer_minutes;
+            // updateAttributes skips the audit behaviour: logged explicitly
+            $consultant->updateAttributes(['travel_buffer_minutes' => $minutes]);
+            if ($old !== $minutes) {
+                \common\components\Audit::log(\common\models\AuditLog::ACTION_UPDATED, 'consultant', $consultant->id, [
+                    'travel_buffer_minutes' => [$old, $minutes],
+                ]);
+            }
+            Yii::$app->session->setFlash('success', $minutes
+                ? Yii::t('app', 'Travel time saved: {n} minutes before your hours at another facility. Appointments already booked are kept.', ['n' => $minutes])
+                : Yii::t('app', 'Travel time removed.'));
+        }
+
+        return $this->redirect($this->route('index', ['#' => 'weekly-hours']));
     }
 
     /**

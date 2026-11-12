@@ -5,6 +5,8 @@ use yii\bootstrap5\Html;
 
 /** @var yii\web\View $this */
 /** @var frontend\models\ClinicStats $stats */
+/** @var frontend\models\Facility|null $facility the facility the numbers are for; null = whole clinic */
+/** @var string $month Y-m, for the per-facility report */
 
 $this->title = 'Settings';
 $this->params['breadcrumbs'][] = $this->title;
@@ -22,7 +24,18 @@ $this->params['breadcrumbs'][] = $this->title;
                 </div>
             <?php endif; ?>
             <?= $this->render('_health') ?>
-            <?= $this->render('_clinic_stats', ['stats' => $stats, 'scopeLabel' => 'the whole clinic']) ?>
+            <?= Html::beginForm(['settings'], 'get', ['class' => 'row g-2 align-items-end mb-3', 'id' => 'dashboard-facility']) ?>
+                <div class="col-sm-6 col-md-4">
+                    <label class="form-label small" for="dashboard-facility-select">Facility</label>
+                    <?= Html::dropDownList('facility', $facility->id ?? null, \frontend\models\Facility::find()->select(['name', 'id'])->orderBy(['name' => SORT_ASC])->indexBy('id')->column(), [
+                        'class' => 'form-select form-select-sm', 'id' => 'dashboard-facility-select', 'prompt' => 'Whole clinic',
+                    ]) ?>
+                </div>
+                <?= Html::hiddenInput('month', $month) ?>
+                <div class="col-auto"><?= Html::submitButton('Show', ['class' => 'btn btn-sm btn-primary']) ?></div>
+            <?= Html::endForm() ?>
+            <?= $this->render('_clinic_stats', ['stats' => $stats, 'scopeLabel' => $facility ? $facility->name : 'the whole clinic']) ?>
+            <?= $this->render('_facility_report', ['stats' => $stats, 'month' => $month, 'facility' => $facility]) ?>
 
             <!-- content -->
             <div class="card mb-5">

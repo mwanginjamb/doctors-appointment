@@ -73,7 +73,12 @@ $this->params['breadcrumbs'][] = $this->title;
             ],
             [
                 'class' => ActionColumn::class,
-                'template' => '{update} {delete}',
+                'template' => '{closures} {update} {delete}',
+                'buttons' => [
+                    'closures' => function ($url) {
+                        return Html::a('Closed days', $url, ['class' => 'small me-1 text-nowrap', 'title' => 'Days this facility is shut']);
+                    },
+                ],
                 'urlCreator' => function ($action, Facility $model) {
                     return Url::toRoute([$action, 'id' => $model->id]);
                 },

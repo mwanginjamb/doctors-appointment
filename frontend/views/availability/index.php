@@ -216,6 +216,23 @@ $rangeRow = function ($day, $i, $start = '', $end = '', $facility = null) use ($
         </ul>
     </div>
 
+    <?php if ($several): ?>
+        <!-- F8 phase 2: time to get from one facility to the next -->
+        <?= Html::beginForm(['availability/travel-buffer', 'cid' => $cid], 'post', ['class' => 'row g-2 align-items-end mb-4', 'id' => 'travel-buffer-form']) ?>
+            <div class="col-sm-5 col-md-4">
+                <label class="form-label small mb-1" for="travel-buffer"><?= Yii::t('app', 'Travel time between facilities') ?></label>
+                <?= Html::dropDownList('travel_buffer_minutes', (int) $consultant->travel_buffer_minutes, array_combine(
+                    \frontend\models\Consultant::TRAVEL_BUFFERS,
+                    array_map(function ($m) {
+                        return $m === 0 ? Yii::t('app', 'None') : Yii::t('app', '{n} minutes', ['n' => $m]);
+                    }, \frontend\models\Consultant::TRAVEL_BUFFERS)
+                ), ['class' => 'form-select form-select-sm', 'id' => 'travel-buffer']) ?>
+            </div>
+            <div class="col-auto"><?= Html::submitButton(Yii::t('app', 'Save'), ['class' => 'btn btn-sm btn-outline-primary']) ?></div>
+            <div class="col-12 form-text mt-1"><?= Yii::t('app', 'Sessions that would leave you less than this before your hours at another facility the same day are not offered.') ?></div>
+        <?= Html::endForm() ?>
+    <?php endif; ?>
+
     <h2 class="h4 fw-bold mt-4" id="weekly-hours"><?= Yii::t('app', 'Weekly hours') ?></h2>
     <?php if ($several): ?>
         <p class="text-muted small"><?= Yii::t('app', 'Choose where you are for each range. Ranges cannot overlap, even at different facilities; leave a gap to travel between them.') ?></p>

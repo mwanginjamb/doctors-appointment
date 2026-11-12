@@ -6,6 +6,7 @@ use common\components\RbacHelper;
 use common\models\AuditLog;
 use frontend\components\AdminAccessControl;
 use frontend\models\AuditLogSearch;
+use frontend\models\Facility;
 use yii\web\Controller;
 
 /**
@@ -35,6 +36,8 @@ class AuditController extends Controller
             'search' => $search,
             'dataProvider' => $dataProvider,
             'retentionYears' => AuditLog::retentionYears(),
+            // F8 phase 2: entries can be read per facility
+            'facilities' => Facility::find()->select(['name', 'id'])->orderBy(['name' => SORT_ASC])->indexBy('id')->column(),
         ]);
     }
 }

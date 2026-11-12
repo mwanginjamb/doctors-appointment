@@ -3,7 +3,7 @@
 The state of the doctor-appointments app as a clinic booking system: what has been built, what was
 deliberately deferred, and what is still open. Keep this file up to date when an item is done.
 
-_Last reviewed: 11 November 2026._
+_Last reviewed: 12 November 2026._
 
 ## Where it stands
 
@@ -78,6 +78,7 @@ Doing **Next up** below should bring the app to about 9.5 functionally and 8.5 t
 | Item | What it does | Branch |
 |---|---|---|
 | F8 phase 1 Multiple facilities | Admins keep a list of **Facilities** (name, address, phone, map link, taking bookings). A consultant adds the facilities they work at on **Availability**, each with its own session length, fee, online booking on or off, and optional from/to dates, and says where they are for each range of weekly hours (ranges cannot overlap across facilities). The time of a booking decides its facility, length and fee (`BookingService`); moving it to another facility takes that facility's length and fee. Patients cannot book themselves where online booking is off; the clinic can. The calendar shows each facility in its colour with a filter; booking links are issued for one facility; self-service rescheduling stays at the same facility. Confirmations, reminders and change notices carry the facility's name, address and map link. Patients' location search also matches facilities. A facility that is not listed is requested by the consultant and created or declined by an admin (**Facility Requests**); the consultant is told either way. | `feature/facilities` |
+| F8 phase 2 Front desk, history and reporting per facility | Each front-desk account works at one facility (set on **Front Desk Staff**, with the consultants who work there). They see, book, move, cancel and record outcomes only for appointments there (RBAC rule `assignedFacility` on top of `assignedConsultant`); their consultants' appointments elsewhere show on the calendar as "Booked", with no patient details. Patient history follows the viewer: a consultant sees their own appointments with a patient at every facility, never other consultants'; front desk sees their facility's; admins see everything. Admins close a facility for a day (**Facilities → Closed days**), on top of public holidays; existing bookings that day are kept and listed to move. A consultant sets a travel time between facilities on **Availability**, and the last slots before a block elsewhere are not offered. The dashboard and board filter by facility, and the dashboard has a monthly **Per facility** table (sessions, attended, no-shows, cancelled, fees due) for settling up. Audit entries record the facility. The privacy notice names the facility and its front desk. | `feature/facilities-phase2` |
 
 ---
 
@@ -211,6 +212,35 @@ earlier are covered by the general steps: `php yii migrate`, `php yii rbac/init`
      includes its address;
    - with a second facility added, the calendar shows both colours and the facility filter.
 
+### F8 phase 2 Front desk, history and reporting per facility
+
+1. **Database:** `php yii migrate` applies `m261125_090000_facility_phase2`. It adds `user.facility_id`
+   (the facility a front-desk account works at), `consultant.travel_buffer_minutes` (default 0, so
+   nothing changes until a consultant sets it), the `facility_closure` table, and
+   `audit_log.facility_id`. Each existing front-desk account gets the one facility where all its
+   consultants work, when there is exactly one; it prints how many were set and how many are left.
+2. **Permissions:** `php yii rbac/init`. It adds the rule `assignedFacility` and three permissions
+   (`bookAtAssignedFacility`, `handleAtAssignedFacility`, `recordAtAssignedFacility`) that sit between
+   the `front-desk` role and its assigned-consultant permissions, and removes the role's direct links
+   to those (it prints "front-desk no longer holds … directly"). Until this runs, front desk keeps
+   working as before, without the facility limit.
+3. **Front desk facilities:** as an admin, open **Front Desk Staff**. Accounts showing "Not set: sees
+   every facility" still see their consultants everywhere: edit each one and choose where they work.
+   Only consultants engaged at that facility can be ticked.
+4. **Privacy notice:** `privacy.version` is now `2026-11.2` (the notice names the facility where an
+   appointment takes place and its front desk). Signed-in patients are asked to accept it again on
+   their next visit. Have the wording reviewed with the rest of the notice; if it should not trigger
+   a new acceptance, set the version back to `2026-11` in `common/config/params.php`.
+5. **Restart:** not needed; no queue or message changes.
+6. **Check:**
+   - a front-desk account with a facility sees only that facility's appointments on the board, and on
+     a consultant's calendar sees their appointments elsewhere as "Booked";
+   - **Facilities → Closed days** on a facility: closing a day with bookings shows how many are left
+     to move, and the consultant's calendar shades that facility's hours that day;
+   - a consultant with two facilities sees **Travel time between facilities** on Availability;
+   - the dashboard shows **Per facility** for this month and filters by facility; the audit log has a
+     **Facility** filter.
+
 ---
 
 ## Deferred
@@ -252,7 +282,7 @@ Priority: **P1** do next, **P2** soon, **P3** when there is time. Impact is the 
 |---|---|---|---|
 | F6 | Visit types with their own lengths (first consultation, review…); the unused `service_id` column is available. | P2 | |
 | F7 | Recurring appointments (the `recurring_appointment` field exists but nothing uses it). | P3 | |
-| F8 | Consultants engaged at several facilities: one calendar, hours, session lengths, fees and front desk per facility, patient history scoped to a facility. In three phases; see **F8 Multiple facilities** below. **Phase 1 done** (`feature/facilities`); phases 2 and 3 open. | P3 | |
+| F8 | Consultants engaged at several facilities: one calendar, hours, session lengths, fees and front desk per facility, patient history scoped to a facility. In three phases; see **F8 Multiple facilities** below. **Phases 1 and 2 done** (`feature/facilities`, `feature/facilities-phase2`); phase 3 open. | P3 | |
 | F9 | Calendar sync (iCal / Google) for consultants. Builds on F8 phase 3. | P3 | |
 | F10 | Swahili translation (see **Deferred**). | P3 | |
 
@@ -315,7 +345,31 @@ Built as planned below, with these choices made while building it:
 | Messages | Confirmations, reminders and change notices carry the facility name, address and map link. |
 | Migration | One `facility` per distinct `consultant.facility` value; each consultant gets an engagement there with their current session length; existing hours and past appointments are attached to it. Single-facility consultants notice no change. |
 
-##### Phase 2: front desk, patient history and reporting per facility
+##### Phase 2: front desk, patient history and reporting per facility — done
+
+Built as planned below, with these choices made on 12 Nov 2026:
+
+- A front-desk account works at **one** facility (`user.facility_id`), and the admin ticks consultants
+  engaged there. `assignedFacility` sits on top of `assignedConsultant` (both rules must pass). An
+  account with no facility set is not limited, so existing front desk keeps working until an admin
+  chooses; the Front Desk Staff page and their board say so.
+- Front desk books only into their facility's hours: the calendar offers only those, and
+  `BookingService` refuses the rest once the time has settled the facility. Booking links they send
+  are for their facility only.
+- History follows the viewer (`FrontDesk::historyCondition()`): a consultant sees **all their own**
+  appointments with a patient at every facility (one calendar, same doctor), never other consultants';
+  front desk sees their consultants' at their facility; admins see everything. This replaces the
+  earlier assumption that consultants' history would be scoped too. Patients are still found by exact
+  email or phone; only the history shown with them is scoped.
+- The travel buffer is **per consultant** (0, 15, 30, 45, 60 or 90 minutes on Availability, shown with
+  two or more facilities): a session must end that long before a block at another facility starts
+  the same day. Only the side before the move is affected.
+- Facility closures are added by **admins only**, from the facility list (**Closed days**). Bookings
+  already made that day are kept and listed (with a link to the board) for staff to move.
+- Reporting: the dashboard has a facility filter and a monthly **Per facility** table. "Fees due" adds
+  up the fee recorded on attended appointments (the fee in force when booked); attended ones with no
+  fee set are counted separately.
+- The privacy notice version changed, so patients accept it again (see the deploy steps).
 
 | Part | What it does |
 |---|---|
@@ -335,10 +389,8 @@ Built as planned below, with these choices made while building it:
 | External engagements | A "busy at <facility>" block for work at facilities that do not use the app, shown as such instead of as time off. |
 | Calendar sync | F9: an iCal feed per consultant, each event with its facility as the location (patient names left out by default). |
 
-**Needs before starting:** the list of facilities and which consultants work where; how fees are set and
-who may change them (consultant, facility admin or clinic admin); whether a consultant sees their own
-patients' history across facilities (assumed **no**, following the scoping above, unless decided
-otherwise); and whether facilities need their own admins.
+**Needs before starting phase 3:** whether facilities need their own admins (today clinic admins run
+every facility), and who may change fees (today the consultant, on Availability).
 
 #### Compliance (Kenya Data Protection Act)
 

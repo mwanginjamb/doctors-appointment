@@ -42,6 +42,7 @@ use yii\helpers\ArrayHelper;
  * @property string|null $device_type
  * @property string|null $token_updated_at
  * @property string|null $practice_establishment_date
+ * @property int $travel_buffer_minutes gap needed before a block at another facility (F8 phase 2)
  */
 class Consultant extends \yii\db\ActiveRecord
 {
@@ -421,6 +422,63 @@ class Consultant extends \yii\db\ActiveRecord
         }
 
         return false;
+    }
+
+    /** Travel buffers a consultant can choose on their Availability page, in minutes (0 = none). */
+    const TRAVEL_BUFFERS = [0, 15, 30, 45, 60, 90];
+
+    /**
+     * The block at another facility that a session ending at $endTs would leave too little time to
+     * reach (F8 phase 2): it starts at or after the session ends, but sooner than the consultant's
+     * travel buffer. Returns that block as [start, end, facility_id], or null when there is time.
+     *
+     * @param string $date Y-m-d
+     * @param int $endTs when the session ends
+     * @param int|null $facilityId where the session is
+     */
+    public function travelClash($date, $endTs, $facilityId)
+    {
+        $buffer = (int) $this->travel_buffer_minutes;
+        if ($buffer <= 0 || $facilityId === null) {
+            return null;
+        }
+        foreach ($this->getRangesFor($date) as $range) {
+            if ($range[2] === (int) $facilityId) {
+                continue;
+            }
+            $opens = strtotime($date . ' ' . $range[0]);
+            if ($opens >= $endTs && $opens < $endTs + $buffer * 60) {
+                return $range;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * The closure of the facility whose weekly block a session at $date $time would fall in, or
+     * null when the consultant is not at a closed facility then (F8 phase 2).
+     *
+     * @return FacilityClosure|null
+     */
+    public function closureAt($date, $time)
+    {
+        $start = strtotime($date . ' ' . $time);
+        foreach ($this->getBlocks()[(int) date('N', $start)] ?? [] as [$open, $close, $facilityId]) {
+            if ($start < strtotime($date . ' ' . $open) || $start >= strtotime($date . ' ' . $close)) {
+                continue;
+            }
+            if (FacilityClosure::isClosed($facilityId, $date)) {
+                $engagement = $this->getEngagement($facilityId);
+                // Only when the consultant would otherwise be there that day
+                if ($engagement !== null && ($engagement->to_date === null || $date <= $engagement->to_date)
+                    && ($engagement->from_date === null || $date >= $engagement->from_date)) {
+                    return FacilityClosure::findOn($facilityId, $date);
+                }
+            }
+        }
+
+        return null;
     }
 
     /**

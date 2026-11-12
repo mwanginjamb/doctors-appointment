@@ -108,7 +108,7 @@ class ConsultantFacility extends ActiveRecord
 
     /**
      * Whether the consultant sees patients here on $date (Y-m-d): inside the engagement's dates,
-     * and the facility is taking bookings.
+     * the facility is taking bookings, and it is not closed that day.
      */
     public function isRunningOn($date)
     {
@@ -119,7 +119,8 @@ class ConsultantFacility extends ActiveRecord
             return false;
         }
 
-        return $this->facility !== null && $this->facility->isActive();
+        return $this->facility !== null && $this->facility->isActive()
+            && !FacilityClosure::isClosed($this->facility_id, $date);
     }
 
     public function isBookingOpen()
