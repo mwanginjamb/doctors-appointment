@@ -118,7 +118,7 @@ class SelfServiceCest
         $this->open($I, $appointment);
         $I->see('Changes are possible up to 24 hours before the appointment.');
         $I->dontSeeElement('#self-cancel-form');
-        $I->assertNull(SelfServiceLink::urlIfChangeable($appointment), 'no link in messages inside the cut-off');
+        $I->assertNull(SelfServiceLink::urlIfChangeable($appointment), 'no moving or cancelling inside the cut-off (confirming still is)');
     }
 
     public function theMovedNoticeCarriesTheLink(FunctionalTester $I)
@@ -129,5 +129,66 @@ class SelfServiceCest
 
         $saved = Appointments::findOne($this->appointment->id);
         $I->assertSame(1, $this->queued('SendWhatsappTextJob', ['0712345678', '/manage/' . $saved->id . '/' . SelfServiceLink::signature($saved)]));
+        $I->assertSame(1, $this->queued('SendWhatsappTextJob', ['To confirm you are coming, choose another time or cancel']));
+    }
+
+    // ---- The patient confirms they are coming ------------------------------------------------
+
+    public function thePatientConfirmsTheyAreComing(FunctionalTester $I)
+    {
+        $this->open($I, $this->appointment);
+        $I->seeElement('#self-confirm-form');
+        $I->submitForm('#self-confirm-form', []);
+
+        $I->see('Thank you: your appointment is confirmed.');
+        $I->seeElement('#confirmed-badge');
+        $I->dontSeeElement('#self-confirm-form');
+        $I->seeElement('#self-cancel-form', [], 'they can still change it outside the cut-off');
+        $I->assertSame(Appointments::STATUS_CONFIRMED, Appointments::findOne($this->appointment->id)->status);
+
+        $entry = \common\models\AuditLog::find()->where(['entity_type' => 'appointment', 'entity_id' => (string) $this->appointment->id])
+            ->andWhere(['like', 'changes', 'confirmed'])->one();
+        $I->assertNotNull($entry);
+        $I->assertSame(\common\models\AuditLog::ACTOR_SELF_SERVICE, $entry->actor_type);
+    }
+
+    public function openingTheLinkNeverConfirms(FunctionalTester $I)
+    {
+        // WhatsApp and email clients fetch links to preview them: only the button confirms
+        $I->amOnPage('/manage/' . $this->appointment->id . '/' . SelfServiceLink::signature($this->appointment) . '/confirm');
+        $I->seeResponseCodeIs(405);
+        $I->assertSame(Appointments::STATUS_SCHEDULED, Appointments::findOne($this->appointment->id)->status ?: Appointments::STATUS_SCHEDULED);
+    }
+
+    public function confirmingStillWorksInsideTheCutOff(FunctionalTester $I)
+    {
+        $soon = (int) ceil((time() + 5 * 3600) / 300) * 300;
+        Appointments::updateAll(['date' => date('Y-m-d', $soon), 'time' => date('H:i:00', $soon)], ['id' => $this->appointment->id]);
+        $appointment = Appointments::findOne($this->appointment->id);
+
+        // Messages still carry the link, for confirming only
+        $I->assertStringStartsWith(' To confirm you are coming: ', SelfServiceLink::messageNote($appointment));
+
+        $this->open($I, $appointment);
+        $I->see('Changes are possible up to 24 hours before the appointment.');
+        $I->submitForm('#self-confirm-form', []);
+        $I->see('your appointment is confirmed');
+        $confirmed = Appointments::findOne($appointment->id);
+        $I->assertSame(Appointments::STATUS_CONFIRMED, $confirmed->status);
+
+        // Confirmed and too late to change: nothing left to do, so no link
+        $I->assertSame('', SelfServiceLink::messageNote($confirmed));
+        $I->assertNull(SelfServiceLink::urlIfUseful($confirmed));
+    }
+
+    public function aConfirmedAppointmentIsNotConfirmedTwice(FunctionalTester $I)
+    {
+        Appointments::updateAll(['status' => Appointments::STATUS_CONFIRMED], ['id' => $this->appointment->id]);
+        $confirmed = Appointments::findOne($this->appointment->id);
+        $I->assertStringStartsWith(' To choose another time or cancel: ', SelfServiceLink::messageNote($confirmed));
+
+        $this->open($I, $confirmed);
+        $I->dontSeeElement('#self-confirm-form');
+        $I->seeElement('#confirmed-badge');
     }
 }

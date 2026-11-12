@@ -102,7 +102,7 @@ return [
                 'book/<token:[A-Za-z0-9_-]+>' => 'book/index',
                 // Patient self-service links: /manage/<appointment id>/<signature>[/cancel|/reschedule]
                 'manage/<id:\d+>/<sig:[a-f0-9]{32}>' => 'manage/index',
-                'manage/<id:\d+>/<sig:[a-f0-9]{32}>/<action:cancel|reschedule>' => 'manage/<action>',
+                'manage/<id:\d+>/<sig:[a-f0-9]{32}>/<action:cancel|reschedule|confirm>' => 'manage/<action>',
                 // F9: a consultant's calendar feed, read by Google, Apple or Outlook calendar
                 'calendar/<token:[A-Za-z0-9_-]{43}>.ics' => 'calendar-feed/ics',
             ],
