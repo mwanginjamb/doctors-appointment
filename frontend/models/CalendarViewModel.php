@@ -114,12 +114,18 @@ class CalendarViewModel extends BaseObject
         }
 
         $blocks = [];
+        $workDays = [];
+        $workTimes = [];
         foreach ($consultant->getBlocks() as $isoDay => $dayRanges) {
             foreach ($dayRanges as [$start, $end, $facilityId, $rotation]) {
                 $engagement = $consultant->getEngagement($facilityId);
                 if ($engagement === null || !$engagement->facility->isActive()) {
                     continue;
                 }
+                // Days and times the consultant works anywhere: the calendar shows them all, so front
+                // desk also sees the days they are elsewhere (their appointments there show as busy)
+                $workDays[] = $isoDay % 7;
+                $workTimes[] = ['startTime' => substr($start, 0, 5), 'endTime' => substr($end, 0, 5)];
                 // Front desk books only at their facility: the consultant's hours elsewhere are closed to them
                 if ($this->facilityId !== null && (int) $facilityId !== $this->facilityId) {
                     continue;
@@ -142,8 +148,13 @@ class CalendarViewModel extends BaseObject
         $sessions = [];
         foreach ($consultant->sessions as $session) {
             $engagement = $consultant->getEngagement($session->facility_id);
-            if ($session->date < date('Y-m-d') || $engagement === null
-                || ($this->facilityId !== null && (int) $session->facility_id !== $this->facilityId)) {
+            if ($session->date < date('Y-m-d') || $engagement === null) {
+                continue;
+            }
+            // Shown wherever it is; bookable here only at front desk's own facility
+            $workDays[] = (int) date('w', strtotime($session->date));
+            $workTimes[] = ['startTime' => substr($session->start_time, 0, 5), 'endTime' => substr($session->end_time, 0, 5)];
+            if ($this->facilityId !== null && (int) $session->facility_id !== $this->facilityId) {
                 continue;
             }
             $sessions[] = [
@@ -158,12 +169,10 @@ class CalendarViewModel extends BaseObject
         $ranges = array_map(function ($b) {
             return ['daysOfWeek' => $b['daysOfWeek'], 'startTime' => $b['startTime'], 'endTime' => $b['endTime']];
         }, $blocks);
-        $openDays = array_unique(array_merge(array_map(function ($r) {
-            return $r['daysOfWeek'][0];
-        }, $ranges), array_map(function ($s) {
+        $openDays = array_unique(array_merge($workDays, array_map(function ($s) {
             return (int) date('w', strtotime($s['date']));
         }, $sessions)));
-        $times = array_merge($ranges, $sessions);
+        $times = array_merge($workTimes, $sessions);
 
         $facilities = [];
         foreach ($consultant->engagements as $engagement) {

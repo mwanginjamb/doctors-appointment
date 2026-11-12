@@ -132,8 +132,31 @@
         });
     }
 
+    // The view and date shown stay put across the reloads after booking or moving an appointment
+    // (and going back to the page), per calendar and per browser tab. Storage can be unavailable
+    // (private windows, blocked site data): then the calendar opens on this week.
+    var stateKey = 'booking-calendar:' + location.pathname + location.search;
+    var views = ['dayGridMonth', 'timeGridWeek', 'timeGridDay', 'listWeek'];
+    var saved = null;
+    try {
+        saved = JSON.parse(sessionStorage.getItem(stateKey) || 'null');
+    } catch (e) {
+        saved = null;
+    }
+    if (!saved || views.indexOf(saved.view) === -1 || !/^\d{4}-\d{2}-\d{2}$/.test(saved.date || '')) {
+        saved = null;
+    }
+
     var calendar = new FullCalendar.Calendar(calendarEl, {
-        initialView: 'timeGridWeek',
+        initialView: saved ? saved.view : 'timeGridWeek',
+        initialDate: saved ? saved.date : undefined,
+        datesSet: function (info) {
+            try {
+                sessionStorage.setItem(stateKey, JSON.stringify({ view: info.view.type, date: localDate(info.view.currentStart) }));
+            } catch (e) {
+                // nothing to remember it in: fine
+            }
+        },
         validRange: function () {
             var now = new Date();
             return {

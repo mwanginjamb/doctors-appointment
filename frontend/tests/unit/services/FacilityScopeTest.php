@@ -148,6 +148,24 @@ class FacilityScopeTest extends \Codeception\Test\Unit
         $this->assertCount(1, (new AppointmentBoardSearch())->search(['from' => $this->date, 'facility' => $this->avenue->facility_id])->getModels());
     }
 
+    public function testFrontDeskSeesEveryDayTheConsultantWorksButBooksOnlyTheirs()
+    {
+        // Main clinic on Mondays, Avenue Clinic on Tuesdays
+        ConsultantWorkingHours::replaceWeek($this->consultant->id, [
+            1 => [['08:00:00', '13:00:00', $this->main->facility_id]],
+            2 => [['14:00:00', '17:00:00', $this->avenue->facility_id]],
+        ]);
+        $this->actAs($this->frontDesk);
+        $availability = (new \frontend\models\CalendarViewModel(['viewer' => $this->frontDesk, 'consultant' => $this->reload()]))->availability();
+
+        // FullCalendar days: Sunday = 0. Monday and Tuesday are shown; the rest of the week is hidden
+        $this->assertSame([0, 3, 4, 5, 6], $availability['hiddenDays']);
+        $this->assertSame('08:00', $availability['slotMinTime']);
+        $this->assertSame('17:00', $availability['slotMaxTime'], "the day elsewhere is in view, to show it as busy");
+        // ... but only their facility's hours are bookable
+        $this->assertSame([[1]], array_column($availability['businessHours'], 'daysOfWeek'));
+    }
+
     // ---- Patient history -------------------------------------------------------------------
 
     public function testNoShowCountsFollowWhoIsLooking()
