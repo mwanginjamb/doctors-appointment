@@ -21,6 +21,9 @@ class AuditLogSearch extends Model
     /** @var int|null F8 phase 2: entries about one facility */
     public $facility;
 
+    /** @var int|null a facility admin's facility: the only entries they may read. Not a filter field. */
+    public $lockedFacilityId;
+
     public function rules()
     {
         return [
@@ -58,9 +61,17 @@ class AuditLogSearch extends Model
             'pagination' => ['pageSize' => 50],
         ]);
 
+        // A facility admin reads their facility's entries only, whatever is asked for
+        if ($this->lockedFacilityId !== null) {
+            $query->andWhere(['facility_id' => (int) $this->lockedFacilityId]);
+        }
+
         $this->load($params);
+        if ($this->lockedFacilityId !== null) {
+            $this->facility = (int) $this->lockedFacilityId;
+        }
         if (!$this->validate()) {
-            $query->where('0=1');
+            $query->andWhere('0=1');
             return $dataProvider;
         }
 

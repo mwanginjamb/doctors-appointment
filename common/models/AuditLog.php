@@ -118,6 +118,7 @@ class AuditLog extends ActiveRecord
             'engagement' => 'Facility engagement',
             'facility_request' => 'Facility request',
             'facility_closure' => 'Facility closed day',
+            'facility_invitation' => 'Facility invitation',
             'booking_link' => 'Booking link',
             'rbac' => 'Role / permission',
             'audit_log' => 'Audit log',

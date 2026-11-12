@@ -3,7 +3,7 @@
 namespace frontend\controllers;
 
 use common\components\RbacHelper;
-use frontend\components\AdminAccessControl;
+use frontend\components\FrontDesk;
 use frontend\models\Appointments;
 use frontend\models\ConsultantFacility;
 use frontend\models\ConsultantWorkingHours;
@@ -21,6 +21,9 @@ use yii\web\NotFoundHttpException;
  * Admin list of facilities: the places consultants see patients. Consultants choose from these on
  * their Availability page, and ask for missing ones (facility requests), which an admin creates or
  * declines here.
+ *
+ * A facility admin opens their own facility here too: its contact details (update, address, phone
+ * and map link only) and its closed days. Each action checks the permission for that facility.
  */
 class FacilityController extends Controller
 {
@@ -30,8 +33,18 @@ class FacilityController extends Controller
     {
         return [
             'access' => [
-                'class' => AdminAccessControl::class,
-                'permission' => RbacHelper::PERM_MANAGE_REFERENCE_DATA,
+                'class' => \yii\filters\AccessControl::class,
+                'rules' => [
+                    ['allow' => true, 'roles' => [RbacHelper::PERM_MANAGE_REFERENCE_DATA]],
+                    [
+                        'allow' => true,
+                        'actions' => ['update', 'closures', 'delete-closure'],
+                        'roles' => ['@'],
+                        'matchCallback' => function () {
+                            return FrontDesk::isFacilityAdmin();
+                        },
+                    ],
+                ],
             ],
             'verbs' => [
                 'class' => VerbFilter::class,
@@ -152,10 +165,19 @@ class FacilityController extends Controller
     public function actionUpdate($id)
     {
         $model = $this->findModel($id);
+        // A facility admin edits only their facility's address, phone and map link
+        $full = Yii::$app->user->can(RbacHelper::PERM_MANAGE_REFERENCE_DATA);
+        if (!$full) {
+            $this->requireForFacility(RbacHelper::PERM_EDIT_FACILITY_CONTACT, $model);
+            $model->scenario = Facility::SCENARIO_CONTACT;
+        }
         $wasActive = $model->isActive();
         if ($model->load($this->request->post()) && $model->save()) {
             $session = Yii::$app->session;
-            $session->setFlash('success', Yii::t('app', '{name} saved.', ['name' => $model->name]));
+            $session->setFlash('success', Yii::t('app', '{name} saved.', ['name' => Html::encode($model->name)]));
+            if (!$full) {
+                return $this->redirect(['update', 'id' => $model->id]);
+            }
             if ($wasActive && !$model->isActive()) {
                 $upcoming = $this->upcomingAppointments($model)->count();
                 $session->addFlash('warning', Yii::t('app', 'Nobody can book {name} now. {n} upcoming appointment(s) there are kept; their consultants need to move or cancel them.', [
@@ -166,7 +188,19 @@ class FacilityController extends Controller
             return $this->redirect(['index']);
         }
 
-        return $this->render('update', ['model' => $model]);
+        return $this->render('update', ['model' => $model, 'contactOnly' => !$full]);
+    }
+
+    /**
+     * Refuses unless the user holds the permission for this facility: consultancy admins for every
+     * one, a facility admin for their own (rule facilityAdmin).
+     */
+    private function requireForFacility($permission, Facility $facility)
+    {
+        if (!Yii::$app->user->can($permission, ['facility' => $facility])) {
+            // Another facility is not theirs to know about
+            throw new NotFoundHttpException(Yii::t('app', 'The requested page does not exist.'));
+        }
     }
 
     /**
@@ -197,6 +231,7 @@ class FacilityController extends Controller
     public function actionClosures($id)
     {
         $facility = $this->findModel($id);
+        $this->requireForFacility(RbacHelper::PERM_MANAGE_FACILITY_CLOSURES, $facility);
         $closure = new FacilityClosure(['facility_id' => $facility->id]);
         if ($closure->load($this->request->post()) && $closure->save()) {
             $session = Yii::$app->session;
@@ -235,6 +270,7 @@ class FacilityController extends Controller
         if ($closure === null) {
             throw new NotFoundHttpException(Yii::t('app', 'Closure not found.'));
         }
+        $this->requireForFacility(RbacHelper::PERM_MANAGE_FACILITY_CLOSURES, $closure->facility);
         $closure->delete();
         Yii::$app->session->setFlash('success', Yii::t('app', '{name} is open again on {date}.', [
             'name' => Html::encode($closure->facility->name ?? ''),

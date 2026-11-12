@@ -76,6 +76,17 @@ class Facility extends ActiveRecord
         ];
     }
 
+    /** A facility admin edits only how patients reach the facility */
+    const SCENARIO_CONTACT = 'contact';
+
+    public function scenarios()
+    {
+        $scenarios = parent::scenarios();
+        $scenarios[self::SCENARIO_CONTACT] = ['address', 'phone', 'map_url'];
+
+        return $scenarios;
+    }
+
     public function attributeLabels()
     {
         return [

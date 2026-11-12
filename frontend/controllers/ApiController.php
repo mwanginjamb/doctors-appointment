@@ -90,7 +90,8 @@ class ApiController extends Controller
         } elseif (FrontDesk::isStaff()) {
             // The consultant whose calendar staff opened from the appointments board
             $consultant = Consultant::findOne(Yii::$app->session->get('booking_session_' . $user->id));
-            if ($consultant && (Yii::$app->user->can(RbacHelper::PERM_VIEW_ALL_APPOINTMENTS) || FrontDesk::canBookFor($consultant->user_id))) {
+            // Facility admins see any consultant's calendar: in full at their facility, busy elsewhere
+            if ($consultant && (Yii::$app->user->can(RbacHelper::PERM_VIEW_ALL_APPOINTMENTS) || FrontDesk::isFacilityAdmin() || FrontDesk::canBookFor($consultant->user_id))) {
                 $all = Appointments::find()
                     ->where(['consultant_id' => $consultant->user_id])
                     ->with(['consultant', 'patient', 'facility'])

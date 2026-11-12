@@ -11,6 +11,12 @@ use yii\base\Model;
  * Admin form to create a front-desk account, or edit one, and choose the facility they work at and
  * the consultants they book for there (F8 phase 2). Front desk signs in with their email address as
  * the username.
+ *
+ * Every consultant can be ticked. One who does not work at the facility yet is invited to
+ * (FacilityInvitation); front desk can book for them there once they accept by adding the facility,
+ * with their hours there.
+ *
+ * A facility admin uses it for their own facility only: $lockedFacilityId fixes the facility.
  */
 class FrontDeskStaffForm extends Model
 {
@@ -22,11 +28,17 @@ class FrontDeskStaffForm extends Model
     public $password;
     /** @var int|null facility.id: where they work; they see and book only appointments there */
     public $facility_id;
-    /** @var int[] consultant.id values, each engaged at $facility_id */
+    /** @var int[] consultant.id values */
     public $consultant_ids = [];
+
+    /** @var int|null a facility admin's facility: the only one the form can set */
+    public $lockedFacilityId;
 
     /** @var User|null the account being edited, or the one just created */
     private $user;
+
+    /** @var Consultant[] consultants invited to the facility by the last save */
+    private $invited = [];
 
     public function __construct(?User $user = null, $config = [])
     {
@@ -40,6 +52,9 @@ class FrontDeskStaffForm extends Model
         }
         parent::__construct($config);
         $this->scenario = $user ? self::SCENARIO_DEFAULT : self::SCENARIO_CREATE;
+        if ($this->lockedFacilityId !== null) {
+            $this->facility_id = (int) $this->lockedFacilityId;
+        }
     }
 
     public function scenarios()
@@ -66,43 +81,25 @@ class FrontDeskStaffForm extends Model
             [['phone'], 'default', 'value' => null],
             [['password'], 'required', 'on' => self::SCENARIO_CREATE],
             [['password'], 'string', 'min' => Yii::$app->params['user.passwordMinLength'] ?? 8],
+            // A facility admin cannot move front desk to another facility, whatever is posted
+            [['facility_id'], 'filter', 'filter' => function ($value) {
+                return $this->lockedFacilityId !== null ? (int) $this->lockedFacilityId : $value;
+            }],
             [['facility_id'], 'required', 'message' => Yii::t('app', 'Choose the facility they work at.')],
             [['facility_id'], 'integer'],
             [['facility_id'], 'exist', 'targetClass' => Facility::class, 'targetAttribute' => 'id'],
             [['consultant_ids'], 'default', 'value' => []],
             [['consultant_ids'], 'each', 'rule' => ['exist', 'targetClass' => Consultant::class, 'targetAttribute' => 'id']],
-            [['consultant_ids'], 'validateEngagedAtFacility', 'skipOnEmpty' => true],
         ];
     }
 
     /**
-     * Each chosen consultant works at the chosen facility.
-     */
-    public function validateEngagedAtFacility($attribute)
-    {
-        if ($this->hasErrors('facility_id') || !$this->facility_id) {
-            return;
-        }
-        $ids = array_map('intval', (array) $this->consultant_ids);
-        $engaged = array_map('intval', ConsultantFacility::find()->select('consultant_id')
-            ->where(['facility_id' => (int) $this->facility_id, 'consultant_id' => $ids])->column());
-        $missing = array_diff($ids, $engaged);
-        if ($missing) {
-            $names = Consultant::find()->select('names')->where(['id' => $missing])->orderBy(['names' => SORT_ASC])->column();
-            $facility = Facility::findOne((int) $this->facility_id);
-            $this->addError($attribute, Yii::t('app', '{names} {verb} not work at {facility}. Choose consultants who work there, or add the facility on their Availability page first.', [
-                'names' => implode(', ', $names),
-                'verb' => count($names) === 1 ? 'does' : 'do',
-                'facility' => $facility->name ?? '',
-            ]));
-        }
-    }
-
-    /**
-     * Consultants for the checkboxes: consultant.id => "Name (facilities they work at)", and for
-     * each facility the consultants who work there, so the page can show only those.
+     * Every consultant for the checkboxes, as consultant.id => "Name (facilities they work at)", and
+     * for each facility the consultants who work there and those invited, so the page marks the
+     * others "not here yet".
      *
-     * @return array{0: array, 1: array} [labels, facility id => consultant ids]
+     * @return array{0: array, 1: array, 2: array} [labels, facility id => consultant ids working there,
+     *               facility id => consultant ids invited]
      */
     public static function consultantOptions()
     {
@@ -114,8 +111,12 @@ class FrontDeskStaffForm extends Model
                 $byFacility[(int) $engagement->facility_id][] = (int) $consultant->id;
             }
         }
+        $invited = [];
+        foreach (FacilityInvitation::find()->select(['facility_id', 'consultant_id'])->where(['status' => FacilityInvitation::STATUS_PENDING])->asArray()->all() as $row) {
+            $invited[(int) $row['facility_id']][] = (int) $row['consultant_id'];
+        }
 
-        return [$labels, $byFacility];
+        return [$labels, $byFacility, $invited];
     }
 
     public function attributeLabels()
@@ -133,6 +134,12 @@ class FrontDeskStaffForm extends Model
     public function getUser()
     {
         return $this->user;
+    }
+
+    /** @return Consultant[] consultants the last save invited to work at the facility */
+    public function getInvited()
+    {
+        return $this->invited;
     }
 
     public function save()
@@ -161,7 +168,16 @@ class FrontDeskStaffForm extends Model
             if (!$user->save(false)) {
                 throw new \RuntimeException('Could not save the front-desk account.');
             }
-            FrontDeskAssignment::replaceFor($user->id, (array) $this->consultant_ids);
+            $ids = array_values(array_unique(array_map('intval', (array) $this->consultant_ids)));
+            FrontDeskAssignment::replaceFor($user->id, $ids);
+
+            // Consultants who do not work here yet are invited to
+            $this->invited = [];
+            foreach ($ids as $consultantId) {
+                if ($invitation = FacilityInvitation::invite($this->facility_id, $consultantId)) {
+                    $this->invited[] = $invitation->consultant;
+                }
+            }
             $transaction->commit();
             FrontDesk::reset();
         } catch (\Throwable $e) {

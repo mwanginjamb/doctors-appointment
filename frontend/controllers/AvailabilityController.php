@@ -8,6 +8,7 @@ use frontend\models\Consultant;
 use frontend\models\ConsultantFacility;
 use frontend\models\ConsultantWorkingHours;
 use frontend\models\ConsultantTimeOff;
+use frontend\models\FacilityInvitation;
 use frontend\models\FacilityRequest;
 use frontend\models\TimeOffForm;
 use frontend\models\WeeklyScheduleForm;
@@ -50,6 +51,7 @@ class AvailabilityController extends Controller
                     'remove-facility' => ['POST'],
                     'request-facility' => ['POST'],
                     'travel-buffer' => ['POST'],
+                    'decline-invitation' => ['POST'],
                 ],
             ],
         ];
@@ -166,6 +168,25 @@ class AvailabilityController extends Controller
         }
 
         return $this->renderIndex(new WeeklyScheduleForm($this->consultant), new TimeOffForm(), $engagement);
+    }
+
+    /**
+     * Declines an invitation to work at a facility. That facility's front desk no longer books for
+     * the consultant.
+     */
+    public function actionDeclineInvitation($id)
+    {
+        $invitation = FacilityInvitation::findOne(['id' => $id, 'consultant_id' => $this->consultant->id]);
+        if ($invitation === null) {
+            throw new NotFoundHttpException(Yii::t('app', 'Invitation not found.'));
+        }
+        if ($invitation->decline()) {
+            Yii::$app->session->setFlash('success', Yii::t('app', 'Invitation from {facility} declined.', [
+                'facility' => \yii\helpers\Html::encode($invitation->facility->name ?? ''),
+            ]));
+        }
+
+        return $this->redirect($this->route('index', ['#' => 'facilities']));
     }
 
     /**
@@ -298,7 +319,17 @@ class AvailabilityController extends Controller
             ->orderBy(['start_at' => SORT_ASC])
             ->all();
 
+        // Accepting an invitation opens the "add a facility" form with that facility chosen
+        $invitations = FacilityInvitation::pendingFor($this->consultant->id);
+        $accepting = (int) $this->request->get('invite');
+        if ($newEngagement === null && $accepting && in_array($accepting, array_map(function ($i) {
+            return (int) $i->facility_id;
+        }, $invitations), true)) {
+            $newEngagement = new ConsultantFacility(['session_minutes' => $this->consultant->getSessionMinutes(), 'facility_id' => $accepting]);
+        }
+
         return $this->render('index', [
+            'invitations' => $invitations,
             'form' => $form,
             'consultant' => $this->consultant,
             'cid' => $this->managedCid,

@@ -9,8 +9,12 @@ use yii\helpers\Html;
 /** @var frontend\models\FacilityClosure[] $closures upcoming closures, earliest first */
 /** @var array $booked Y-m-d => appointments still booked there that day */
 
+// Consultancy admins come from the facility list; a facility admin from their own facility
+$full = Yii::$app->user->can(\common\components\RbacHelper::PERM_MANAGE_REFERENCE_DATA);
 $this->title = 'Closed days: ' . $facility->name;
-$this->params['breadcrumbs'][] = ['label' => 'Facilities', 'url' => ['index']];
+$this->params['breadcrumbs'][] = $full
+    ? ['label' => 'Facilities', 'url' => ['index']]
+    : ['label' => 'My Facility', 'url' => ['update', 'id' => $facility->id]];
 $this->params['breadcrumbs'][] = $this->title;
 ?>
 <div class="facility-closures" style="max-width: 48rem">
@@ -18,7 +22,7 @@ $this->params['breadcrumbs'][] = $this->title;
     <h1><?= Html::encode($this->title) ?></h1>
     <p class="text-muted">
         Days <?= Html::encode($facility->name) ?> is shut, on top of the
-        <?= Html::a('public holidays', ['holiday/index']) ?>. Nobody can be booked here those days; consultants
+        <?= $full ? Html::a('public holidays', ['holiday/index']) : 'public holidays' ?>. Nobody can be booked here those days; consultants
         can still be booked at their other facilities. Appointments already booked are kept, for staff to move.
     </p>
 
@@ -64,5 +68,7 @@ $this->params['breadcrumbs'][] = $this->title;
         </table>
     <?php endif; ?>
 
-    <p><?= Html::a('Back to facilities', ['index'], ['class' => 'btn btn-link px-0']) ?></p>
+    <p><?= $full
+        ? Html::a('Back to facilities', ['index'], ['class' => 'btn btn-link px-0'])
+        : Html::a('Back to my facility', ['update', 'id' => $facility->id], ['class' => 'btn btn-link px-0']) ?></p>
 </div>

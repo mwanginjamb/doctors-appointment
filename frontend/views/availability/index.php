@@ -16,6 +16,7 @@ use yii\bootstrap5\Html;
  * @var ConsultantFacility $newEngagement the "add a facility" form
  * @var frontend\models\FacilityRequest $facilityRequest the "request a facility" form
  * @var frontend\models\FacilityRequest[] $facilityRequests the consultant's waiting and recently answered requests
+ * @var frontend\models\FacilityInvitation[] $invitations facilities inviting the consultant, waiting for an answer
  * @var int|null $cid consultant.id when an admin manages someone else's availability
  */
 
@@ -81,6 +82,21 @@ $rangeRow = function ($day, $i, $start = '', $end = '', $facility = null) use ($
 
     <h2 class="h4 fw-bold mt-4" id="facilities"><?= Yii::t('app', 'Facilities') ?></h2>
     <p class="text-muted"><?= Yii::t('app', 'Where you see patients, with the session length and fee at each. Changes apply to new bookings; appointments already booked keep their length and fee.') ?></p>
+
+    <?php foreach ($invitations as $invitation): ?>
+        <!-- Facility admins: a facility would like its front desk to book for this consultant -->
+        <div class="alert alert-info d-flex flex-wrap align-items-center gap-2 facility-invitation">
+            <span class="me-auto">
+                <?= Yii::t('app', '{facility} invites you to see patients there: its front desk would book for you.', [
+                    'facility' => '<strong>' . Html::encode($invitation->facility->name ?? '') . '</strong>',
+                ]) ?>
+            </span>
+            <?= Html::a(Yii::t('app', 'Accept: add it'), ['availability/index', 'cid' => $cid, 'invite' => $invitation->facility_id, '#' => 'add-facility'], ['class' => 'btn btn-sm btn-primary']) ?>
+            <?= Html::beginForm(['availability/decline-invitation', 'id' => $invitation->id, 'cid' => $cid], 'post', ['class' => 'd-inline']) ?>
+                <?= Html::submitButton(Yii::t('app', 'Decline'), ['class' => 'btn btn-sm btn-outline-secondary']) ?>
+            <?= Html::endForm() ?>
+        </div>
+    <?php endforeach; ?>
 
     <div class="card shadow-sm mb-4">
         <ul class="list-group list-group-flush">
