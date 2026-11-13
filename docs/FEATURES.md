@@ -398,6 +398,35 @@ or Twilio, configured in `.env`; the SMS reminder job uses it too. The placehold
    - with a new number: **Create my account**, then the consent page;
    - stop WAHA (or use a number not on WhatsApp) with SMS configured: the code comes by SMS.
 
+### Google One Tap
+
+On the login and signup pages, a browser signed in to Google shows Google's **Continue as …**
+prompt: one tap signs in (or creates a patient account), without the trip to Google's page. The
+Google button stays, for everyone else (not signed in to Google; Safari limits the prompt).
+
+The prompt hands the page a Google ID token, which it posts with our CSRF token to
+`google-one-tap/sign-in`. The server checks it is signed by Google (Google's published keys, cached
+as long as Google says, at most a day), issued by Google, for our client ID and not expired
+(`common\authclient\GoogleIdToken`, with `firebase/php-jwt`). Then it signs in exactly as the Google
+button does (`frontend\services\SocialSignIn`): the same Google account id, so accounts already
+linked to Google are the same accounts, and an unverified email never takes over an account.
+
+Google's script now loads on the login and signup pages, so Google sees those visits; the privacy
+notice says so (one line, version unchanged).
+
+1. **Google Cloud console** → APIs & Services → Credentials → the OAuth client used for
+   `GOOGLE_CLIENT_ID` → **Authorized JavaScript origins:** add `https://<your host>` (the redirect URI
+   for the button stays as it is).
+2. **nginx:** the security headers snippet changed (Content-Security-Policy allows
+   `accounts.google.com/gsi` for the script, its style, its frame and its calls; Cross-Origin-Opener-Policy
+   is now `same-origin-allow-popups`, as Google's prompt may finish in a popup). Copy
+   `deploy/nginx/snippets/appointments-security-headers.conf` to the server, then
+   `sudo nginx -t && sudo systemctl reload nginx`.
+3. **Deploy:** pull, `composer install` (adds `firebase/php-jwt`). No migration, no `rbac/init`.
+   `GOOGLE_ONE_TAP=0` in `.env` hides the prompt.
+4. **Check:** open the login page in a browser signed in to Google: the prompt shows top right
+   (bottom on phones); **Continue** signs in. The browser console shows no CSP errors.
+
 ---
 
 ## Deferred

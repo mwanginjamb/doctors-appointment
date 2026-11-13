@@ -11,6 +11,7 @@ use frontend\components\AdminAccessControl;
 use yii\filters\VerbFilter;
 use common\models\LoginForm;
 use common\authclient\OauthProfile;
+use frontend\services\SocialSignIn;
 use yii\authclient\AuthAction;
 use yii\filters\AccessControl;
 use frontend\models\SignupForm;
@@ -95,20 +96,9 @@ class SiteController extends Controller
     public function onAuthSuccess(ClientInterface $client)
     {
         $profile = OauthProfile::fromAttributes($client->getId(), $client->getUserAttributes());
-        if (!$profile->isUsable()) {
-            Yii::warning('OAuth login without email or id from client ' . $client->getId(), __METHOD__);
-            Yii::$app->session->setFlash('error', 'We could not get your email address from ' . $client->getTitle() . '. Please sign up with email instead.');
-            return $this->redirect(['site/login']);
-        }
-
-        // Find, link or create user
-        $user = User::createOrUpdateFromOauth($client->getId(), $profile->id, $profile->email, $profile->name, $profile->emailVerified);
-        if ($user && (int) $user->status !== User::STATUS_ACTIVE) {
-            Yii::$app->session->setFlash('error', 'Your account is not active yet. Please verify your email address first.');
-            return $this->redirect(['site/login']);
-        }
-        if (!$user || !Yii::$app->user->login($user)) {
-            Yii::$app->session->setFlash('error', 'We could not sign you in with ' . $client->getTitle() . '. If you already have an account, sign in with your password.');
+        $error = SocialSignIn::complete($client->getId(), $client->getTitle(), $profile);
+        if ($error !== null) {
+            Yii::$app->session->setFlash('error', $error);
             return $this->redirect(['site/login']);
         }
 

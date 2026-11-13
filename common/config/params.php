@@ -131,6 +131,8 @@ return [
             'from' => env('TWILIO_FROM', ''),
         ],
     ],
+    // Google One Tap on the login and signup pages, when Google sign-in is configured (GOOGLE_ONE_TAP=0 hides it)
+    'googleOneTap' => (bool) env('GOOGLE_ONE_TAP', true),
     // Patients sign in with their phone and a one-time code (see frontend\services\PhoneSignIn)
     'phoneSignIn' => [
         'enabled' => (bool) env('PHONE_SIGN_IN', true),
