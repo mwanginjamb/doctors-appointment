@@ -22,6 +22,9 @@ class Audit
     /** @var array|null set by actAs(): [the application it was set in, [type, user id, name]] */
     private static $actor;
 
+    /** @var string|null how the next sign-in happened (e.g. 'phone'), when not the account's provider */
+    public static $loginVia;
+
     /**
      * Records the requests that follow as done by someone who is not signed in.
      *
@@ -116,7 +119,7 @@ class Audit
         if ($event->cookieBased || $event->identity === null) {
             return;
         }
-        $method = $event->identity->auth_provider ?? null;
+        $method = self::$loginVia ?? ($event->identity->auth_provider ?? null);
         self::log(AuditLog::ACTION_LOGIN, 'user', $event->identity->id, [], $method ? "via $method" : null, self::actorFor($event->identity));
     }
 

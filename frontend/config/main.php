@@ -25,7 +25,11 @@ return [
             'enableAutoLogin' => true,
             'identityCookie' => ['name' => '_identity-frontend', 'httpOnly' => true],
             // Audit log: every sign-in (password, Google/LinkedIn, email verification) and sign-out
-            'on afterLogin' => ['common\components\Audit', 'onLogin'],
+            'on afterLogin' => function ($event) {
+                \common\components\Audit::onLogin($event);
+                // Signing in with a password or Google/LinkedIn while a phone code is proven links the number
+                \frontend\services\PhoneSignIn::onAfterLogin($event);
+            },
             'on afterLogout' => ['common\components\Audit', 'onLogout'],
         ],
         'session' => [

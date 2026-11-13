@@ -117,13 +117,29 @@ return [
     // Whether to create schedules for both patient and consultant, or just patient
     'createSchedulesFor' => 'both', // 'patient', 'consultant', 'both'
     // SMS Configuration
+    // SMS_PROVIDER: africastalking or twilio; empty means no SMS (see common\components\SmsClient)
     'sms' => [
-        'provider' => 'twilio', // or 'aws'
-        'twilio' => [
-            'sid' => 'your_twilio_account_sid',
-            'token' => 'your_twilio_auth_token',
-            'from' => '+1234567890',
+        'provider' => env('SMS_PROVIDER', ''),
+        'africastalking' => [
+            'username' => env('AT_USERNAME', ''), // "sandbox" uses Africa's Talking's test API
+            'api_key' => env('AT_API_KEY', ''),
+            'from' => env('AT_SENDER_ID', ''), // optional registered sender ID
         ],
+        'twilio' => [
+            'sid' => env('TWILIO_SID', ''),
+            'token' => env('TWILIO_TOKEN', ''),
+            'from' => env('TWILIO_FROM', ''),
+        ],
+    ],
+    // Patients sign in with their phone and a one-time code (see frontend\services\PhoneSignIn)
+    'phoneSignIn' => [
+        'enabled' => (bool) env('PHONE_SIGN_IN', true),
+        'codeTtlMinutes' => (int) env('LOGIN_CODE_TTL_MINUTES', 10),
+        'maxAttempts' => 5,
+        'perPhonePer15Minutes' => (int) env('LOGIN_CODE_PER_PHONE_15MIN', 3),
+        'perPhonePerDay' => (int) env('LOGIN_CODE_PER_PHONE_DAY', 10),
+        'perIpPerHour' => (int) env('LOGIN_CODE_PER_IP_HOUR', 10),
+        'resendAfterSeconds' => 60,
     ],
     // WhatsApp Configuration
     'whatsapp' => [

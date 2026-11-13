@@ -105,66 +105,10 @@ class SendReminderSmsJob extends BaseObject implements \yii\queue\JobInterface
     }
 
     /**
-     * Send SMS using your preferred SMS service
+     * Send the SMS through the configured provider (see SmsClient)
      */
     private function sendSms($phone, $message)
     {
-        // Example using a generic SMS service
-        // Replace this with your actual SMS service integration (Twilio, AWS SNS, etc.)
-
-        $smsConfig = Yii::$app->params['sms'] ?? [];
-        $provider = $smsConfig['provider'] ?? 'twilio';
-
-        switch ($provider) {
-            case 'twilio':
-                $this->sendTwilioSms($phone, $message);
-                break;
-            case 'aws':
-                $this->sendAwsSns($phone, $message);
-                break;
-            default:
-                throw new \Exception('SMS provider not configured');
-        }
-    }
-
-    /**
-     * Send SMS via Twilio
-     */
-    private function sendTwilioSms($phone, $message)
-    {
-        $config = Yii::$app->params['sms']['twilio'] ?? [];
-
-        if (empty($config['sid']) || empty($config['token']) || empty($config['from'])) {
-            throw new \Exception('Twilio SMS configuration missing');
-        }
-
-        // Example Twilio implementation
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, "https://api.twilio.com/2010-04-01/Accounts/{$config['sid']}/Messages.json");
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query([
-            'From' => $config['from'],
-            'To' => $phone,
-            'Body' => $message
-        ]));
-        curl_setopt($ch, CURLOPT_USERPWD, $config['sid'] . ':' . $config['token']);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-
-        $result = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        if ($httpCode !== 201) {
-            throw new \Exception('Failed to send SMS: ' . $result);
-        }
-    }
-
-    /**
-     * Send SMS via AWS SNS
-     */
-    private function sendAwsSns($phone, $message)
-    {
-        // AWS SNS implementation would go here
-        throw new \Exception('AWS SNS SMS not implemented yet');
+        \common\components\SmsClient::send($phone, $message);
     }
 }

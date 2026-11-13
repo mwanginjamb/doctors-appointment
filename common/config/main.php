@@ -45,6 +45,10 @@ return [
                 ] : null,
             ]),
         ],
+        // Sends sign-in codes straight away by WhatsApp or SMS (tests use a fake: common/config/test.php)
+        'phoneMessenger' => [
+            'class' => \common\components\PhoneMessenger::class,
+        ],
         'queue' => [
             'class' => \yii\queue\db\Queue::class,
             'db' => 'db', // DB connection component or its config 

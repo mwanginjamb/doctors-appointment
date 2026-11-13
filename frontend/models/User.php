@@ -40,6 +40,16 @@ class User extends \yii\db\ActiveRecord
         return ['audit' => \common\models\User::auditBehavior()];
     }
 
+    public function beforeSave($insert)
+    {
+        if (!parent::beforeSave($insert)) {
+            return false;
+        }
+        $this->syncPhoneKey();
+
+        return true;
+    }
+
     /**
      * {@inheritdoc}
      */
