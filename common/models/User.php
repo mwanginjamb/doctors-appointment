@@ -313,6 +313,16 @@ class User extends ActiveRecord implements IdentityInterface
         return $this->hasOne(\frontend\models\Consultant::class, ['user_id' => 'id']);
     }
 
+    public function beforeSave($insert)
+    {
+        if (!parent::beforeSave($insert)) {
+            return false;
+        }
+        $this->syncPhoneKey();
+
+        return true;
+    }
+
     /**
      * New users get the RBAC role matching their `role` column (consultant / patient / consultancy-admin),
      * and the assignment follows the column when it changes.

@@ -11,6 +11,24 @@ namespace common\models;
  */
 trait AccountTypeTrait
 {
+    /**
+     * Keeps user.phone_key (the number in one form, for finding accounts by number) in step with
+     * phone_number. A changed number is no longer proven, so phone_verified_at is cleared.
+     */
+    protected function syncPhoneKey()
+    {
+        if (!$this->hasAttribute('phone_key')) {
+            return; // before the phone sign-in migration
+        }
+        $key = \common\helpers\Phone::normalize($this->phone_number);
+        if ($key !== $this->getAttribute('phone_key')) {
+            if (!$this->isNewRecord) {
+                $this->setAttribute('phone_verified_at', null);
+            }
+            $this->setAttribute('phone_key', $key);
+        }
+    }
+
     /** A patient account; legacy accounts without a type are patients. */
     public function isPatientAccount()
     {

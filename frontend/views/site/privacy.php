@@ -59,6 +59,7 @@ $this->params['breadcrumbs'][] = $this->title;
     <ul>
         <li>To book, move and cancel your appointments, and to let your doctor and the clinic's front desk prepare for your visit.</li>
         <li>To send you confirmations and reminders by email, and, only if you agree, by WhatsApp or SMS.</li>
+        <li>When you sign in with your phone number, to send you the one-time code you asked for, by WhatsApp or SMS.</li>
         <li>To keep a record of who changed what, to protect you and the clinic.</li>
     </ul>
     <p>

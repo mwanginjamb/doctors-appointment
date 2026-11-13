@@ -71,9 +71,22 @@ AppAsset::register($this);
                                         <!--/ flash messages -->
 
                                         <!-- row 2 -->
-                                        <?php if (Yii::$app->utility->currentaction('site', ['login', 'signup'])): ?>
+                                        <?php
+                                        $socialClients = Yii::$app->has('authClientCollection') ? Yii::$app->authClientCollection->getClients() : [];
+                                        $phoneSignIn = \frontend\services\PhoneSignIn::isAvailable();
+                                        $onSignup = Yii::$app->utility->currentaction('site', ['signup']);
+                                        ?>
+                                        <?php if (Yii::$app->utility->currentaction('site', ['login', 'signup']) && ($socialClients || $phoneSignIn)): ?>
                                             <div class="row">
                                                 <div class="col-12">
+                                                    <?php if ($phoneSignIn): ?>
+                                                        <?= Html::a(
+                                                            '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="me-2 align-text-bottom" viewBox="0 0 16 16" aria-hidden="true"><path d="M11 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zM5 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2z"/><path d="M8 14a1 1 0 1 0 0-2 1 1 0 0 0 0 2"/></svg>' . ($onSignup ? 'Sign up with your phone number' : 'Sign in with your phone number'),
+                                                            ['phone-sign-in/index'],
+                                                            ['class' => 'btn btn-lg btn-outline-dark w-100 mb-3', 'id' => 'phone-sign-in-link']
+                                                        ) ?>
+                                                    <?php endif; ?>
+                                                    <?php if ($socialClients): ?>
                                                     <div
                                                         class="d-flex gap-3 flex-column justify-content-center align-items-center">
                                                         <!-- <a href="#!" class="btn btn-lg btn-outline-dark">
@@ -90,7 +103,12 @@ AppAsset::register($this);
                                                             'popupMode' => false,
                                                         ]) ?>
                                                     </div>
-                                                    <p class="text-center mt-4 mb-5">Or sign in with</p>
+                                                    <?php endif; ?>
+                                                    <div class="d-flex align-items-center gap-3 text-muted mt-4 mb-4" aria-hidden="true">
+                                                        <hr class="flex-grow-1 my-0">
+                                                        <span class="small"><?= $onSignup ? 'or create an account with your email' : 'or with your username and password' ?></span>
+                                                        <hr class="flex-grow-1 my-0">
+                                                    </div>
                                                 </div>
                                             </div>
                                         <?php endif; ?>

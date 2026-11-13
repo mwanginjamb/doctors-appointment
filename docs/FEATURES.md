@@ -347,6 +347,57 @@ when both its keys are set in `.env`.
    puts back the original (the app no longer uses its LinkedIn client).
 4. **Check:** **Log in → LinkedIn** signs in, or creates a patient account for a new email.
 
+### Patients sign in with their phone number
+
+Login and signup have **Sign in (up) with your phone number**: the patient enters their number, gets a
+6-digit code by WhatsApp (SMS if WhatsApp cannot send, or on request after a minute), and enters it.
+Then:
+
+- **one or more patient accounts on the number** (families share numbers): they pick theirs from a
+  list of first names and initials ("Mary W."), and are signed in;
+- **none**: they give their name and a patient account is created (no email, no password), followed by
+  the consent page as for any new patient.
+
+Rules:
+
+- **Patients only.** Staff accounts (consultants, front desk, facility admins, admins) are never
+  offered; they sign in with a password, Google or LinkedIn.
+- **Which accounts a number reaches:** accounts whose number was proven with a code before, and
+  accounts without an email (walk-ins, whose number the clinic entered). An account a patient
+  registered with an email carries whatever number they typed, so it is not offered until its owner
+  signs in once with their email (or Google/LinkedIn) right after proving the number; the page says so.
+- **Codes:** only a keyed hash is stored (`login_code`); valid 10 minutes, once; 5 wrong tries end a
+  code; a new code cancels the old one.
+- **Limits:** 3 codes per number per 15 minutes, 10 per day, 10 per IP address per hour (from the
+  `login_code` table, so they hold across servers).
+- **Numbers:** `user.phone_key` holds each number in one form (`254712345678`) to find accounts; the
+  number as typed stays in `phone_number`. Changing the number clears its proof.
+- The audit log records these sign-ins "via phone", and wrong or expired codes as failed sign-ins.
+- The option shows only when phone sign-in is on (`PHONE_SIGN_IN`) and WhatsApp or SMS can send.
+
+SMS now goes through `common\components\SmsClient` with Africa's Talking (the usual provider in Kenya)
+or Twilio, configured in `.env`; the SMS reminder job uses it too. The placeholder Twilio values in
+`params.php` are gone, so SMS stays off until a provider is configured.
+
+1. **Migrate:** `php yii migrate` (`m261128_090000_phone_sign_in`: `user.phone_key`,
+   `user.phone_verified_at`, the `login_code` table; fills `phone_key` for existing accounts and prints
+   how many numbers could not be read). No `rbac/init`.
+2. **`.env` (optional, defaults shown):**
+   - `PHONE_SIGN_IN=1` (0 hides it);
+   - `LOGIN_CODE_TTL_MINUTES=10`, `LOGIN_CODE_PER_PHONE_15MIN=3`, `LOGIN_CODE_PER_PHONE_DAY=10`,
+     `LOGIN_CODE_PER_IP_HOUR=10`;
+   - **SMS fallback:** `SMS_PROVIDER=africastalking` with `AT_USERNAME`, `AT_API_KEY` and, if you have a
+     registered sender ID, `AT_SENDER_ID` (`AT_USERNAME=sandbox` uses Africa's Talking's test API); or
+     `SMS_PROVIDER=twilio` with `TWILIO_SID`, `TWILIO_TOKEN`, `TWILIO_FROM`. Without one, codes go by
+     WhatsApp only.
+3. **Restart:** `sudo systemctl restart doctors-appointment.target` (the queue worker's SMS jobs use the
+   new SMS client).
+4. **Check:**
+   - **Log in → Sign in with your phone number** with a walk-in patient's number: the WhatsApp code
+     signs in to that patient (several on one number: a list to pick from);
+   - with a new number: **Create my account**, then the consent page;
+   - stop WAHA (or use a number not on WhatsApp) with SMS configured: the code comes by SMS.
+
 ---
 
 ## Deferred
