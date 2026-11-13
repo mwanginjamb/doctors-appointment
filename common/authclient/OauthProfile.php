@@ -28,8 +28,9 @@ class OauthProfile
         $profile = new static();
         switch ($client) {
             case 'google':
-                // https://www.googleapis.com/oauth2/v1/userinfo
-                $profile->id = $attributes['id'] ?? null;
+                // https://www.googleapis.com/oauth2/v1/userinfo (id), or a One Tap ID token (sub):
+                // the same Google account id either way
+                $profile->id = $attributes['id'] ?? $attributes['sub'] ?? null;
                 $profile->email = $attributes['email'] ?? null;
                 $profile->name = $attributes['name'] ?? null;
                 $profile->emailVerified = self::isTrue($attributes['verified_email'] ?? $attributes['email_verified'] ?? false);

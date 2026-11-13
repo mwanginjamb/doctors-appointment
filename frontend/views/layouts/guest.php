@@ -104,6 +104,9 @@ AppAsset::register($this);
                                                         ]) ?>
                                                     </div>
                                                     <?php endif; ?>
+                                                    <?php if ($oneTapClientId = \frontend\controllers\GoogleOneTapController::clientId()): ?>
+                                                        <?= $this->render('_google_one_tap', ['clientId' => $oneTapClientId, 'context' => $onSignup ? 'signup' : 'signin']) ?>
+                                                    <?php endif; ?>
                                                     <div class="d-flex align-items-center gap-3 text-muted mt-4 mb-4" aria-hidden="true">
                                                         <hr class="flex-grow-1 my-0">
                                                         <span class="small"><?= $onSignup ? 'or create an account with your email' : 'or with your username and password' ?></span>
