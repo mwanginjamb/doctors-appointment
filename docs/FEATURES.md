@@ -52,6 +52,7 @@ Doing **Next up** below should bring the app to about 9.5 functionally and 8.5 t
 |---|---|---|
 | F1 Change notices | When an appointment is cancelled or moved, the other side is told by email and WhatsApp: the patient when the clinic changed it, the consultant when the patient did. The internal cancellation note is not sent. | `feature/notify-appointment-changes` |
 | F3 Self-service link | Reminders and "moved" notices carry a signed link (`/manage/<id>/<signature>`) where the patient reschedules to another free slot or cancels, up to `SELF_SERVICE_CUTOFF_HOURS` (default 24) before. Moving the appointment invalidates older links. Needs `APP_PUBLIC_URL` (links from the queue worker) and `SELF_SERVICE_KEY`. | `feature/notify-appointment-changes` |
+| F4 Waiting list | Patients wait for a time with a consultant (a window of dates, optionally mornings or afternoons). When a time frees up, everyone waiting for it gets their link and the first to book gets it. "Something earlier" moves the patient's existing appointment. | `feature/waitlist` |
 
 ### Notifications and operations
 
@@ -427,6 +428,66 @@ notice says so (one line, version unchanged).
 4. **Check:** open the login page in a browser signed in to Google: the prompt shows top right
    (bottom on phones); **Continue** signs in. The browser console shows no CSP errors.
 
+### Fix: the calendar's arrows and views did nothing
+
+For a consultant at two or more facilities (or with alternate weeks or one-off sessions), the
+calendar's ‹ › arrows and the month / week / day / list buttons did nothing: front desk could not
+move to next week. The coloured facility blocks have no description, and the hover tooltip
+(Bootstrap 5) throws on an empty title; the error stopped the calendar mid-render. Tooltips now use
+the description, reason or title, are skipped when there is none, and can never stop the calendar
+(`addEventTooltip` in `Js/custom.js`, used by both calendars).
+
+Our scripts and styles now carry `?v=<file time>`, so browsers pick up changes after a deploy.
+
+1. **Deploy:** pull. Nothing else.
+2. **Check:** as front desk, open the calendar of a consultant who works at two facilities: › moves
+   to next week, **month** shows the month, and clicking a free time next week opens the booking
+   form.
+
+### F4 Waiting list
+
+A patient who cannot find a suitable time waits for one, and is told when it frees up.
+
+- **Joining.** Patients join from a doctor's calendar (**Notify me when a time frees up**: a facility,
+  a window of up to 30 days, any time / mornings / afternoons), or ask for **something earlier**
+  than one of their appointments (from the appointment page or their self-service link). The
+  consultant and their front desk add patients who phone in (**Add to the waiting list** on the
+  calendar, or **Wants an earlier time** on an appointment); the patient is sent their link.
+- **Telling patients.** When an appointment is cancelled or moved, a queue job checks that
+  consultant's waiting list; everyone whose window has a new free time is told at once, by email
+  and (with their consent, F11) WhatsApp. The first to book gets the time (the booking lock settles
+  it); latecomers see "just taken" and the other free times. A time is announced once per patient,
+  at least 2 hours ahead, not between 21:00 and 07:00, and at most 3 times a day per patient.
+- **The link** (`/waitlist/<id>/<signature>`, no sign-in, signed like self-service links) shows the
+  free times in the window, books one, or leaves the list. "Something earlier" moves the
+  appointment instead of booking a second one, which frees its old time for the next patient.
+- **Ending.** An entry ends when the patient books (through the link or any other way, inside the
+  window), leaves, or its window passes, or when the appointment it would move is cancelled.
+- **Walk-ins.** When the consultant or front desk books on the calendar, **Also put the patient on
+  the waiting list for an earlier time** books the next free slot and puts the patient on the list
+  for anything sooner. For an appointment today the patient is already at (or near) the clinic,
+  so times are offered from 15 minutes ahead (`waitlist.sameDayLeadMinutes`), not 2 hours.
+- **Staff** see who is waiting (**Waiting list (n)** on the board) and can remove entries.
+  Patients see theirs under **My waiting list**.
+
+The privacy notice has one more line (version unchanged).
+
+1. **Deploy:** pull, then `php yii migrate` (adds `waitlist_entry`). No `rbac/init`.
+2. **Sweep timer:** every 15 minutes it sends notices held over the night, catches times that open
+   other ways (new hours, a one-off session, time off removed) and ends old entries:
+   ```bash
+   sudo cp deploy/systemd/doctors-appointment-waitlist.* deploy/systemd/doctors-appointment.target /etc/systemd/system/
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now doctors-appointment-waitlist.timer
+   systemctl list-timers doctors-appointment-waitlist.timer   # every 15 minutes
+   ```
+   Then `sudo systemctl restart doctors-appointment.target`, so the queue worker loads the new code.
+3. **.env:** `APP_PUBLIC_URL` and `SELF_SERVICE_KEY` must be set (already needed for self-service
+   links): the queue worker builds the links. `WAITLIST=0` switches the waiting list off.
+4. **Check:** as a patient, open a doctor's calendar → **Notify me when a time frees up** → join.
+   Cancel an appointment with that doctor in the window: within a minute the patient gets an email
+   with their link, and can book the freed time.
+
 ---
 
 ## Deferred
@@ -449,12 +510,6 @@ Priority: **P1** do next, **P2** soon, **P3** when there is time. Impact is the 
 | # | Item | Priority | Impact |
 |---|---|---|---|
 | F2 | WhatsApp booking confirmations for every booking, not only booking links. | P2 | |
-
-#### Self-service
-
-| # | Item | Priority | Impact |
-|---|---|---|---|
-| F4 | Waitlist: notify patients when a slot frees up. | P3 | |
 
 #### Payments
 

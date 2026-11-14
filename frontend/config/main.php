@@ -15,6 +15,10 @@ return [
     // F11: signed-in patients must agree to the current privacy notice before using the app
     'as consentGate' => ['class' => 'frontend\components\ConsentGate'],
     'components' => [
+        // ?v=<file time> on our scripts and styles, so browsers fetch them again after a deploy
+        'assetManager' => [
+            'appendTimestamp' => true,
+        ],
         'request' => [
             'csrfParam' => '_csrf-frontend',
             'enableCsrfValidation' => true,
@@ -106,7 +110,10 @@ return [
                 'book/<token:[A-Za-z0-9_-]+>' => 'book/index',
                 // Patient self-service links: /manage/<appointment id>/<signature>[/cancel|/reschedule]
                 'manage/<id:\d+>/<sig:[a-f0-9]{32}>' => 'manage/index',
-                'manage/<id:\d+>/<sig:[a-f0-9]{32}>/<action:cancel|reschedule|confirm>' => 'manage/<action>',
+                'manage/<id:\d+>/<sig:[a-f0-9]{32}>/<action:cancel|reschedule|confirm|waitlist>' => 'manage/<action>',
+                // F4 waiting-list links: /waitlist/<entry id>/<signature>[/book|/leave]
+                'waitlist/<id:\d+>/<sig:[a-f0-9]{32}>' => 'waitlist/offer',
+                'waitlist/<id:\d+>/<sig:[a-f0-9]{32}>/<action:book|leave>' => 'waitlist/<action>',
                 // F9: a consultant's calendar feed, read by Google, Apple or Outlook calendar
                 'calendar/<token:[A-Za-z0-9_-]{43}>.ics' => 'calendar-feed/ics',
             ],

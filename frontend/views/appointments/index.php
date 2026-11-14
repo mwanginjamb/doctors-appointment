@@ -22,6 +22,13 @@ $this->params['breadcrumbs'][] = $this->title;
         <?php Html::a(Yii::t('app', 'Create Appointments'), ['create'], ['class' => 'btn btn-lg btn-outline-success']) ?>
         <?= Html::a(Yii::t('app', '<i class="fa fas-calendar"></i> My Calendar'), ['appointments/my-calendar'], ['class' => 'btn btn-lg btn-outline-info']) ?>
         <?= Yii::$app->user->identity->isConsultantAccount() ? Html::a(Yii::t('app', 'Edit Calendar Bookings'), ['appointments/calendar'], ['class' => 'btn btn-lg btn-outline-dark']) : '' ?>
+        <?php if (\frontend\services\Waitlist::isEnabled()): ?>
+            <?php if (Yii::$app->user->identity->isPatientAccount()): ?>
+                <?= Html::a(Yii::t('app', 'My waiting list'), ['waitlist/mine'], ['class' => 'btn btn-lg btn-outline-secondary', 'id' => 'my-waitlist-link']) ?>
+            <?php elseif (Yii::$app->user->identity->isConsultantAccount()): ?>
+                <?= Html::a(Yii::t('app', 'Waiting list'), ['waitlist/index'], ['class' => 'btn btn-lg btn-outline-secondary']) ?>
+            <?php endif; ?>
+        <?php endif; ?>
 
     </div>
 

@@ -431,6 +431,9 @@ class Appointments extends \yii\db\ActiveRecord
                 );
             }
         }
+
+        // F4: a freed slot goes to the waiting list; a booking ends the patient's wait
+        \frontend\services\Waitlist::appointmentSaved($this, $insert, $changedAttributes);
     }
 
     /**

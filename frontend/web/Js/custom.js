@@ -25,4 +25,23 @@ function fetchCalendarEvents(fetchInfo, successCallback, failureCallback) {
             failureCallback(error);
         });
 
-}   
+}
+
+/**
+ * FullCalendar eventDidMount: a hover tooltip with the event's description (else its reason or
+ * title). Background blocks (facility hours, sessions) can have none: Bootstrap 5 throws on an
+ * undefined title, and an error here aborts FullCalendar's render, so the arrows and view buttons
+ * stop working. No text, no tooltip; and a failing tooltip never breaks the calendar.
+ */
+function addEventTooltip(info) {
+    var props = info.event.extendedProps || {};
+    var text = props.description || props.reason || info.event.title;
+    if (typeof text !== 'string' || text.trim() === '' || typeof $ === 'undefined' || !$.fn.tooltip) {
+        return;
+    }
+    try {
+        $(info.el).tooltip({ title: text, placement: 'top', trigger: 'hover', container: 'body' });
+    } catch (e) {
+        console.warn('Tooltip skipped:', e);
+    }
+}

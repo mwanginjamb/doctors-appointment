@@ -1,7 +1,7 @@
 # Background services (systemd)
 
-Appointment reminders need two things running on the server, plus health checks every 5 minutes and a
-daily clean-up of the audit log:
+Appointment reminders need two things running on the server, plus health checks every 5 minutes, a
+waiting-list sweep every 15 minutes and a daily clean-up of the audit log:
 
 | Unit | What it does |
 | --- | --- |
@@ -9,6 +9,7 @@ daily clean-up of the audit log:
 | `doctors-appointment-queue.service` | Long-running `php yii queue/listen` worker that sends the queued emails, WhatsApp, push and SMS. |
 | `doctors-appointment-audit-purge.timer` → `doctors-appointment-audit-purge.service` | Daily at 03:15, runs `php yii audit/purge` to remove audit log entries older than the retention period (`AUDIT_RETENTION_YEARS`, 7 by default). |
 | `doctors-appointment-health.timer` → `doctors-appointment-health.service` | Every 5 minutes, runs `php yii health/check`: emails `ALERT_EMAILS` when the queue worker or scheduler stops, messages keep failing, WhatsApp logs out or the database is down, and pings `HEALTHCHECK_PING_URL`. |
+| `doctors-appointment-waitlist.timer` → `doctors-appointment-waitlist.service` | Every 15 minutes, runs `php yii waitlist/sweep`: tells waiting patients about times that opened other than by a cancellation or move, sends notices held over quiet hours, and ends old entries. |
 | `doctors-appointment.target` | Groups them so they start, stop and restart together. |
 
 ## How the pieces fit
@@ -21,8 +22,10 @@ multi-user.target                                (normal boot)
        │    └─ doctors-appointment-scheduler.service   one short run: queues due reminders
        ├─ doctors-appointment-audit-purge.timer  fires daily at 03:15
        │    └─ doctors-appointment-audit-purge.service one run: removes audit entries past retention
-       └─ doctors-appointment-health.timer       fires every 5 minutes
-            └─ doctors-appointment-health.service      one run: checks, alerts, heartbeat ping
+       ├─ doctors-appointment-health.timer       fires every 5 minutes
+       │    └─ doctors-appointment-health.service      one run: checks, alerts, heartbeat ping
+       └─ doctors-appointment-waitlist.timer     fires every 15 minutes
+            └─ doctors-appointment-waitlist.service    one run: waiting-list notices, ends old entries
 ```
 
 A reminder goes through two steps:
@@ -108,6 +111,19 @@ WAHA WhatsApp session.
 - Look without alerting: `sudo -u www-data php yii health/status`. Admins also see **System health** on the
   dashboard.
 
+### doctors-appointment-waitlist.service / .timer
+
+Every 15 minutes, `php yii waitlist/sweep` (F4 waiting list). Cancellations and moves already reach
+waiting patients within seconds, through a job on the queue; the sweep catches the rest:
+
+- times that open other ways (new hours, a one-off session, time off removed);
+- notices held over the quiet hours (21:00–07:00), sent on the first run after 07:00;
+- entries whose window has passed, or whose appointment is gone, are ended.
+
+- `Persistent=false`: a missed run needs no catch-up; the next one looks at the current free times.
+- It loads fresh code on every run, so it needs no restart after a deploy.
+- `WAITLIST=0` in `.env` switches the waiting list off; the sweep then does nothing.
+
 The services share the same hardening (`NoNewPrivileges`, `PrivateTmp`, `ProtectSystem=full`, `ProtectHome`):
 `/usr`, `/boot` and `/etc` are read-only to them and `/home` is hidden, while `/var/www` stays writable.
 
@@ -122,7 +138,7 @@ The units assume the app lives at `/var/www/html/doctors-appointment`, PHP CLI i
 sudo cp deploy/systemd/doctors-appointment* /etc/systemd/system/
 sudo systemd-analyze verify /etc/systemd/system/doctors-appointment*.{service,timer,target}
 sudo systemctl daemon-reload
-sudo systemctl enable doctors-appointment-queue.service doctors-appointment-scheduler.timer doctors-appointment-audit-purge.timer doctors-appointment-health.timer
+sudo systemctl enable doctors-appointment-queue.service doctors-appointment-scheduler.timer doctors-appointment-audit-purge.timer doctors-appointment-health.timer doctors-appointment-waitlist.timer
 sudo systemctl enable --now doctors-appointment.target
 ```
 
@@ -136,10 +152,11 @@ sudo systemctl restart doctors-appointment.target        # after every deploy (l
 sudo systemctl stop doctors-appointment.target           # pause all notifications
 
 systemctl status doctors-appointment.target doctors-appointment-queue
-systemctl list-timers doctors-appointment-scheduler.timer doctors-appointment-audit-purge.timer doctors-appointment-health.timer
+systemctl list-timers doctors-appointment-scheduler.timer doctors-appointment-audit-purge.timer doctors-appointment-health.timer doctors-appointment-waitlist.timer
 journalctl -u doctors-appointment-queue -f               # worker output
 journalctl -u doctors-appointment-scheduler --since -1h  # scheduler runs
 journalctl -u doctors-appointment-health --since -1h     # health checks
+journalctl -u doctors-appointment-waitlist --since -1h   # waiting-list sweeps
 
 php yii queue/info            # waiting / delayed / done jobs
 php yii notification/stats    # pending / sent / failed reminders

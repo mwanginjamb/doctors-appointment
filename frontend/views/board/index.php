@@ -59,6 +59,13 @@ $today = date('Y-m-d');
                 <?= Html::a('Send link', ['/booking-link/create', 'cid' => $consultant->id], ['class' => 'btn btn-sm btn-outline-success', 'title' => 'Send a booking link (remote walk-in)']) ?>
                 <?= Html::a('Sessions', ['/session/index', 'cid' => $consultant->id], ['class' => 'btn btn-sm btn-outline-secondary', 'title' => 'Add a one-off session (e.g. an outreach clinic)']) ?>
             <?php endforeach; ?>
+            <?php if ($bookable && \frontend\services\Waitlist::isEnabled()): ?>
+                <?= Html::a('Waiting list (' . \frontend\models\WaitlistEntry::countWaitingForStaff() . ')', ['/waitlist/index'], [
+                    'class' => 'btn btn-sm btn-outline-primary',
+                    'id' => 'waitlist-board-link',
+                    'title' => 'Patients waiting for a time to free up',
+                ]) ?>
+            <?php endif; ?>
             <?php if (!$bookable && !$waiting): ?>
                 <span class="text-warning">No consultants are assigned to you yet. Ask an administrator.</span>
             <?php endif; ?>

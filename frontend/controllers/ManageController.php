@@ -28,7 +28,7 @@ class ManageController extends Controller
             'verbs' => [
                 'class' => VerbFilter::class,
                 // POST only: opening the link (or WhatsApp's link preview fetching it) never changes anything
-                'actions' => ['cancel' => ['POST'], 'reschedule' => ['POST'], 'confirm' => ['POST']],
+                'actions' => ['cancel' => ['POST'], 'reschedule' => ['POST'], 'confirm' => ['POST'], 'waitlist' => ['POST']],
             ],
         ];
     }
@@ -128,6 +128,34 @@ class ManageController extends Controller
         Yii::$app->session->setFlash('success', Yii::t('app', 'Your appointment is moved. The clinic has been told.'));
         // The link is signed over the time, so the moved appointment has a new one
         return $this->redirect(['index', 'id' => $id, 'sig' => SelfServiceLink::signature($appointment)]);
+    }
+
+    /**
+     * F4: "Tell me if an earlier time opens": the patient waits for a time before this appointment,
+     * at the same facility (any time of day), and is taken to their waiting-list page.
+     */
+    public function actionWaitlist($id, $sig)
+    {
+        $this->throttle('manage');
+        $appointment = SelfServiceLink::verify($id, $sig);
+        if ($appointment === null) {
+            return $this->render('invalid');
+        }
+        if (!\frontend\services\Waitlist::isEnabled() || !$appointment->canBeCancelled()) {
+            Yii::$app->session->setFlash('error', Yii::t('app', 'This appointment can no longer be moved.'));
+            return $this->redirect(['index', 'id' => $id, 'sig' => $sig]);
+        }
+        $this->actAsPatient($appointment);
+        $form = new \frontend\models\WaitlistForm(['appointment' => $appointment, 'patient' => $appointment->patient]);
+        $form->part_of_day = (string) $this->request->post('part_of_day', 'any');
+        if (!$form->save()) {
+            $errors = $form->getFirstErrors();
+            Yii::$app->session->setFlash('error', \yii\helpers\Html::encode($errors ? reset($errors) : Yii::t('app', 'Could not add you to the waiting list.')));
+            return $this->redirect(['index', 'id' => $id, 'sig' => $sig]);
+        }
+        Yii::$app->session->setFlash('success', Yii::t('app', 'Done: we will message you if an earlier time opens. Your appointment stays as it is until you choose one.'));
+
+        return $this->redirect(['/waitlist/offer', 'id' => $form->entry->id, 'sig' => $form->entry->signature()]);
     }
 
     /**

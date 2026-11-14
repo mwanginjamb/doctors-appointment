@@ -92,6 +92,16 @@ $dates = array_keys($slots);
             <?= Html::endForm() ?>
         <?php endif; ?>
 
+        <?php if (\frontend\services\Waitlist::isEnabled() && $appointment->canBeCancelled()): ?>
+            <h2 class="h5 fw-bold">Want an earlier time?</h2>
+            <?= Html::beginForm(['manage/waitlist', 'id' => $appointment->id, 'sig' => $sig], 'post', ['id' => 'self-waitlist-form', 'class' => 'mb-5']) ?>
+                <p class="text-muted small mb-2">
+                    If someone cancels, we message you and you can move to their time. Your appointment stays as it is until then.
+                </p>
+                <?= Html::submitButton('Tell me if an earlier time opens', ['class' => 'btn btn-outline-primary']) ?>
+            <?= Html::endForm() ?>
+        <?php endif; ?>
+
         <h2 class="h5 fw-bold">Cancel</h2>
         <?= Html::beginForm(['manage/cancel', 'id' => $appointment->id, 'sig' => $sig], 'post', ['id' => 'self-cancel-form']) ?>
             <label class="form-label" for="cancel-reason">Reason (optional, shared with the clinic)</label>
