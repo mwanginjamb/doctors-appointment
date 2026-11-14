@@ -35,6 +35,21 @@ $this->title = $calendar->title;
                 'class' => 'btn btn-outline-primary',
                 'title' => 'Let a potential patient pick one of your free slots as a remote walk-in',
             ]) ?>
+            <?php if (\frontend\services\Waitlist::isEnabled()): ?>
+                <?= Html::a('Add to the waiting list', ['/waitlist/add', 'cid' => $consultant->id], [
+                    'class' => 'btn btn-outline-secondary',
+                    'id' => 'waitlist-add-link',
+                    'title' => 'A patient who wants a time that is taken: they are told when one frees up',
+                ]) ?>
+            <?php endif; ?>
+        <?php endif; ?>
+        <?php if (!$readOnly && !$booksForPatients && !empty($consultant) && \frontend\services\Waitlist::isEnabled()
+            && Yii::$app->user->identity->isPatientAccount()): ?>
+            <?= Html::a('Notify me when a time frees up', ['/waitlist/join', 'cid' => $consultant->id], [
+                'class' => 'btn btn-outline-primary',
+                'id' => 'waitlist-join-link',
+                'title' => 'Nothing suitable? Join the waiting list: we message you when someone cancels or moves',
+            ]) ?>
         <?php endif; ?>
     </div>
 </div>
@@ -128,6 +143,14 @@ $this->registerCss('#calendar .facility-block { pointer-events: none; opacity: .
                 </div>
                 <div id="appointment-facility" class="small fw-semibold border-start border-4 ps-2 mb-3 d-none"></div>
                 <?= $form->field($model, 'symptoms_brief')->textarea(['rows' => 6]) ?>
+                <?php if ($booksForPatients && \frontend\services\Waitlist::isEnabled()): ?>
+                    <!-- F4: e.g. a walk-in who takes the next free slot but would come sooner -->
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="appointment-waitlist">
+                        <label class="form-check-label" for="appointment-waitlist"><?= Yii::t('app', 'Also put the patient on the waiting list for an earlier time') ?></label>
+                        <div class="form-text"><?= Yii::t('app', 'If someone cancels before this time, the patient is told and can move up.') ?></div>
+                    </div>
+                <?php endif; ?>
 
 
                 <div class="form-group">

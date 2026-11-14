@@ -31,6 +31,16 @@ return [
     'selfService.cutoffHours' => (int) env('SELF_SERVICE_CUTOFF_HOURS', 24),
     'selfService.rescheduleDays' => 14,
     'selfService.key' => env('SELF_SERVICE_KEY', ''),
+    // F4 waiting list: patients wait for a time with a consultant; when one frees up, everyone
+    // waiting for it gets their link and the first to book gets it. WAITLIST=0 switches it off.
+    'waitlist.enabled' => (bool) env('WAITLIST', true),
+    'waitlist.maxDays' => 30,               // longest window a patient can wait for
+    'waitlist.minLeadMinutes' => 120,       // only announce times at least this far ahead
+    'waitlist.maxNoticesPerDay' => 3,       // per entry
+    'waitlist.quietFrom' => 21,             // no notices from 21:00 ...
+    'waitlist.quietUntil' => 7,             // ... until 07:00 (equal: no quiet hours)
+    'waitlist.sameDayLeadMinutes' => 15,    // "earlier" for an appointment today (walk-ins at the clinic)
+    'waitlist.maxEntriesPerPatient' => 5,
     // Audit log entries older than this are removed by `php yii audit/purge` (daily timer).
     // 7 years, a common period for health records.
     'audit.retentionYears' => (int) env('AUDIT_RETENTION_YEARS', 7),

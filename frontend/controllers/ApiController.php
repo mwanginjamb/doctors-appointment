@@ -190,7 +190,19 @@ class ApiController extends Controller
         }
 
         if (Yii::createObject(BookingService::class)->book($model)) {
-            return ['status' => 'success', 'message' => 'Appointment #' . $model->id . ' booked successfully!'];
+            $message = 'Appointment #' . $model->id . ' booked successfully!';
+            // F4: staff also put the patient on the waiting list for an earlier time
+            if (!empty($data['waitlist']) && ($user->isConsultantAccount() || $user->isFrontDeskAccount()) && \frontend\services\Waitlist::isEnabled()) {
+                $wait = new \frontend\models\WaitlistForm(['appointment' => $model, 'byStaff' => true]);
+                if ($wait->save()) {
+                    \frontend\services\Waitlist::sendWelcome($wait->entry);
+                    $message .= ' The patient is on the waiting list for an earlier time.';
+                } else {
+                    $errors = $wait->getFirstErrors();
+                    $message .= ' Could not add them to the waiting list: ' . ($errors ? reset($errors) : 'unknown reason') . '.';
+                }
+            }
+            return ['status' => 'success', 'message' => $message];
         }
 
         return ['status' => 'error', 'message' => $this->firstError($model)];

@@ -29,6 +29,13 @@ $this->params['breadcrumbs'][] = $this->title;
                 'data' => ['bs-toggle' => 'modal', 'bs-target' => '#cancelAppointmentModal'],
             ]) ?>
         <?php endif; ?>
+        <?php if ($model->canBeCancelled() && \frontend\services\Waitlist::isEnabled()): ?>
+            <?php if ((int) $model->patient_id === (int) Yii::$app->user->id): ?>
+                <?= Html::a(Yii::t('app', 'Tell me if something earlier opens'), ['/waitlist/join', 'appointment' => $model->id], ['class' => 'btn btn-outline-primary', 'id' => 'waitlist-earlier-link']) ?>
+            <?php elseif (\frontend\components\FrontDesk::canBookAppointment($model)): ?>
+                <?= Html::a(Yii::t('app', 'Wants an earlier time: add to the waiting list'), ['/waitlist/add', 'appointment' => $model->id], ['class' => 'btn btn-outline-secondary', 'id' => 'waitlist-earlier-link']) ?>
+            <?php endif; ?>
+        <?php endif; ?>
     </p>
     <?= $model->canBeCancelled() ? $this->render('_cancel_modal', ['action' => Url::to(['cancel', 'id' => $model->id])]) : '' ?>
 

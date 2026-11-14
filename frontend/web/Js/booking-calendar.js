@@ -209,14 +209,7 @@
         eventDrop: function (info) {
             moveAppointment(info.event);
         },
-        eventDidMount: function (info) {
-            $(info.el).tooltip({
-                title: info.event.extendedProps.description,
-                placement: 'top',
-                trigger: 'hover',
-                container: 'body'
-            });
-        },
+        eventDidMount: addEventTooltip,
         eventClick: function (info) {
             // Only appointments have an id. Shaded blocks (doctor away, public holidays, other
             // patients' booked slots) have none: explain them instead of opening a broken link.
@@ -360,7 +353,9 @@
             time: $('#appointments-time').val(),
             brief: $('#appointments-symptoms_brief').val(),
             patient: $('#appointments-patient_id').val(),
-            consultant: $('#appointments-consultant_id').val()
+            consultant: $('#appointments-consultant_id').val(),
+            // F4: staff can also put the patient on the waiting list for an earlier time
+            waitlist: $('#appointment-waitlist').is(':checked')
         };
         // The consent box only exists while consent recording is on
         if ($('#patient-consent').length && !$('#patient-consent').hasClass('d-none')) {

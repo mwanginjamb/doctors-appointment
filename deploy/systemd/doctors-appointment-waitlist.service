@@ -1,0 +1,33 @@
+# One run of the waiting-list sweep (php yii waitlist/sweep, F4): tells waiting patients about times
+# that opened since they were last told (new hours, a one-off session, time off removed, notices held
+# over quiet hours) and ends entries whose window has passed. Cancellations and moves are handled
+# straight away by the queue worker; this catches the rest. Started every 15 minutes by
+# doctors-appointment-waitlist.timer.
+#
+# Run it by hand:   sudo systemctl start doctors-appointment-waitlist
+# Logs:             journalctl -u doctors-appointment-waitlist
+#
+# Same path / PHP / user assumptions as doctors-appointment-queue.service.
+
+[Unit]
+Description=Doctor appointments waiting-list sweep (one run)
+After=network-online.target mysql.service mariadb.service
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/html/doctors-appointment
+ExecStart=/usr/bin/php /var/www/html/doctors-appointment/yii waitlist/sweep --color=0
+
+# A sweep only queues messages; kill a stuck run well before the next one
+TimeoutStartSec=300
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=doctors-waitlist
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true

@@ -1,0 +1,17 @@
+# Fires doctors-appointment-waitlist.service every 15 minutes.
+#
+#   systemctl list-timers doctors-appointment-waitlist.timer   # last / next run
+
+[Unit]
+Description=Run the doctor appointments waiting-list sweep every 15 minutes
+PartOf=doctors-appointment.target
+
+[Timer]
+OnCalendar=*:0/15
+AccuracySec=30s
+# Missed runs need no catch-up: the next run looks at the current free times
+Persistent=false
+Unit=doctors-appointment-waitlist.service
+
+[Install]
+WantedBy=doctors-appointment.target

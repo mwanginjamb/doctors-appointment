@@ -54,14 +54,7 @@ $script = <<<JS
         editable: false,
         eventDurationEditable: false, // appointments keep the length they were booked with
         height: 800,
-        eventDidMount: function(info) {
-                $(info.el).tooltip({
-                title: info.event.extendedProps.description,
-                placement: "top",
-                trigger: "hover",
-                container: "body"
-            });
-        },
+        eventDidMount: addEventTooltip,
         eventClick: function(info) {
             // Only appointments have an id; shaded blocks have none, so they open nothing
             if (!info.event.id) {
