@@ -520,7 +520,7 @@ F24) listen for it. Nothing asks patients to pay yet.
    MPESA_SHORTCODE=174379                 # sandbox paybill; the live paybill or till after go-live
    MPESA_PASSKEY=                         # sandbox passkey from the Daraja simulator; Safaricom emails the live one
    MPESA_TRANSACTION_TYPE=CustomerPayBillOnline   # CustomerBuyGoodsOnline for a till
-   MPESA_CALLBACK_URL=https://appointments.gumzpsystems.tech   # this site's public address; empty = APP_PUBLIC_URL
+   MPESA_CALLBACK_URL=https://appointments.gumzosystems.tech   # this site's public address; empty = APP_PUBLIC_URL
    MPESA_CALLBACK_TOKEN=                  # a long random secret: php -r 'echo bin2hex(random_bytes(24)), "\n";'
    # B2C (refunds, payouts)
    MPESA_B2C_SHORTCODE=                   # sandbox: the 600xxx shortcode on Daraja's test credentials page
