@@ -21,7 +21,7 @@ PHP_BIN=/usr/bin/php
 COMPOSER_BIN=""                               # empty = composer from PATH
 PHP_FPM_SERVICE=php8.3-fpm
 APP_TARGET=doctors-appointment.target
-HEALTH_URL=https://appointments.gumzpsystems.tech/health
+HEALTH_URL=https://appointments.gumzosystems.tech/health
 BACKUP_DIR=/var/backups/healthfirst
 KEEP_BACKUPS=10
 SKIP_BACKUP=0                                 # 1 = no database backup (not recommended)
