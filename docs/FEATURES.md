@@ -496,6 +496,61 @@ The privacy notice has one more line (version unchanged).
    Cancel an appointment with that doctor in the window: within a minute the patient gets an email
    with their link, and can book the freed time.
 
+### T11 M-Pesa (Daraja)
+
+`common\components\Mpesa` (`Yii::$app->mpesa`) sends STK pushes (a patient pays the platform from
+their phone), asks Safaricom how one ended, and makes B2C payments (refunds, front-desk payouts).
+Each request is a row in `mpesa_transaction`. Safaricom answers at `POST /mpesa/stk/<token>`,
+`/mpesa/b2c-result/<token>` and `/mpesa/b2c-timeout/<token>`:
+
+- a wrong token gets a 404;
+- each transaction is settled once, so a repeated callback changes nothing;
+- an STK success counts only when a status query confirms it;
+- `php yii mpesa/reconcile` settles payments whose callback never came.
+
+When a transaction is settled, `Mpesa::EVENT_SETTLED` is raised. The commitment-fee features (F22 to
+F24) listen for it. Nothing asks patients to pay yet.
+
+1. **Database:** `php yii migrate` creates `mpesa_transaction` (`m261130_090000_create_mpesa_transaction_table`).
+2. **`.env`:**
+   ```
+   MPESA_ENV=sandbox                      # production once Safaricom approves go-live
+   MPESA_CONSUMER_KEY=                    # from the Daraja app
+   MPESA_CONSUMER_SECRET=
+   MPESA_SHORTCODE=174379                 # sandbox paybill; the live paybill or till after go-live
+   MPESA_PASSKEY=                         # sandbox passkey from the Daraja simulator; Safaricom emails the live one
+   MPESA_TRANSACTION_TYPE=CustomerPayBillOnline   # CustomerBuyGoodsOnline for a till
+   MPESA_CALLBACK_URL=https://appointments.gumzpsystems.tech   # this site's public address; empty = APP_PUBLIC_URL
+   MPESA_CALLBACK_TOKEN=                  # a long random secret: php -r 'echo bin2hex(random_bytes(24)), "\n";'
+   # B2C (refunds, payouts)
+   MPESA_B2C_SHORTCODE=                   # sandbox: the 600xxx shortcode on Daraja's test credentials page
+   MPESA_INITIATOR_NAME=                  # sandbox: testapi
+   MPESA_SECURITY_CREDENTIAL=             # the initiator password encrypted with Safaricom's certificate
+   MPESA_CA_FILE=                         # leave empty on Linux; only for a PHP with no CA bundle
+   ```
+   Values with spaces need double quotes. Changing the token changes the callback addresses, so
+   transactions still waiting for an answer are settled by `mpesa/reconcile` instead.
+3. **Timer** for `mpesa/reconcile`:
+   ```bash
+   sudo cp deploy/systemd/doctors-appointment-mpesa.* deploy/systemd/doctors-appointment.target /etc/systemd/system/
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now doctors-appointment-mpesa.timer
+   sudo systemctl restart doctors-appointment.target
+   ```
+4. **Reachable callbacks:** Safaricom posts to the site over HTTPS from the internet. Nothing in
+   nginx may block `POST /mpesa/…`.
+5. **Check:**
+   - `sudo -u www-data php yii mpesa/check`: settings (secrets hidden), the callback address, and
+     "Access token: OK";
+   - on the sandbox, `sudo -u www-data php yii mpesa/test-stk 07XXXXXXXX 1`: the phone shows a
+     prompt for KES 1 (no money moves on the sandbox), and the command reports **succeeded** with a
+     receipt, or **cancelled** if the prompt is declined;
+   - `sudo -u www-data php yii mpesa/status <id>` shows one transaction.
+6. **Going live** (when the pilot's fees start): apply for go-live on the Daraja portal for the
+   paybill. Then set the live consumer key and secret, shortcode, passkey and B2C credentials,
+   `MPESA_ENV=production`, and run `mpesa/check` again. Production B2C credentials take longer, so
+   apply early.
+
 ---
 
 ## Deferred

@@ -116,6 +116,8 @@ return [
                 'waitlist/<id:\d+>/<sig:[a-f0-9]{32}>/<action:book|leave>' => 'waitlist/<action>',
                 // F9: a consultant's calendar feed, read by Google, Apple or Outlook calendar
                 'calendar/<token:[A-Za-z0-9_-]{43}>.ics' => 'calendar-feed/ics',
+                // M-Pesa callbacks (T11): Safaricom posts here; the token is MPESA_CALLBACK_TOKEN
+                'POST mpesa/<action:stk|b2c-result|b2c-timeout>/<token:[A-Za-z0-9_-]{20,128}>' => 'mpesa/<action>',
             ],
         ],
 

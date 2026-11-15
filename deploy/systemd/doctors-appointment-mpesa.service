@@ -1,0 +1,31 @@
+# One run of the M-Pesa reconciliation (php yii mpesa/reconcile, T11): settles STK payments still
+# pending after a minute by asking Safaricom how they ended, for when its callback did not reach
+# us. Started every 5 minutes by doctors-appointment-mpesa.timer.
+#
+# Run it by hand:   sudo systemctl start doctors-appointment-mpesa
+# Logs:             journalctl -u doctors-appointment-mpesa
+#
+# Same path / PHP / user assumptions as doctors-appointment-queue.service.
+
+[Unit]
+Description=Doctor appointments M-Pesa reconciliation (one run)
+After=network-online.target mysql.service mariadb.service
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/html/doctors-appointment
+ExecStart=/usr/bin/php /var/www/html/doctors-appointment/yii mpesa/reconcile --color=0
+
+# At most 100 status queries; kill a stuck run well before the next one
+TimeoutStartSec=240
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=doctors-mpesa
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
