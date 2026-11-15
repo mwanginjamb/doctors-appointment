@@ -18,7 +18,7 @@ Group=www-data
 WorkingDirectory=/var/www/html/doctors-appointment
 ExecStart=/usr/bin/php /var/www/html/doctors-appointment/yii mpesa/reconcile --color=0
 
-# At most 100 status queries; kill a stuck run well before the next one
+# At most 60 status queries, 2 seconds apart; kill a stuck run well before the next one
 TimeoutStartSec=240
 
 StandardOutput=journal

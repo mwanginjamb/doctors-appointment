@@ -128,7 +128,8 @@ class MpesaController extends Controller
 
     /**
      * Settles STK payments still pending after a minute, by status query, for when Safaricom's
-     * callback did not reach us. Safe to run often; a timer can run it every few minutes.
+     * callback did not reach us. Safe to run often; a timer can run it every few minutes. Queries are
+     * spaced 2 seconds apart for Daraja's rate limit, so one run handles at most 60.
      *
      * Usage: php yii mpesa/reconcile
      */
@@ -140,13 +141,20 @@ class MpesaController extends Controller
             ->andWhere(['<', 'created_at', time() - 60])
             ->andWhere(['not', ['checkout_request_id' => null]])
             ->orderBy(['id' => SORT_ASC])
-            ->limit(100)
+            ->limit(60)
             ->all();
 
         $settled = 0;
-        foreach ($pending as $transaction) {
+        foreach ($pending as $i => $transaction) {
+            if ($i > 0) {
+                sleep(2); // Daraja allows 30 queries a minute, at most 3 at once
+            }
             try {
-                $settled += $mpesa->refreshStk($transaction) ? 1 : 0;
+                if ($mpesa->refreshStk($transaction)) {
+                    $settled++;
+                } elseif ($problem = $mpesa->lastQueryProblem()) {
+                    $this->stdout("Transaction {$transaction->id}: $problem\n");
+                }
             } catch (MpesaException $e) {
                 $this->stderr("Transaction {$transaction->id}: " . $e->getMessage() . "\n", Console::FG_YELLOW);
             }

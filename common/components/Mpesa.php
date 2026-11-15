@@ -56,6 +56,9 @@ class Mpesa extends Component
      */
     public $transport;
 
+    /** @var array|null the last status query's answer, for {@see lastQueryProblem()} */
+    private $lastQuery;
+
     public function init()
     {
         parent::init();
@@ -225,12 +228,32 @@ class Mpesa extends Component
     {
         $timestamp = self::timestamp();
 
-        return $this->call('/mpesa/stkpushquery/v1/query', [
+        return $this->lastQuery = $this->call('/mpesa/stkpushquery/v1/query', [
             'BusinessShortCode' => $this->shortcode,
             'Password' => $this->password($timestamp),
             'Timestamp' => $timestamp,
             'CheckoutRequestID' => $checkoutRequestId,
         ]);
+    }
+
+    /**
+     * Why the last status query settled nothing: still waiting for the customer, or the error
+     * Safaricom gave (such as its rate limit). Null when it gave a result.
+     */
+    public function lastQueryProblem()
+    {
+        $answer = $this->lastQuery;
+        if (!is_array($answer) || isset($answer['ResultCode'])) {
+            return null;
+        }
+        if (($answer['errorCode'] ?? null) === self::STILL_PROCESSING) {
+            return 'still being processed (no answer from the customer yet)';
+        }
+        if (isset($answer['fault']['faultstring'])) {
+            return 'Safaricom refused the query: ' . $answer['fault']['faultstring'];
+        }
+
+        return 'Safaricom answered: ' . ($answer['errorMessage'] ?? '') . ' ' . ($answer['errorCode'] ?? Json::encode($answer));
     }
 
     /**
