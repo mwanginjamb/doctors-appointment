@@ -104,6 +104,15 @@ trait BookingDataTrait
         return $appointment;
     }
 
+    /**
+     * A Monday 3-9 days ahead, for tests that need the appointment more than 24 hours away (all
+     * reminders still to come, self-service still open). $this->date is tomorrow on a Sunday.
+     */
+    protected function laterMonday()
+    {
+        return date('Y-m-d', strtotime('next monday', strtotime('+2 days')));
+    }
+
     protected function book($time, $patient = null)
     {
         $appointment = $this->newBooking($time, $patient);

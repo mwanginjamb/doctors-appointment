@@ -18,9 +18,9 @@ _Last reviewed: 15 November 2026._
 | | Score | Summary |
 |---|---|---|
 | Functional | **9 / 10** | Covers every way an appointment is made (online, by staff, walk-in, remote walk-in link), realistic availability, the full appointment lifecycle and a usable back office. Patients are told about changes and can reschedule or cancel from a link. Consent is recorded under the Kenya Data Protection Act. No payments yet. |
-| Technical | **8 / 10** | Booking rules live in a tested service, locked against double booking; RBAC is the single permission system; the calendar scripts are out of the views; changes and sign-ins are audited; debug mode is off in production. There is no CI or error tracking yet. |
+| Technical | **8.5 / 10** | Booking rules live in a tested service, locked against double booking; RBAC is the single permission system; the calendar scripts are out of the views; changes and sign-ins are audited; debug mode is off in production. Errors are tracked and alerted on, and CI runs every test on each push and deploys release tags. There is no static analysis yet. |
 
-Doing **Next up** below should bring the app to about 9.5 functionally and 8.5 technically.
+Doing **Next up** below should bring the app to about 9.5 functionally.
 
 ---
 
@@ -81,6 +81,7 @@ Doing **Next up** below should bring the app to about 9.5 functionally and 8.5 t
 | T7 Audit log | An append-only `audit_log`: who (staff, patient, booking link, self-service link, system), what, which record, old → new values and IP. Records appointments, accounts, consultants, time off, holidays and booking links automatically; weekly hours, front-desk assignments, sign-ins, failed sign-ins and role changes explicitly. Passwords, keys and symptom details are never stored. Admins read it under **Audit Log**; staff see an appointment's **History**. Kept 7 years (`AUDIT_RETENTION_YEARS`), purged daily by `doctors-appointment-audit-purge.timer`. | `7820f94` |
 | F11 Consent (Kenya Data Protection Act) | A versioned privacy notice at `/site/privacy`, with the controller's details from `.env`. Consent to data processing (required) and to WhatsApp/SMS reminders (opt-in) is asked at email sign-up, on booking links, and by front desk for walk-ins (verbal consent, with who recorded it). Google/Microsoft/LinkedIn sign-ups, existing patients and everyone after a notice change are held on a consent page until they answer. Existing patients keep WhatsApp reminders until they answer (legacy carry-over). Answers are kept in an append-only `consent` table and in the audit log. Patients switch reminders and withdraw consent under **Privacy & messages**; withdrawing cancels upcoming appointments and opens an account-closure request for admins (**Closure Requests**). Staff see "consent not recorded" in patient lookup, and consent status on **System Users**. It can be switched off with `CONSENT_ENABLED=false` (outside Kenya, demos): nobody is asked, answers already given are kept, explicit "no" answers to WhatsApp/SMS still count, and admins see a warning on the dashboard. | `32f3cd5` |
 | T2 Monitoring and alerts | Errors from the website, console and queue worker go to a self-hosted GlitchTip (Sentry-compatible), with personal data scrubbed (no request data, frame arguments, contacts or link tokens). `php yii health/check` runs every 5 minutes (`doctors-appointment-health.timer`) and emails `ALERT_EMAILS` when the queue worker stalls, the reminder scheduler stops, messages keep failing, WhatsApp logs out or the database is down: once, a reminder every 6 hours, and when resolved. Each run pings a heartbeat URL (healthchecks.io), and `/health` answers `ok` for an uptime monitor. Admins see **System health** on the dashboard. | `feature/monitoring` |
+| T4 CI and deploys | Gitea Actions (`.gitea/workflows/ci.yml`) runs every Codeception suite on each push and pull request: MySQL 8 and PHP 8.3 as on the server, a test database built from scratch (migrations, RBAC, `rbac/init`). A pushed `vX.Y.Z` tag that passes is deployed by the **deploy** job over SSH with a key that can only run `deploy/deploy.sh`: it checks the tag is on `main`, backs up the database, then runs composer, migrations and `rbac/init`, restarts the services and checks `/health`. A full run takes about 25 minutes. | `feature/ci` |
 
 ### Scheduling depth
 
@@ -496,6 +497,94 @@ The privacy notice has one more line (version unchanged).
    Cancel an appointment with that doctor in the window: within a minute the patient gets an email
    with their link, and can book the freed time.
 
+### T4 CI on Gitea Actions
+
+The workflow is `.gitea/workflows/ci.yml`. On every push and pull request it starts MySQL 8, installs
+PHP 8.3 (as on the server), runs `php init`, builds the test database (RBAC tables, the app's and the
+queue's migrations, `rbac/init`) and runs every Codeception suite. Nothing changes on the app server.
+
+1. **Actions on the Gitea server** (`git.kemri.go.ke`): Actions is on by default from Gitea 1.21
+   (`[actions] ENABLED = true` in `app.ini`). In the repository, **Settings → Repository → Actions**
+   must be ticked.
+2. **A runner**, on any Linux machine with Docker and about 2 GB of free memory (MySQL and PHP run side
+   by side). Get a registration token from **Settings → Actions → Runners → Create new runner**, then:
+   ```bash
+   docker run -d --name healthfirst-runner --restart unless-stopped      -e GITEA_INSTANCE_URL=https://git.kemri.go.ke      -e GITEA_RUNNER_REGISTRATION_TOKEN=<token>      -e GITEA_RUNNER_NAME=healthfirst-ci      -e GITEA_RUNNER_LABELS=ubuntu-latest:docker://gitea/runner-images:ubuntu-latest      -v /var/run/docker.sock:/var/run/docker.sock      -v healthfirst-runner-data:/data      gitea/act_runner:latest
+   ```
+   The `ubuntu-latest` label must be there: the workflow asks for it.
+3. **Network:** the runner downloads Docker images (`mysql:8.0`, the runner image), the actions from
+   github.com, PHP from the setup-php sources, and packages from packagist.org. If a firewall blocks
+   any of them, the first run fails at that step.
+4. **Check:** push a branch. The repository's **Actions** tab shows **CI** running; the first run takes
+   longer while images and packages download, later ones about 25 minutes. Every step goes green.
+
+#### Deploying from CI
+
+Pushing a `vX.Y.Z` tag runs the tests on it and, if they pass, the **deploy** job. That job connects to
+the server over SSH with a key that can do only one thing: run `deploy/deploy.sh`, installed as
+`/usr/local/bin/healthfirst-deploy`, with the tag. The script:
+
+1. checks that the tag exists and is on `main`, and that nobody changed tracked files on the server;
+2. backs up the database (`/var/backups/healthfirst`, the newest 10 kept);
+3. checks out the tag, runs `composer install --no-dev` (going back to the previous release if that
+   fails), `php yii migrate` and `php yii rbac/init`;
+4. reloads PHP-FPM, restarts `doctors-appointment.target`, and checks that `/health` answers `ok`.
+
+If a step fails, the job turns red and the log names the step, the previous commit and the backup.
+
+**One-time setup on the server:**
+
+1. **A deploy user** that does nothing else: `sudo adduser --disabled-password --gecos "" deploy`.
+2. **The script**, owned by root so the CI key cannot change it:
+   ```bash
+   sudo install -o root -g root -m 755 deploy/deploy.sh /usr/local/bin/healthfirst-deploy
+   ```
+   Run this again whenever `deploy/deploy.sh` changes; CI never updates it.
+3. **Permission to run it**, and nothing more:
+   ```bash
+   echo 'deploy ALL=(root) NOPASSWD: /usr/local/bin/healthfirst-deploy' | sudo tee /etc/sudoers.d/healthfirst-deploy
+   sudo chmod 440 /etc/sudoers.d/healthfirst-deploy && sudo visudo -c
+   ```
+4. **A key for CI.** Make a key pair anywhere (`ssh-keygen -t ed25519 -f healthfirst-ci -N "" -C healthfirst-ci`)
+   and put the public key in `/home/deploy/.ssh/authorized_keys` (directory `700`, file `600`, owned by
+   `deploy`) with the command fixed:
+   ```
+   restrict,command="sudo /usr/local/bin/healthfirst-deploy \"$SSH_ORIGINAL_COMMAND\"" ssh-ed25519 AAAA… healthfirst-ci
+   ```
+5. **Where the server fetches from.** The script fetches the tag from the app checkout's `origin`. Point
+   it at Gitea with read-only access (a deploy key under the repository's **Settings → Deploy Keys**, for
+   the user that owns `/var/www/html/doctors-appointment`), or keep GitHub, as long as tags are pushed
+   there too. Check: `sudo -u <owner> git -C /var/www/html/doctors-appointment fetch --tags`.
+6. **The MySQL client** for the backup: `mysqldump --version` (install `mysql-client` if missing). The
+   script reads the database settings from `.env`.
+7. **Optional settings** in `/etc/default/healthfirst-deploy`, using the names at the top of the
+   script: for example `HEALTH_URL`, `PHP_FPM_SERVICE` or `RELEASE_BRANCH`.
+8. **Try it by hand** with the release already running, which changes nothing:
+   `sudo healthfirst-deploy $(git -C /var/www/html/doctors-appointment describe --tags --abbrev=0)`.
+
+**In Gitea** (**Settings → Actions → Secrets** of the repository):
+
+| Secret | Value |
+|---|---|
+| `DEPLOY_HOST` | the server's address, as the runner reaches it |
+| `DEPLOY_PORT` | the SSH port; leave unset for 22 |
+| `DEPLOY_USER` | `deploy` |
+| `DEPLOY_SSH_KEY` | the whole private key file `healthfirst-ci` |
+| `DEPLOY_KNOWN_HOSTS` | the output of `ssh-keyscan -p <port> <host>`; compare its fingerprint with `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` on the server |
+
+The runner must be able to reach the server's SSH port.
+
+**Releasing:**
+
+```bash
+git checkout main && git merge --no-ff develop
+git tag -a v1.2.0 -m "v1.2.0"
+git push origin main v1.2.0
+```
+
+The tag's run shows **tests**, then **deploy**. To go back, push or re-run an older tag: the code goes
+back, but migrations do not, so restore the backup by hand if a migration must be undone.
+
 ### T11 M-Pesa (Daraja)
 
 `common\components\Mpesa` (`Yii::$app->mpesa`) sends STK pushes (a patient pays the platform from
@@ -767,7 +856,7 @@ Built as planned below, with these choices made on 12 Nov 2026:
 
 | # | Item | Priority | Impact |
 |---|---|---|---|
-| T4 | CI that runs the test suites (and PHPStan) on every push. A full local run takes about 10 minutes. | P1 | +0.5 (with T2) |
+| ~~T4~~ | ~~CI that runs the test suites on every push.~~ **Done** on Gitea Actions, with deploys of release tags. PHPStan joins it under T5. | — | +0.5 (with T2) |
 | T5 | Static analysis (PHPStan) at a modest level, raised over time. | P2 | |
 
 #### Architecture
@@ -793,11 +882,10 @@ Built as planned below, with these choices made on 12 Nov 2026:
 
 ## Next up
 
-1. **T4** CI on every push.
-2. **F20, F21** Pilot groundwork and masked contacts, before the first pilot booking.
-3. **T11** The M-Pesa component, tested on the Daraja sandbox (starts at once; needs only sandbox credentials).
-4. **F22, F23, F24, F28** (payouts) The fee, its rules and incentives, by day 31 of the pilot.
-5. **F13** Front desk confirms appointments (a small permission change).
-6. **F14** Patients are told when a closure or time off clashes with their booking.
-7. **F25, F18, F26** Invoices, insurer details and the pilot report, on the pilot's dates.
-8. **F12** Patients export and delete their data (completes the closure requests from F11).
+1. **F20, F21** Pilot groundwork and masked contacts, before the first pilot booking.
+2. **T11** The M-Pesa component, tested on the Daraja sandbox (starts at once; needs only sandbox credentials).
+3. **F22, F23, F24, F28** (payouts) The fee, its rules and incentives, by day 31 of the pilot.
+4. **F13** Front desk confirms appointments (a small permission change).
+5. **F14** Patients are told when a closure or time off clashes with their booking.
+6. **F25, F18, F26** Invoices, insurer details and the pilot report, on the pilot's dates.
+7. **F12** Patients export and delete their data (completes the closure requests from F11).

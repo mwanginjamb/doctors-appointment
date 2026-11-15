@@ -28,7 +28,9 @@ class NotificationServiceTest extends \Codeception\Test\Unit
 
     public function testBookingCreatesDefaultSchedulesIncludingWhatsapp()
     {
-        $appointment = $this->book('10:00');
+        // Every default reminder must still be in the future, or it is rightly skipped
+        $appointment = $this->newBooking('10:00', null, $this->laterMonday());
+        $this->assertTrue($appointment->saveBooking(), json_encode($appointment->errors));
 
         $types = NotificationSchedules::find()
             ->select('notification_type')
