@@ -3,7 +3,15 @@
 The state of the doctor-appointments app as a clinic booking system: what has been built, what was
 deliberately deferred, and what is still open. Keep this file up to date when an item is done.
 
-_Last reviewed: 12 November 2026._
+This is the only place status is tracked. The System Gaps in [USER_STORIES.md](USER_STORIES.md#system-gaps)
+are each filed here as an item marked "(from Gn)", or listed under **Deferred**. When an item that
+came from a gap is done:
+
+1. Strike it through here, add it to **Done** and write its deploy steps.
+2. In USER_STORIES.md, mark the gap's row "Fixed by Fn" in the **Tracked as** column.
+3. Rewrite the stories the gap affected so they describe the new behaviour.
+
+_Last reviewed: 15 November 2026._
 
 ## Where it stands
 
@@ -495,6 +503,8 @@ The privacy notice has one more line (version unchanged).
 | Item | Why | Needs before starting |
 |---|---|---|
 | M-Pesa deposits (STK push) | A project of its own. | Safaricom Daraja credentials (shortcode, passkey, API keys), a public callback URL, and a refund / expiry policy. |
+| G3 Triage and priority (from USER_STORIES.md) | Deferred on 15 Nov 2026: bookings are first come, first served, and it is not yet clear the clinics want an override. | A decision on who sets urgency (patient, front desk or consultant) and what it changes: queue order on the day, or access to held-back slots. |
+| G8 Rooms and equipment (from USER_STORIES.md) | Deferred on 15 Nov 2026: capacity is the consultants' hours, which is enough while each consultant has a room. | A facility that shares rooms or equipment between consultants, and how it books them today. |
 | F10 Kiswahili translation | Deferred on 11 Nov 2026. Approach agreed in outline: Yii message files, a per-user language, patient-facing pages and all outgoing messages first, then staff screens. | A translator or reviewer for medical and legal wording, the default language for walk-ins, and the PHP `intl` extension on the server. |
 
 ---
@@ -510,22 +520,39 @@ Priority: **P1** do next, **P2** soon, **P3** when there is time. Impact is the 
 | # | Item | Priority | Impact |
 |---|---|---|---|
 | F2 | WhatsApp booking confirmations for every booking, not only booking links. | P2 | |
+| F14 | Tell affected patients when a facility closes a day or a consultant adds time off, with a link to pick a new time, and let staff move the clashing bookings in bulk instead of one by one. (from G7) | P1 | +0.5 |
+
+#### Front desk and the day of the visit
+
+| # | Item | Priority | Impact |
+|---|---|---|---|
+| F13 | Front desk can confirm appointments for their consultants, for example after a patient confirms by phone. Today only the consultant can. (from G2) | P1 | |
+| F15 | Check-in on the day: "arrived" and "in consultation" states and a waiting-room queue for the front desk. (from G1) | P2 | +0.5 |
+| F18 | Capture the patient's insurance cover at booking and check it against the covers the consultant accepts. (from G5) | P2 | |
+| F19 | A structured intake form (reason, history, medication, allergies) in place of the free-text symptoms brief. (from G4) | P3 | |
+
+#### Facility admins
+
+| # | Item | Priority | Impact |
+|---|---|---|---|
+| F16 | Capacity use: booked minutes as a share of available minutes, per consultant and per facility, on the dashboard. (from G9) | P2 | |
+| F17 | Facility admins invite a consultant to their facility directly and edit that consultant's hours there. Needs a decision on what the consultant must approve. (from G10) | P2 | |
 
 #### Payments
 
 | # | Item | Priority | Impact |
 |---|---|---|---|
-| F5 | M-Pesa deposits for new or no-show-prone patients (see **Deferred**). | P2 | +0.5 |
+| F5 | M-Pesa deposits for new or no-show-prone patients (see **Deferred**). (from G12) | P2 | +0.5 |
 
 #### Scheduling depth
 
 | # | Item | Priority | Impact |
 |---|---|---|---|
 | F6 | Visit types with their own lengths (first consultation, review…); the unused `service_id` column is available. | P2 | |
-| F7 | Recurring appointments (the `recurring_appointment` field exists but nothing uses it). | P3 | |
+| F7 | Recurring appointments (the `recurring_appointment` field exists but nothing uses it). (from G6) | P3 | |
 | F8 | Consultants engaged at several facilities: one calendar, hours, session lengths, fees and front desk per facility, patient history scoped to a facility. In three phases; see **F8 Multiple facilities** below. **All three phases done** (`feature/facilities`, `feature/facilities-phase2`, `feature/facilities-phase3`), plus facility admins (`feature/facility-admins`). | P3 | Done |
 | F9 | Calendar sync (iCal / Google) for consultants. **Done** with F8 phase 3: a read-only iCal feed. Two-way sync (Google Calendar API) is not planned. | P3 | Done |
-| F10 | Swahili translation (see **Deferred**). | P3 | |
+| F10 | Swahili translation (see **Deferred**). (from G13) | P3 | |
 
 #### F8 Multiple facilities
 
@@ -689,9 +716,12 @@ Built as planned below, with these choices made on 12 Nov 2026:
 | # | Item | Priority | Impact |
 |---|---|---|---|
 | T9 | The booking-link rate limit uses the file cache, which only works on one server; use Redis if the app runs on more than one. | P3 | |
+| T10 | Waiting-list notices for new hours, removed time off and new sessions go out when the change is saved, not on the 15-minute `waitlist/sweep`. (from G11) | P3 | |
 
 ## Next up
 
 1. **T4** CI on every push.
-2. **F12** Patients export and delete their data (completes the closure requests from F11).
-3. **F5** M-Pesa deposits, once Daraja credentials are available.
+2. **F13** Front desk confirms appointments (a small permission change).
+3. **F14** Patients are told when a closure or time off clashes with their booking.
+4. **F12** Patients export and delete their data (completes the closure requests from F11).
+5. **F5** M-Pesa deposits, once Daraja credentials are available.

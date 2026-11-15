@@ -565,7 +565,7 @@ it when it's shut (e.g. maintenance or a staff day).
 - **Given** a closed day, **when** anyone tries to book there, **then** they are told "{facility} is
   closed on {date} ({reason})". Consultants' bookings at other facilities that day are not affected.
 - **Given** appointments were already booked that day, **when** I close it, **then** they are kept
-  for staff to move. *(No automatic notice: see Gaps.)*
+  for staff to move. *(No automatic notice: see Gap G7, tracked as F14.)*
 </details>
 
 ### A4. Contact details
@@ -633,18 +633,22 @@ admin, so that I sign in with only my facility's powers.
 These workflows matter for the roles above but are missing or only half-built in the code. They
 are listed here so they are not mistaken for working features.
 
-| # | Gap | Affects | What the code has today |
-|---|---|---|---|
-| G1 | **No day-of check-in or queue.** There is no "arrived", "in consultation" or waiting-room state. | Front desk | Statuses are only `scheduled`, `confirmed`, `completed`, `no_show` and `cancelled`, and an outcome can only be recorded once the start time has passed `[frontend/models/Appointments.php:48]`. |
-| G2 | **Front desk cannot confirm appointments**, for example after a patient confirms by phone. | Front desk | `confirmAppointment` is granted only to the appointment's own consultant (`confirmOwnAppointment`) `[common/components/RbacHelper.php:149]`. Patients can confirm through their link. |
-| G3 | **No triage or priority.** | Front desk | Bookings are first come, first served. There is no urgency field or override. |
-| G4 | **No structured intake form.** | Consultant, patients | Only a free-text `symptoms_brief` is collected. |
-| G5 | **Insurance is not checked at booking.** | Patients, front desk | Consultants list `covers_supported` and patient profiles have `insurance`, but booking neither captures nor checks it `[frontend/views/consultant/_form.php:107]`. |
-| G6 | **Recurring appointments don't work.** | Consultant, front desk | A `recurring_appointment` checkbox is on the legacy form `[frontend/views/appointments/_form.php:42]`, but nothing creates the series. |
-| G7 | **Closing a facility or adding time off doesn't tell affected patients.** | Facility admin, consultant | Clashing appointments are listed for staff to move one by one `[frontend/models/ConsultantTimeOff.php:96]`. `FacilityClosure::afterSave` only clears a cache `[frontend/models/FacilityClosure.php:90]`. There is no bulk reschedule or notice. |
-| G8 | **No physical resources.** There are no rooms, equipment or chairs. | Facility admin | A facility is a location with contact details. Capacity is the consultants' hours only. |
-| G9 | **No capacity-use figures.** | Facility admin | `ClinicStats` gives counts, cancellation and no-show rates, the busiest consultants and per-facility sessions and fees, but not booked minutes as a share of available minutes `[frontend/models/ClinicStats.php:136]`. |
-| G10 | **Facility admins can't onboard a consultant directly or edit their hours** at the facility. | Facility admin | Invitations go out only when a consultant is ticked for a front-desk account `[frontend/models/FrontDeskStaffForm.php]`. Hours are edited only by the consultant or a consultancy admin (`manageAvailability`). |
-| G11 | **Waiting-list notices for new hours wait for the sweep.** | Patients | Cancellations and moves notify within seconds. New hours, a removed time off or a new session are picked up by the 15-minute `waitlist/sweep` timer `[frontend/services/Waitlist.php:302]`. |
-| G12 | **No payments or deposits.** | Patients, facility admin | M-Pesa (STK push) is deferred until credentials and a refund policy exist (`docs/FEATURES.md`, Deferred). |
-| G13 | **English only.** | Patients | Kiswahili translation (F10) is deferred. |
+Each gap is tracked in [FEATURES.md](FEATURES.md#open) under the number in **Tracked as**, or listed
+there under **Deferred**. Status lives only in FEATURES.md. When the item is done, this column changes
+to "Fixed by Fn" and the stories it affected are rewritten.
+
+| # | Gap | Affects | What the code has today | Tracked as |
+|---|---|---|---|---|
+| G1 | **No day-of check-in or queue.** There is no "arrived", "in consultation" or waiting-room state. | Front desk | Statuses are only `scheduled`, `confirmed`, `completed`, `no_show` and `cancelled`, and an outcome can only be recorded once the start time has passed `[frontend/models/Appointments.php:48]`. | F15 |
+| G2 | **Front desk cannot confirm appointments**, for example after a patient confirms by phone. | Front desk | `confirmAppointment` is granted only to the appointment's own consultant (`confirmOwnAppointment`) `[common/components/RbacHelper.php:149]`. Patients can confirm through their link. | F13 |
+| G3 | **No triage or priority.** | Front desk | Bookings are first come, first served. There is no urgency field or override. | Deferred |
+| G4 | **No structured intake form.** | Consultant, patients | Only a free-text `symptoms_brief` is collected. | F19 |
+| G5 | **Insurance is not checked at booking.** | Patients, front desk | Consultants list `covers_supported` and patient profiles have `insurance`, but booking neither captures nor checks it `[frontend/views/consultant/_form.php:107]`. | F18 |
+| G6 | **Recurring appointments don't work.** | Consultant, front desk | A `recurring_appointment` checkbox is on the legacy form `[frontend/views/appointments/_form.php:42]`, but nothing creates the series. | F7 |
+| G7 | **Closing a facility or adding time off doesn't tell affected patients.** | Facility admin, consultant | Clashing appointments are listed for staff to move one by one `[frontend/models/ConsultantTimeOff.php:96]`. `FacilityClosure::afterSave` only clears a cache `[frontend/models/FacilityClosure.php:90]`. There is no bulk reschedule or notice. | F14 |
+| G8 | **No physical resources.** There are no rooms, equipment or chairs. | Facility admin | A facility is a location with contact details. Capacity is the consultants' hours only. | Deferred |
+| G9 | **No capacity-use figures.** | Facility admin | `ClinicStats` gives counts, cancellation and no-show rates, the busiest consultants and per-facility sessions and fees, but not booked minutes as a share of available minutes `[frontend/models/ClinicStats.php:136]`. | F16 |
+| G10 | **Facility admins can't onboard a consultant directly or edit their hours** at the facility. | Facility admin | Invitations go out only when a consultant is ticked for a front-desk account `[frontend/models/FrontDeskStaffForm.php]`. Hours are edited only by the consultant or a consultancy admin (`manageAvailability`). | F17 |
+| G11 | **Waiting-list notices for new hours wait for the sweep.** | Patients | Cancellations and moves notify within seconds. New hours, a removed time off or a new session are picked up by the 15-minute `waitlist/sweep` timer `[frontend/services/Waitlist.php:302]`. | T10 |
+| G12 | **No payments or deposits.** | Patients, facility admin | M-Pesa (STK push) is deferred until credentials and a refund policy exist (`docs/FEATURES.md`, Deferred). | F5 |
+| G13 | **English only.** | Patients | Kiswahili translation (F10) is deferred. | F10 |
