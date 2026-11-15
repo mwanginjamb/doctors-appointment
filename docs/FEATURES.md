@@ -502,7 +502,6 @@ The privacy notice has one more line (version unchanged).
 
 | Item | Why | Needs before starting |
 |---|---|---|
-| M-Pesa deposits (STK push) | A project of its own. | Safaricom Daraja credentials (shortcode, passkey, API keys), a public callback URL, and a refund / expiry policy. |
 | G3 Triage and priority (from USER_STORIES.md) | Deferred on 15 Nov 2026: bookings are first come, first served, and it is not yet clear the clinics want an override. | A decision on who sets urgency (patient, front desk or consultant) and what it changes: queue order on the day, or access to held-back slots. |
 | G8 Rooms and equipment (from USER_STORIES.md) | Deferred on 15 Nov 2026: capacity is the consultants' hours, which is enough while each consultant has a room. | A facility that shares rooms or equipment between consultants, and how it books them today. |
 | F10 Kiswahili translation | Deferred on 11 Nov 2026. Approach agreed in outline: Yii message files, a per-user language, patient-facing pages and all outgoing messages first, then staff screens. | A translator or reviewer for medical and legal wording, the default language for walk-ins, and the PHP `intl` extension on the server. |
@@ -528,7 +527,7 @@ Priority: **P1** do next, **P2** soon, **P3** when there is time. Impact is the 
 |---|---|---|---|
 | F13 | Front desk can confirm appointments for their consultants, for example after a patient confirms by phone. Today only the consultant can. (from G2) | P1 | |
 | F15 | Check-in on the day: "arrived" and "in consultation" states and a waiting-room queue for the front desk. (from G1) | P2 | +0.5 |
-| F18 | Capture the patient's insurance cover at booking and check it against the covers the consultant accepts. (from G5) | P2 | |
+| F18 | Capture the patient's insurer and member number at booking, check them against the covers the consultant accepts, and let the front desk record pre-authorisation (pending, approved, declined). Cash or insurance itself is asked from day 31 under F22. Needed by **day 61** of the pilot ([business case](business-case.md)). (from G5) | P1 | |
 | F19 | A structured intake form (reason, history, medication, allergies) in place of the free-text symptoms brief. (from G4) | P3 | |
 
 #### Facility admins
@@ -538,11 +537,24 @@ Priority: **P1** do next, **P2** soon, **P3** when there is time. Impact is the 
 | F16 | Capacity use: booked minutes as a share of available minutes, per consultant and per facility, on the dashboard. (from G9) | P2 | |
 | F17 | Facility admins invite a consultant to their facility directly and edit that consultant's hours there. Needs a decision on what the consultant must approve. (from G10) | P2 | |
 
-#### Payments
+#### Commercial pilot
+
+From [business-case.md](business-case.md) and pilot agreement v1.2. Each consultant's 90-day pilot runs
+from their first booking; "day N" below counts from the first consultant to get a booking at the first
+pilot facility. Amounts and M-Pesa credentials come from `.env`.
 
 | # | Item | Priority | Impact |
 |---|---|---|---|
-| F5 | M-Pesa deposits for new or no-show-prone patients (see **Deferred**). (from G12) | P2 | +0.5 |
+| ~~F5~~ | ~~M-Pesa deposits for new or no-show-prone patients.~~ **Replaced by F23–F25** (from G12). | — | |
+| F20 | Pilot groundwork: every booking records its channel (online, staff, booking link, walk-in); every cancellation records who, on whose side and whether the patient asked; each consultant's first booking is stored once; facility agreements (version, signatories, date) are recorded. Needed by **day 1**, because month 1 is the no-show baseline. | P1 | |
+| F21 | Mask patients' phone numbers and emails in lists, boards, search results and exports; show them in full when staff open an appointment they may handle, and audit that view. Needed by **day 1**. | P1 | |
+| F22 | Commitment fee at booking: Ksh 250 by STK push with the slot held while the patient pays; exemptions (pilot days 1–30, Plan B, same-day walk-ins at reception, one fee a day across consultants); patient booking terms; cash or insurance, and each consultant's choice to absorb the fee for insured patients. Needed by **day 31**. | P1 | +0.5 |
+| F23 | Fee after booking: moves with a reschedule more than 24 hours ahead; kept on a no-show or a later cancellation; a free rebooking credit when the clinic cancels, refunded to M-Pesa if the patient asks. Absorbed fees follow the same rules. Needed by **day 31**. | P1 | |
+| F24 | Front-desk incentive: Ksh 50 per completed Plan A booking, pending until then; cancelled on a no-show, a cancellation, or a cancel-and-rebook of the same patient within 24 hours (flagged); paid weekly, by hand with an M-Pesa reference until B2C is live. Needed by **day 31**, first payout around day 38. | P1 | |
+| F25 | Consultant invoices: monthly statements of absorbed fees from day 31; from day 91, the plan charge per active consultant (one with an appointment that month) and Ksh 100 per cancellation by the consultant or their front desk (not at the patient's request or for a closure), emailed each time. Paid by STK push; reminders, then online booking paused 14 days after the due date. | P1 | |
+| F26 | The 90-day pilot report: each consultant's month 1 against months 2 and 3 (no-shows, late cancellations, advance bookings against walk-ins, fees collected, absorbed, credited and refunded, incentives), added up per facility. Needed by **day 90**. | P2 | |
+| F27 | A facility leaving: unused patient credits refunded, earned incentives paid, pending ones paid only if completed before the exit date. Needed by **day 91**. | P3 | |
+| F28 | Backend for platform admins: sign-in, the RBAC menu shared with the frontend as one module, and screens for agreements and pilots, payments and refunds, weekly payouts, plans and invoices, and the pilot report. Payout screens by **day 31**, the rest by day 91. | P1 | |
 
 #### Scheduling depth
 
@@ -718,10 +730,19 @@ Built as planned below, with these choices made on 12 Nov 2026:
 | T9 | The booking-link rate limit uses the file cache, which only works on one server; use Redis if the app runs on more than one. | P3 | |
 | T10 | Waiting-list notices for new hours, removed time off and new sessions go out when the change is saved, not on the 15-minute `waitlist/sweep`. (from G11) | P3 | |
 
+#### Payments integration
+
+| # | Item | Priority | Impact |
+|---|---|---|---|
+| T11 | M-Pesa (Daraja) component: OAuth token, STK push and status query, B2C; every credential and amount from `.env` (`MPESA_ENV=sandbox` until go-live); a token-checked, idempotent callback; `php yii mpesa/test-stk` for the sandbox. Apply for production paybill and B2C credentials early. Needed before **day 31**; see [business-case.md](business-case.md). | P1 | |
+
 ## Next up
 
 1. **T4** CI on every push.
-2. **F13** Front desk confirms appointments (a small permission change).
-3. **F14** Patients are told when a closure or time off clashes with their booking.
-4. **F12** Patients export and delete their data (completes the closure requests from F11).
-5. **F5** M-Pesa deposits, once Daraja credentials are available.
+2. **F20, F21** Pilot groundwork and masked contacts, before the first pilot booking.
+3. **T11** The M-Pesa component, tested on the Daraja sandbox (starts at once; needs only sandbox credentials).
+4. **F22, F23, F24, F28** (payouts) The fee, its rules and incentives, by day 31 of the pilot.
+5. **F13** Front desk confirms appointments (a small permission change).
+6. **F14** Patients are told when a closure or time off clashes with their booking.
+7. **F25, F18, F26** Invoices, insurer details and the pilot report, on the pilot's dates.
+8. **F12** Patients export and delete their data (completes the closure requests from F11).

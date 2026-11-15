@@ -184,7 +184,16 @@ footer { color: var(--muted); font-size: 13px; padding: 0 clamp(18px, 4vw, 40px)
       <p>Ksh. 100 is added to the consultant's monthly invoice for each booking cancelled by the consultant or by the
       facility's front-desk staff on the consultant's behalf. The consultant is notified by email each time the charge is
       applied. The charge does not apply when the cancellation is made at the patient's request, or when the facility is
-      closed for the day.</p>
+      closed for the day. It applies from Day 91 of the consultant's pilot, under both plans.</p>
+      <h3>Active consultants and invoices <span class="new">New</span></h3>
+      <ul>
+        <li>An active consultant is one with at least one appointment on the platform in the calendar month.</li>
+        <li>Invoices are paid by M-Pesa: an STK Push is sent to the consultant's phone. The Platform Provider may also
+        record a payment made by other means.</li>
+        <li>Unpaid invoices are reminded by email and WhatsApp. If an invoice is still unpaid 14 days after its due date,
+        patients can no longer book that consultant online until it is paid. Bookings made by facility staff are not
+        affected.</li>
+      </ul>
     </section>
 
     <section>
@@ -196,7 +205,8 @@ footer { color: var(--muted); font-size: 13px; padding: 0 clamp(18px, 4vw, 40px)
         <li><strong>Cash (Self-Pay) Patients:</strong> Patients pay the Ksh. 250 convenience fee via M-Pesa STK Push when raising an
         advance booking, and settle the consultant's full consultation fee directly at the clinic upon arrival.</li>
         <li><strong>Same-day walk-ins:</strong> <span class="new">Changed</span> Same-day physical walk-ins at reception are exempt from the
-        fee. A facility may choose to charge them by notifying the Platform Provider in writing.</li>
+        fee. A facility may choose to charge them by notifying the Platform Provider in writing. Same-day bookings made
+        online or through a booking link sent by the clinic are advance bookings and carry the fee.</li>
         <li><strong>Insurance Patients (SHA, Jubilee, Britam, AAR, CIC, etc.):</strong> Patients declare "Insurance" and submit
         insurer details at booking so front-desk staff can run Slade360/Smart pre-authorization before arrival. The Ksh. 250
         fee is never billed onto insurance claim forms. <span class="new">Changed</span> Each consultant chooses one of:
@@ -222,14 +232,18 @@ footer { color: var(--muted); font-size: 13px; padding: 0 clamp(18px, 4vw, 40px)
         flagged as irregular, such as a booking cancelled and remade for the same patient.</li>
         <li><strong>Fair Cancellation &amp; Refund Policy:</strong>
           <ul>
-            <li>If a consultant or facility cancels a clinic session, affected patients receive an automatic free rebooking
-            credit or a full Ksh. 250 M-Pesa refund. An absorbed fee is not billed to the consultant.</li>
+            <li>If a consultant or facility cancels a clinic session, affected patients automatically receive a free
+            rebooking credit, or a full Ksh. 250 M-Pesa refund if they ask for one. An absorbed fee is not billed to the
+            consultant.</li>
             <li>Patient cancellations more than 24 hours ahead transfer freely to a new slot.</li>
             <li><span class="new">New</span> Patient cancellations less than 24 hours ahead, and no-shows, are not refunded. An
             absorbed fee is billed to the consultant.</li>
           </ul>
         </li>
         <li><strong>Consultant cancellation charge:</strong> as set out in section 3.</li>
+        <li><strong>Leaving the platform:</strong> <span class="new">New</span> If the facility leaves the pilot or the platform,
+        patients' unused credits are refunded by M-Pesa. Earned front-desk incentives are paid; pending incentives are paid
+        only for appointments completed before the exit date.</li>
         <li><strong>Patient Booking Terms:</strong> <span class="new">New</span> Patients accept the terms in Schedule A when they book.
         The facility agrees that these terms are shown to its patients.</li>
       </ul>
@@ -239,6 +253,9 @@ footer { color: var(--muted); font-size: 13px; padding: 0 clamp(18px, 4vw, 40px)
       <h2>6. Data Privacy &amp; Ownership (KDPA)</h2>
       <p>All patient consent logs, masked contact records, and facility audit trails comply with the Kenya Data Protection
       Act. The facility and consultants retain full ownership of their clinical schedules and patient records.</p>
+      <p><span class="new">New</span> Patients' phone numbers and email addresses are masked in lists, boards, search results
+      and exports. Staff see them in full only when they open an appointment they are permitted to handle, and each such
+      view is recorded in the audit trail. Appointments at other facilities show only as busy, without patient details.</p>
     </section>
 
     <section>
@@ -265,11 +282,13 @@ footer { color: var(--muted); font-size: 13px; padding: 0 clamp(18px, 4vw, 40px)
       <ol>
         <li>A Ksh. 250 slot reservation fee is paid by M-Pesa when you book an appointment in advance. It holds your slot
         and is separate from the consultation fee, which you pay at the clinic.</li>
-        <li>You pay at most one booking fee per day, however many appointments you book that day.</li>
+        <li>You pay at most one booking fee per day, however many appointments or consultants you book that day.</li>
         <li>If you reschedule more than 24 hours before your appointment, your fee moves to the new time.</li>
         <li>If you cancel less than 24 hours before your appointment, or do not attend, the fee is not refunded.</li>
-        <li>If the consultant or the facility cancels, you receive a free rebooking credit or a full refund of the fee.</li>
-        <li>Same-day walk-ins at reception do not pay the fee, unless the facility has chosen to charge it.</li>
+        <li>If the consultant or the facility cancels, you receive a free rebooking credit, or a full refund of the fee if
+        you ask for one.</li>
+        <li>Same-day walk-ins at reception do not pay the fee, unless the facility has chosen to charge it. Bookings made
+        online or through a link from the clinic pay it, even for the same day.</li>
         <li>The fee is never added to an insurance claim. If you are insured, your consultant decides whether you pay it.</li>
       </ol>
     </section>
@@ -281,9 +300,10 @@ footer { color: var(--muted); font-size: 13px; padding: 0 clamp(18px, 4vw, 40px)
           <thead><tr><th>Section</th><th>Change</th></tr></thead>
           <tbody>
             <tr><td>1, 2</td><td>The pilot clock starts at each consultant's first booking, not at signing. Onboarding comes before Day 1.</td></tr>
-            <tr><td>3</td><td>Standard terms start at Day 91 per consultant. Added the Ksh. 100 consultant cancellation charge.</td></tr>
-            <tr><td>4</td><td>Same-day walk-ins exempt by default, with a facility opt-in to charge. Consultants who exempt insured patients absorb the fee. At most one fee per patient per day.</td></tr>
-            <tr><td>5</td><td>Incentives subject to anti-gaming review. Late cancellations and no-shows are not refunded. Absorbed fees follow the same rules.</td></tr>
+            <tr><td>3</td><td>Standard terms start at Day 91 per consultant. Added the Ksh. 100 consultant cancellation charge, from Day 91 on both plans. Defined an active consultant, how invoices are paid, and what happens when one is unpaid.</td></tr>
+            <tr><td>4</td><td>Same-day walk-ins exempt by default, with a facility opt-in to charge; same-day online and booking-link bookings pay. Consultants who exempt insured patients absorb the fee. At most one fee per patient per day.</td></tr>
+            <tr><td>5</td><td>Incentives subject to anti-gaming review. Clinic cancellations give a credit, or a refund on request. Late cancellations and no-shows are not refunded. Absorbed fees follow the same rules. Added what happens when a facility leaves.</td></tr>
+            <tr><td>6</td><td>Described how patients' contact details are masked.</td></tr>
             <tr><td>Schedule A</td><td>New: the patient booking terms.</td></tr>
           </tbody>
         </table>
