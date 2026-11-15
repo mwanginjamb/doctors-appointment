@@ -18,9 +18,9 @@ _Last reviewed: 15 November 2026._
 | | Score | Summary |
 |---|---|---|
 | Functional | **9 / 10** | Covers every way an appointment is made (online, by staff, walk-in, remote walk-in link), realistic availability, the full appointment lifecycle and a usable back office. Patients are told about changes and can reschedule or cancel from a link. Consent is recorded under the Kenya Data Protection Act. No payments yet. |
-| Technical | **8 / 10** | Booking rules live in a tested service, locked against double booking; RBAC is the single permission system; the calendar scripts are out of the views; changes and sign-ins are audited; debug mode is off in production. There is no CI or error tracking yet. |
+| Technical | **8.5 / 10** | Booking rules live in a tested service, locked against double booking; RBAC is the single permission system; the calendar scripts are out of the views; changes and sign-ins are audited; debug mode is off in production. Errors are tracked and alerted on, and CI runs every test on each push and deploys release tags. There is no static analysis yet. |
 
-Doing **Next up** below should bring the app to about 9.5 functionally and 8.5 technically.
+Doing **Next up** below should bring the app to about 9.5 functionally.
 
 ---
 
@@ -81,6 +81,7 @@ Doing **Next up** below should bring the app to about 9.5 functionally and 8.5 t
 | T7 Audit log | An append-only `audit_log`: who (staff, patient, booking link, self-service link, system), what, which record, old → new values and IP. Records appointments, accounts, consultants, time off, holidays and booking links automatically; weekly hours, front-desk assignments, sign-ins, failed sign-ins and role changes explicitly. Passwords, keys and symptom details are never stored. Admins read it under **Audit Log**; staff see an appointment's **History**. Kept 7 years (`AUDIT_RETENTION_YEARS`), purged daily by `doctors-appointment-audit-purge.timer`. | `7820f94` |
 | F11 Consent (Kenya Data Protection Act) | A versioned privacy notice at `/site/privacy`, with the controller's details from `.env`. Consent to data processing (required) and to WhatsApp/SMS reminders (opt-in) is asked at email sign-up, on booking links, and by front desk for walk-ins (verbal consent, with who recorded it). Google/Microsoft/LinkedIn sign-ups, existing patients and everyone after a notice change are held on a consent page until they answer. Existing patients keep WhatsApp reminders until they answer (legacy carry-over). Answers are kept in an append-only `consent` table and in the audit log. Patients switch reminders and withdraw consent under **Privacy & messages**; withdrawing cancels upcoming appointments and opens an account-closure request for admins (**Closure Requests**). Staff see "consent not recorded" in patient lookup, and consent status on **System Users**. It can be switched off with `CONSENT_ENABLED=false` (outside Kenya, demos): nobody is asked, answers already given are kept, explicit "no" answers to WhatsApp/SMS still count, and admins see a warning on the dashboard. | `32f3cd5` |
 | T2 Monitoring and alerts | Errors from the website, console and queue worker go to a self-hosted GlitchTip (Sentry-compatible), with personal data scrubbed (no request data, frame arguments, contacts or link tokens). `php yii health/check` runs every 5 minutes (`doctors-appointment-health.timer`) and emails `ALERT_EMAILS` when the queue worker stalls, the reminder scheduler stops, messages keep failing, WhatsApp logs out or the database is down: once, a reminder every 6 hours, and when resolved. Each run pings a heartbeat URL (healthchecks.io), and `/health` answers `ok` for an uptime monitor. Admins see **System health** on the dashboard. | `feature/monitoring` |
+| T4 CI and deploys | Gitea Actions (`.gitea/workflows/ci.yml`) runs every Codeception suite on each push and pull request: MySQL 8 and PHP 8.3 as on the server, a test database built from scratch (migrations, RBAC, `rbac/init`). A pushed `vX.Y.Z` tag that passes is deployed by the **deploy** job over SSH with a key that can only run `deploy/deploy.sh`: it checks the tag is on `main`, backs up the database, then runs composer, migrations and `rbac/init`, restarts the services and checks `/health`. A full run takes about 25 minutes. | `feature/ci` |
 
 ### Scheduling depth
 
@@ -515,7 +516,7 @@ queue's migrations, `rbac/init`) and runs every Codeception suite. Nothing chang
    github.com, PHP from the setup-php sources, and packages from packagist.org. If a firewall blocks
    any of them, the first run fails at that step.
 4. **Check:** push a branch. The repository's **Actions** tab shows **CI** running; the first run takes
-   longer while images and packages download, later ones about 10 minutes. Every step goes green.
+   longer while images and packages download, later ones about 25 minutes. Every step goes green.
 
 #### Deploying from CI
 
@@ -800,7 +801,7 @@ Built as planned below, with these choices made on 12 Nov 2026:
 
 | # | Item | Priority | Impact |
 |---|---|---|---|
-| T4 | CI that runs the test suites on every push, on Gitea Actions (`.gitea/workflows/ci.yml`). A full run takes about 10 minutes. PHPStan joins it under T5. | P1 | +0.5 (with T2) |
+| ~~T4~~ | ~~CI that runs the test suites on every push.~~ **Done** on Gitea Actions, with deploys of release tags. PHPStan joins it under T5. | — | +0.5 (with T2) |
 | T5 | Static analysis (PHPStan) at a modest level, raised over time. | P2 | |
 
 #### Architecture
@@ -826,11 +827,10 @@ Built as planned below, with these choices made on 12 Nov 2026:
 
 ## Next up
 
-1. **T4** CI on every push.
-2. **F20, F21** Pilot groundwork and masked contacts, before the first pilot booking.
-3. **T11** The M-Pesa component, tested on the Daraja sandbox (starts at once; needs only sandbox credentials).
-4. **F22, F23, F24, F28** (payouts) The fee, its rules and incentives, by day 31 of the pilot.
-5. **F13** Front desk confirms appointments (a small permission change).
-6. **F14** Patients are told when a closure or time off clashes with their booking.
-7. **F25, F18, F26** Invoices, insurer details and the pilot report, on the pilot's dates.
-8. **F12** Patients export and delete their data (completes the closure requests from F11).
+1. **F20, F21** Pilot groundwork and masked contacts, before the first pilot booking.
+2. **T11** The M-Pesa component, tested on the Daraja sandbox (starts at once; needs only sandbox credentials).
+3. **F22, F23, F24, F28** (payouts) The fee, its rules and incentives, by day 31 of the pilot.
+4. **F13** Front desk confirms appointments (a small permission change).
+5. **F14** Patients are told when a closure or time off clashes with their booking.
+6. **F25, F18, F26** Invoices, insurer details and the pilot report, on the pilot's dates.
+7. **F12** Patients export and delete their data (completes the closure requests from F11).
