@@ -517,6 +517,73 @@ queue's migrations, `rbac/init`) and runs every Codeception suite. Nothing chang
 4. **Check:** push a branch. The repository's **Actions** tab shows **CI** running; the first run takes
    longer while images and packages download, later ones about 10 minutes. Every step goes green.
 
+#### Deploying from CI
+
+Pushing a `vX.Y.Z` tag runs the tests on it and, if they pass, the **deploy** job. That job connects to
+the server over SSH with a key that can do only one thing: run `deploy/deploy.sh`, installed as
+`/usr/local/bin/healthfirst-deploy`, with the tag. The script:
+
+1. checks that the tag exists and is on `main`, and that nobody changed tracked files on the server;
+2. backs up the database (`/var/backups/healthfirst`, the newest 10 kept);
+3. checks out the tag, runs `composer install --no-dev` (going back to the previous release if that
+   fails), `php yii migrate` and `php yii rbac/init`;
+4. reloads PHP-FPM, restarts `doctors-appointment.target`, and checks that `/health` answers `ok`.
+
+If a step fails, the job turns red and the log names the step, the previous commit and the backup.
+
+**One-time setup on the server:**
+
+1. **A deploy user** that does nothing else: `sudo adduser --disabled-password --gecos "" deploy`.
+2. **The script**, owned by root so the CI key cannot change it:
+   ```bash
+   sudo install -o root -g root -m 755 deploy/deploy.sh /usr/local/bin/healthfirst-deploy
+   ```
+   Run this again whenever `deploy/deploy.sh` changes; CI never updates it.
+3. **Permission to run it**, and nothing more:
+   ```bash
+   echo 'deploy ALL=(root) NOPASSWD: /usr/local/bin/healthfirst-deploy' | sudo tee /etc/sudoers.d/healthfirst-deploy
+   sudo chmod 440 /etc/sudoers.d/healthfirst-deploy && sudo visudo -c
+   ```
+4. **A key for CI.** Make a key pair anywhere (`ssh-keygen -t ed25519 -f healthfirst-ci -N "" -C healthfirst-ci`)
+   and put the public key in `/home/deploy/.ssh/authorized_keys` (directory `700`, file `600`, owned by
+   `deploy`) with the command fixed:
+   ```
+   restrict,command="sudo /usr/local/bin/healthfirst-deploy \"$SSH_ORIGINAL_COMMAND\"" ssh-ed25519 AAAA… healthfirst-ci
+   ```
+5. **Where the server fetches from.** The script fetches the tag from the app checkout's `origin`. Point
+   it at Gitea with read-only access (a deploy key under the repository's **Settings → Deploy Keys**, for
+   the user that owns `/var/www/html/doctors-appointment`), or keep GitHub, as long as tags are pushed
+   there too. Check: `sudo -u <owner> git -C /var/www/html/doctors-appointment fetch --tags`.
+6. **The MySQL client** for the backup: `mysqldump --version` (install `mysql-client` if missing). The
+   script reads the database settings from `.env`.
+7. **Optional settings** in `/etc/default/healthfirst-deploy`, using the names at the top of the
+   script: for example `HEALTH_URL`, `PHP_FPM_SERVICE` or `RELEASE_BRANCH`.
+8. **Try it by hand** with the release already running, which changes nothing:
+   `sudo healthfirst-deploy $(git -C /var/www/html/doctors-appointment describe --tags --abbrev=0)`.
+
+**In Gitea** (**Settings → Actions → Secrets** of the repository):
+
+| Secret | Value |
+|---|---|
+| `DEPLOY_HOST` | the server's address, as the runner reaches it |
+| `DEPLOY_PORT` | the SSH port; leave unset for 22 |
+| `DEPLOY_USER` | `deploy` |
+| `DEPLOY_SSH_KEY` | the whole private key file `healthfirst-ci` |
+| `DEPLOY_KNOWN_HOSTS` | the output of `ssh-keyscan -p <port> <host>`; compare its fingerprint with `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` on the server |
+
+The runner must be able to reach the server's SSH port.
+
+**Releasing:**
+
+```bash
+git checkout main && git merge --no-ff develop
+git tag -a v1.2.0 -m "v1.2.0"
+git push origin main v1.2.0
+```
+
+The tag's run shows **tests**, then **deploy**. To go back, push or re-run an older tag: the code goes
+back, but migrations do not, so restore the backup by hand if a migration must be undone.
+
 ---
 
 ## Deferred

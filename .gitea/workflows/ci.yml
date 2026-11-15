@@ -1,5 +1,5 @@
-# Runs every test suite (common, frontend, backend) on each push and pull request.
-# Gitea Actions: needs a runner with Docker and the `ubuntu-latest` label (see docs/FEATURES.md, T4).
+# Runs every test suite on each push and pull request, and deploys pushed vX.Y.Z tags.
+# Gitea Actions: needs a runner with Docker and the `ubuntu-latest` label (docs/FEATURES.md, T4).
 name: CI
 
 on:
@@ -95,3 +95,40 @@ jobs:
           name: codeception-output
           path: console/runtime/output
           if-no-files-found: ignore
+
+  # Deploys a release: runs only for a pushed vX.Y.Z tag, and only after the tests pass on it.
+  # The server's SSH key for CI can do one thing: run deploy/deploy.sh (installed as
+  # /usr/local/bin/healthfirst-deploy) with the tag. Setup: docs/FEATURES.md, "Deploying from CI".
+  deploy:
+    needs: tests
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Deploy ${{ github.ref_name }} to the server
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          for name in DEPLOY_HOST DEPLOY_USER DEPLOY_SSH_KEY DEPLOY_KNOWN_HOSTS; do
+            [ -n "${!name}" ] || { echo "The repository secret $name is not set" >&2; exit 1; }
+          done
+          command -v ssh >/dev/null || { apt-get update -qq && apt-get install -y -qq openssh-client >/dev/null; }
+
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+          # The server's authorized_keys runs the deploy script itself; the tag is all we send.
+          ssh -i ~/.ssh/deploy_key -p "${DEPLOY_PORT:-22}" \
+            -o BatchMode=yes -o StrictHostKeyChecking=yes -o ServerAliveInterval=30 \
+            "$DEPLOY_USER@$DEPLOY_HOST" "$TAG"
+
+      - name: Remove the SSH key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
