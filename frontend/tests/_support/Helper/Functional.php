@@ -20,6 +20,18 @@ class Functional extends Module
     }
 
     /**
+     * POSTs a raw body the way another server would (no session, no CSRF token), as Safaricom's
+     * M-Pesa callbacks do. Returns [HTTP status, response body].
+     */
+    public function sendServerPost($url, $body)
+    {
+        $yii2 = $this->getModule('Yii2');
+        $content = $yii2->_request('POST', $url, [], [], ['CONTENT_TYPE' => 'application/json'], $body);
+
+        return [$yii2->client->getInternalResponse()->getStatusCode(), $content];
+    }
+
+    /**
      * Follows a data-method="post" link the way yii.js would: POSTs the given
      * params plus the CSRF token from the current page's meta tag, and loads the
      * response as the current page (so seeElement/submitForm work on it).

@@ -27,6 +27,10 @@ return [
         'utility' => [
             'class' => \common\Library\UtilityComponent::class
         ],
+        // M-Pesa (Daraja), T11: settings in params['mpesa'] (.env MPESA_*)
+        'mpesa' => [
+            'class' => \common\components\Mpesa::class,
+        ],
         'authClientCollection' => [
             'class' => 'yii\authclient\Collection',
             // A provider is offered only when both its keys are set, so a missing key hides its
