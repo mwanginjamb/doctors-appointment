@@ -28,10 +28,8 @@ class NotificationServiceTest extends \Codeception\Test\Unit
 
     public function testBookingCreatesDefaultSchedulesIncludingWhatsapp()
     {
-        // Every default reminder must still be in the future, or it is rightly skipped: "next Monday"
-        // is tomorrow on a Sunday, when the 24-hour reminder has already passed. So take the first
-        // Monday at least two days away.
-        $appointment = $this->newBooking('10:00', null, date('Y-m-d', strtotime('next monday', strtotime('+2 days'))));
+        // Every default reminder must still be in the future, or it is rightly skipped
+        $appointment = $this->newBooking('10:00', null, $this->laterMonday());
         $this->assertTrue($appointment->saveBooking(), json_encode($appointment->errors));
 
         $types = NotificationSchedules::find()
