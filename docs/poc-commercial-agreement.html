@@ -1,0 +1,324 @@
+<title>PoC Commercial Agreement</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap">
+<style>
+/* Layout: a single printed terms sheet — navy masthead, numbered clauses, schedules at the end. */
+:root {
+  --bg: #f6f8fa;
+  --paper: #ffffff;
+  --ink: #1b2533;
+  --muted: #566273;
+  --navy: #13233a;
+  --navy-ink: #ffffff;
+  --teal: #0c7f74;
+  --teal-soft: #e5f3f1;
+  --rule: #d5dce4;
+  --row: #f3f6f9;
+  --new: #9a5b00;
+  --new-soft: #fdf3e2;
+  --font-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --font-head: "Source Serif 4", Georgia, "Times New Roman", serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d141d; --paper: #141d28; --ink: #e2e8ef; --muted: #9aa7b6;
+    --navy: #0a1220; --navy-ink: #eef3f8; --teal: #4cc2b4; --teal-soft: #15302d;
+    --rule: #2a3645; --row: #18222e; --new: #f0b357; --new-soft: #2e2413;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d141d; --paper: #141d28; --ink: #e2e8ef; --muted: #9aa7b6;
+  --navy: #0a1220; --navy-ink: #eef3f8; --teal: #4cc2b4; --teal-soft: #15302d;
+  --rule: #2a3645; --row: #18222e; --new: #f0b357; --new-soft: #2e2413;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 16px; line-height: 1.55;
+  padding-block: 24px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.sheet {
+  max-width: 880px; margin: 0 auto; background: var(--paper);
+  border: 1px solid var(--rule); border-radius: 4px;
+}
+.mast { background: var(--navy); color: var(--navy-ink); padding: 28px clamp(18px, 4vw, 40px); border-radius: 4px 4px 0 0; }
+.eyebrow { font-size: 12.5px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--teal); margin: 0 0 6px; }
+.mast .eyebrow { color: #6fd6c9; }
+h1 { font-family: var(--font-head); font-size: clamp(24px, 4vw, 32px); line-height: 1.15; margin: 0 0 8px; text-wrap: balance; }
+.sub { margin: 0; opacity: .85; font-size: 15px; }
+.status { display: inline-flex; gap: 8px; align-items: center; margin-top: 14px; font-size: 13px; font-weight: 600;
+  padding: 4px 10px; border: 1px solid currentColor; border-radius: 999px; opacity: .9; }
+main { padding: 8px clamp(18px, 4vw, 40px) 32px; }
+section { padding-top: 22px; }
+h2 { font-family: var(--font-head); font-size: 20px; margin: 0 0 10px; padding-bottom: 6px; border-bottom: 2px solid var(--teal); text-wrap: balance; }
+h3 { font-size: 16px; margin: 18px 0 6px; }
+p { margin: 0 0 10px; max-width: 72ch; }
+ul, ol { margin: 0 0 10px; padding-left: 22px; max-width: 72ch; }
+li { margin-bottom: 6px; }
+li::marker { color: var(--teal); }
+.table-wrap { overflow-x: auto; margin: 10px 0 12px; }
+table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 15px; }
+th, td { text-align: left; vertical-align: top; padding: 10px 12px; border: 1px solid var(--rule); }
+thead th { background: var(--navy); color: var(--navy-ink); font-weight: 600; }
+.plans thead th { background: var(--teal); color: #fff; }
+tbody tr:nth-child(even) td { background: var(--row); }
+td strong { display: block; }
+.num { font-variant-numeric: tabular-nums; }
+.new { background: var(--new-soft); color: var(--new); font-size: 11.5px; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; padding: 1px 6px; border-radius: 3px; white-space: nowrap; vertical-align: 1px; margin-left: 4px; }
+.note { border-left: 3px solid var(--teal); background: var(--teal-soft); padding: 10px 14px; margin: 10px 0; max-width: 72ch; }
+.note p:last-child { margin: 0; }
+.sign { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); border: 1px solid var(--rule); margin-top: 10px; }
+.sign > div { padding: 14px 16px; min-width: 0; }
+.sign > div + div { border-left: 1px solid var(--rule); }
+@media (max-width: 600px) { .sign > div + div { border-left: 0; border-top: 1px solid var(--rule); } }
+.sign h3 { margin: 0 0 12px; }
+.line { display: flex; gap: 8px; align-items: flex-end; margin-bottom: 14px; font-size: 15px; }
+.line span:last-child { flex: 1; border-bottom: 1px solid var(--muted); min-height: 1.3em; }
+.changes td:first-child { white-space: nowrap; font-weight: 600; }
+footer { color: var(--muted); font-size: 13px; padding: 0 clamp(18px, 4vw, 40px) 24px; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 16px; }
+.btn { font: 600 14px var(--font-body); color: var(--navy); background: var(--navy-ink); border: 0; border-radius: 4px;
+  padding: 8px 14px; cursor: pointer; }
+.btn:hover { opacity: .9; }
+.btn:focus-visible { outline: 2px solid #6fd6c9; outline-offset: 2px; }
+.btn:disabled { opacity: .6; cursor: progress; }
+.dl-msg { font-size: 13px; opacity: .85; }
+@page { size: A4; margin: 14mm 12mm; }
+@media print {
+  body { background: #fff; padding: 0; }
+  .sheet { border: 0; max-width: none; }
+  .actions { display: none; }
+  .mast, thead th, .plans thead th, .note, .new, tbody tr:nth-child(even) td { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  tr, .sign, .note, li { break-inside: avoid; }
+  h2, h3 { break-after: avoid; }
+}
+</style>
+
+<div class="sheet">
+  <header class="mast">
+    <p class="eyebrow">Proof of Concept (PoC) &amp; Commercial Terms Sheet</p>
+    <h1>Consultant-First Clinical Scheduling Platform</h1>
+    <p class="sub">90-Day Pilot Agreement for Multi-Doctor Outpatient Clinics &amp; Medical Plazas &nbsp;|&nbsp; v1.2 (November 2026)</p>
+    <span class="status">Draft for review · replaces v1.1.0</span>
+    <div class="actions">
+      <button class="btn" id="dl" type="button" hidden>Download PDF</button>
+      <span class="dl-msg" id="dl-msg" role="status"></span>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <h2>1. Pilot Scope &amp; Participating Parties</h2>
+      <p>This Proof of Concept (PoC) establishes a 90-day pilot between the Platform Provider and the participating
+      Outpatient Facility / Medical Plaza and its Resident Medical Consultants. During the pilot, the facility and
+      consultants receive full access to the Hub-and-Spoke scheduling platform, including multi-clinic rules, travel
+      buffers, WhatsApp/email reminders, smart waitlists, and Kenya Data Protection Act (KDPA) consent tools.</p>
+      <p>Signing this agreement gives the facility and its consultants access to the platform. It does not start the
+      pilot period: each consultant's 90 days are counted from their own first booking, as set out in section 2.</p>
+    </section>
+
+    <section>
+      <h2>2. Three-Month PoC Rollout Schedule</h2>
+      <p><strong>Day 1 of a consultant's pilot is the date the first appointment is booked with that consultant on the
+      platform</strong>, through any booking channel. <span class="new">New</span> That date is fixed once set, even if the
+      appointment is later cancelled. A consultant who joins the facility later receives their own 90-day pilot from
+      their own first booking.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Phase</th><th>Operational Milestone</th><th>Commercial &amp; Fee Status</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Onboarding</strong>Before Day 1 <span class="new">New</span></td>
+              <td>Onboard consultants, configure facility hours, travel buffers &amp; external blocks, and train front-desk staff.</td>
+              <td>No charges. The pilot clock has not started.</td>
+            </tr>
+            <tr>
+              <td><strong>Month 1</strong><span class="num">Days 1–30</span></td>
+              <td>Live bookings begin. Baseline no-show tracking for each consultant.</td>
+              <td>Ksh. 0 Consultant Service Charge.<br>Ksh. 0 Patient Booking Fee (baseline no-show tracking).</td>
+            </tr>
+            <tr>
+              <td><strong>Month 2</strong><span class="num">Days 31–60</span></td>
+              <td>Activate patient booking commitment fees (Plan A) and weekly front-desk M-Pesa incentive payouts.</td>
+              <td>Ksh. 0 Consultant Service Charge.<br>Ksh. 250 Patient Booking Fee active; Ksh. 50 per completed booking paid weekly to front desk.</td>
+            </tr>
+            <tr>
+              <td><strong>Month 3</strong><span class="num">Days 61–90</span></td>
+              <td>Full live operation across Cash &amp; Insurance workflows; generate the 90-day ROI &amp; no-show reduction report.</td>
+              <td>Ksh. 0 Consultant Service Charge.<br>Transition to standard terms confirmed based on pilot metrics.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <h2>3. Standard Commercial Terms (Effective Day 91)</h2>
+      <p>Standard terms apply to each consultant from Day 91 of their own pilot, once the Platform Provider and the
+      facility have confirmed the transition.</p>
+      <div class="table-wrap">
+        <table class="plans">
+          <thead><tr><th>Plan Tier</th><th>Consultant Service Charge</th><th>Patient Booking Convenience Fee</th><th>Front-Desk Weekly Incentive</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Plan A: Commitment-Enabled</strong>(Recommended)</td>
+              <td class="num">Ksh. 1,000 / month per active consultant</td>
+              <td class="num">Ksh. 250 / advance booking (paid via M-Pesa by patient, or absorbed by the consultant for insured patients, see section 4)</td>
+              <td class="num">Ksh. 50 / completed booking (aggregated &amp; paid weekly)</td>
+            </tr>
+            <tr>
+              <td><strong>Plan B: Standard Flat</strong>(No Commitment Fee)</td>
+              <td class="num">Ksh. 1,500 / month per active consultant</td>
+              <td>Ksh. 0 (no upfront patient fee)</td>
+              <td>Not applicable (flat subscription model)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <h3>Consultant cancellation charge <span class="new">New</span></h3>
+      <p>Ksh. 100 is added to the consultant's monthly invoice for each booking cancelled by the consultant or by the
+      facility's front-desk staff on the consultant's behalf. The consultant is notified by email each time the charge is
+      applied. The charge does not apply when the cancellation is made at the patient's request, or when the facility is
+      closed for the day.</p>
+    </section>
+
+    <section>
+      <h2>4. Cash vs. Insurance Patient Handling &amp; Safeguards</h2>
+      <ul>
+        <li><strong>100% Clinical Revenue Retention:</strong> The Ksh. 250 booking convenience fee is collected directly by the
+        platform as a digital slot-reservation fee. It is never deducted from the consultant's clinical fee or the hospital
+        payout, except where a consultant chooses to absorb it for insured patients as set out below.</li>
+        <li><strong>Cash (Self-Pay) Patients:</strong> Patients pay the Ksh. 250 convenience fee via M-Pesa STK Push when raising an
+        advance booking, and settle the consultant's full consultation fee directly at the clinic upon arrival.</li>
+        <li><strong>Same-day walk-ins:</strong> <span class="new">Changed</span> Same-day physical walk-ins at reception are exempt from the
+        fee. A facility may choose to charge them by notifying the Platform Provider in writing.</li>
+        <li><strong>Insurance Patients (SHA, Jubilee, Britam, AAR, CIC, etc.):</strong> Patients declare "Insurance" and submit
+        insurer details at booking so front-desk staff can run Slade360/Smart pre-authorization before arrival. The Ksh. 250
+        fee is never billed onto insurance claim forms. <span class="new">Changed</span> Each consultant chooses one of:
+          <ol type="a">
+            <li>insured patients pay the Ksh. 250 out of pocket via M-Pesa, as cash patients do; or</li>
+            <li>insured patients pay nothing upfront, and the consultant absorbs the Ksh. 250 from their own consultation
+            fee. Absorbed fees are billed on the consultant's monthly invoice from Day 31 of their pilot, and follow the
+            same cancellation rules as fees paid by patients (section 5).</li>
+          </ol>
+        </li>
+        <li><strong>Once a day:</strong> <span class="new">New</span> A patient pays at most one booking fee per calendar day, across all
+        consultants on the platform.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>5. Incentives, Cancellations &amp; Refunds</h2>
+      <ul>
+        <li><strong>Front-Desk Incentive Rules &amp; Anti-Gaming:</strong> The Ksh. 50 front-desk reward is held as pending and
+        accrues only when the appointment is completed (status = completed), including bookings whose fee the consultant
+        absorbs. It is disbursed weekly via M-Pesa. Cancelled or no-show appointments do not trigger staff payouts.
+        <span class="new">New</span> Incentives are subject to review: the Platform Provider may withhold an incentive on a booking
+        flagged as irregular, such as a booking cancelled and remade for the same patient.</li>
+        <li><strong>Fair Cancellation &amp; Refund Policy:</strong>
+          <ul>
+            <li>If a consultant or facility cancels a clinic session, affected patients receive an automatic free rebooking
+            credit or a full Ksh. 250 M-Pesa refund. An absorbed fee is not billed to the consultant.</li>
+            <li>Patient cancellations more than 24 hours ahead transfer freely to a new slot.</li>
+            <li><span class="new">New</span> Patient cancellations less than 24 hours ahead, and no-shows, are not refunded. An
+            absorbed fee is billed to the consultant.</li>
+          </ul>
+        </li>
+        <li><strong>Consultant cancellation charge:</strong> as set out in section 3.</li>
+        <li><strong>Patient Booking Terms:</strong> <span class="new">New</span> Patients accept the terms in Schedule A when they book.
+        The facility agrees that these terms are shown to its patients.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>6. Data Privacy &amp; Ownership (KDPA)</h2>
+      <p>All patient consent logs, masked contact records, and facility audit trails comply with the Kenya Data Protection
+      Act. The facility and consultants retain full ownership of their clinical schedules and patient records.</p>
+    </section>
+
+    <section>
+      <h2>7. Pilot Acceptance &amp; Sign-Off</h2>
+      <div class="sign">
+        <div>
+          <h3>For: Participating Facility / Medical Plaza</h3>
+          <div class="line"><span>Facility Name:</span><span></span></div>
+          <div class="line"><span>Authorized Admin / Lead Consultant:</span><span></span></div>
+          <div class="line"><span>Signature &amp; Date:</span><span></span></div>
+        </div>
+        <div>
+          <h3>For: Platform Provider</h3>
+          <div class="line"><span>Representative Name:</span><span></span></div>
+          <div class="line"><span>Title:</span><span></span></div>
+          <div class="line"><span>Signature &amp; Date:</span><span></span></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Schedule A: Patient Booking Terms</h2>
+      <p>Shown to patients, and accepted by them, when they book an appointment that carries the booking fee.</p>
+      <ol>
+        <li>A Ksh. 250 slot reservation fee is paid by M-Pesa when you book an appointment in advance. It holds your slot
+        and is separate from the consultation fee, which you pay at the clinic.</li>
+        <li>You pay at most one booking fee per day, however many appointments you book that day.</li>
+        <li>If you reschedule more than 24 hours before your appointment, your fee moves to the new time.</li>
+        <li>If you cancel less than 24 hours before your appointment, or do not attend, the fee is not refunded.</li>
+        <li>If the consultant or the facility cancels, you receive a free rebooking credit or a full refund of the fee.</li>
+        <li>Same-day walk-ins at reception do not pay the fee, unless the facility has chosen to charge it.</li>
+        <li>The fee is never added to an insurance claim. If you are insured, your consultant decides whether you pay it.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Schedule B: Changes from v1.1.0</h2>
+      <div class="table-wrap">
+        <table class="changes">
+          <thead><tr><th>Section</th><th>Change</th></tr></thead>
+          <tbody>
+            <tr><td>1, 2</td><td>The pilot clock starts at each consultant's first booking, not at signing. Onboarding comes before Day 1.</td></tr>
+            <tr><td>3</td><td>Standard terms start at Day 91 per consultant. Added the Ksh. 100 consultant cancellation charge.</td></tr>
+            <tr><td>4</td><td>Same-day walk-ins exempt by default, with a facility opt-in to charge. Consultants who exempt insured patients absorb the fee. At most one fee per patient per day.</td></tr>
+            <tr><td>5</td><td>Incentives subject to anti-gaming review. Late cancellations and no-shows are not refunded. Absorbed fees follow the same rules.</td></tr>
+            <tr><td>Schedule A</td><td>New: the patient booking terms.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <footer>Draft v1.2 for review, November 2026. Not binding until signed by both parties.</footer>
+</div>
+<script>
+(async () => {
+  const btn = document.getElementById('dl');
+  const msg = document.getElementById('dl-msg');
+  const PDF = 'poc-commercial-agreement-v1.2.pdf';
+  let downloads = null;
+  try { downloads = await window.claude?.use?.('downloads'); } catch (e) { downloads = null; }
+  if (!downloads) return;
+  btn.hidden = false;
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    msg.textContent = '';
+    try {
+      const res = await fetch(PDF);
+      if (!res.ok) throw { code: 'missing' };
+      const blob = await res.blob();
+      await downloads.save({ filename: PDF, data: blob });
+      msg.textContent = 'Saved.';
+    } catch (e) {
+      const code = e && e.code;
+      if (code === 'declined') msg.textContent = '';
+      else if (code === 'rate_limited') msg.textContent = 'A download is already waiting for your answer.';
+      else if (code === 'missing') msg.textContent = 'The PDF could not be loaded. Reload the page and try again.';
+      else { msg.textContent = 'Downloads are not available here.'; btn.hidden = true; }
+    } finally {
+      btn.disabled = false;
+    }
+  });
+})();
+</script>
