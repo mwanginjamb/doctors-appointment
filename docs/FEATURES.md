@@ -496,6 +496,27 @@ The privacy notice has one more line (version unchanged).
    Cancel an appointment with that doctor in the window: within a minute the patient gets an email
    with their link, and can book the freed time.
 
+### T4 CI on Gitea Actions
+
+The workflow is `.gitea/workflows/ci.yml`. On every push and pull request it starts MySQL 8, installs
+PHP 8.3 (as on the server), runs `php init`, builds the test database (RBAC tables, the app's and the
+queue's migrations, `rbac/init`) and runs every Codeception suite. Nothing changes on the app server.
+
+1. **Actions on the Gitea server** (`git.kemri.go.ke`): Actions is on by default from Gitea 1.21
+   (`[actions] ENABLED = true` in `app.ini`). In the repository, **Settings → Repository → Actions**
+   must be ticked.
+2. **A runner**, on any Linux machine with Docker and about 2 GB of free memory (MySQL and PHP run side
+   by side). Get a registration token from **Settings → Actions → Runners → Create new runner**, then:
+   ```bash
+   docker run -d --name healthfirst-runner --restart unless-stopped      -e GITEA_INSTANCE_URL=https://git.kemri.go.ke      -e GITEA_RUNNER_REGISTRATION_TOKEN=<token>      -e GITEA_RUNNER_NAME=healthfirst-ci      -e GITEA_RUNNER_LABELS=ubuntu-latest:docker://gitea/runner-images:ubuntu-latest      -v /var/run/docker.sock:/var/run/docker.sock      -v healthfirst-runner-data:/data      gitea/act_runner:latest
+   ```
+   The `ubuntu-latest` label must be there: the workflow asks for it.
+3. **Network:** the runner downloads Docker images (`mysql:8.0`, the runner image), the actions from
+   github.com, PHP from the setup-php sources, and packages from packagist.org. If a firewall blocks
+   any of them, the first run fails at that step.
+4. **Check:** push a branch. The repository's **Actions** tab shows **CI** running; the first run takes
+   longer while images and packages download, later ones about 10 minutes. Every step goes green.
+
 ---
 
 ## Deferred
@@ -712,7 +733,7 @@ Built as planned below, with these choices made on 12 Nov 2026:
 
 | # | Item | Priority | Impact |
 |---|---|---|---|
-| T4 | CI that runs the test suites (and PHPStan) on every push. A full local run takes about 10 minutes. | P1 | +0.5 (with T2) |
+| T4 | CI that runs the test suites on every push, on Gitea Actions (`.gitea/workflows/ci.yml`). A full run takes about 10 minutes. PHPStan joins it under T5. | P1 | +0.5 (with T2) |
 | T5 | Static analysis (PHPStan) at a modest level, raised over time. | P2 | |
 
 #### Architecture
