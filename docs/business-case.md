@@ -96,7 +96,7 @@ The agreement v1.2 says the same.
 
 | Topic | Decision | Where it is written |
 |---|---|---|
-| Ksh 100 cancellation penalty | **Added to the agreement.** Charged on the consultant's monthly invoice when the consultant or their front desk cancels a booking, with an email to the consultant. Not charged when the patient asked for the cancellation or the facility closed for the day. Built behind `CANCELLATION_PENALTY`, and charged only to consultants at facilities that signed v1.2. | Agreement §3, §5 |
+| Ksh 100 cancellation penalty | **Added to the agreement.** Charged on the consultant's monthly invoice when the consultant or their front desk cancels a booking, with an email to the consultant. Not charged when the patient asked for the cancellation or the facility closed for the day. Starts on day 91 of the consultant's pilot, on both plans. Built behind `CANCELLATION_PENALTY`, and charged only to consultants at facilities that signed v1.2. | Agreement §3, §5 |
 | Fee kept on a no-show or a cancellation less than 24 hours ahead | **Patient booking terms**, which the patient accepts when booking, because patients do not sign the agreement. The agreement repeats them in a schedule so facilities know them. | Agreement Schedule A; the booking page |
 | Once a day | **Patient booking terms**: a patient pays at most one fee a day. | Agreement Schedule A; the booking page |
 | Cancel and rebook within 24 hours | **An internal anti-gaming check.** The agreement says incentives are subject to review; the rule itself is not in it. | Agreement §5 |
@@ -207,8 +207,9 @@ Safeguards:
 3. Who does not pay:
    - The consultant is not yet in day 31 of their pilot.
    - The consultant is on Plan B.
-   - A same-day walk-in at reception, while the facility exempts them (the default).
-   - A patient who has already paid that day.
+   - A same-day walk-in at reception, while the facility exempts them (the default). A same-day
+     booking made online or through a booking link still pays.
+   - A patient who has already paid that day, with any consultant.
 4. **Insured patients, when the consultant does not ask them to pay:** the booking still carries a
    Ksh 250 fee, marked **absorbed by the consultant**. No STK push is sent and no slot is held. The
    absorbed fee is added to the consultant's monthly invoice and follows the same rules as a paid
@@ -217,8 +218,9 @@ Safeguards:
 5. The fee's states: **paid** or **absorbed**, then one of:
    - **forfeited**: the patient did not come, or cancelled less than 24 hours before;
    - **transferred**: the patient rescheduled more than 24 hours ahead;
-   - **refunded or credited** (paid) or **cancelled** (absorbed): the consultant or the facility
-     cancelled.
+   - **credited** (paid) or **cancelled** (absorbed): the consultant or the facility cancelled. The
+     patient gets a free rebooking credit automatically, and an M-Pesa refund instead if they ask
+     (**refunded**).
 
    These are triggered from `cancel()`, `reschedule()`, `recordOutcome()` and facility closures.
 6. The patient accepts the **booking terms** (forfeit, transfer, at most one fee a day) at booking.
@@ -242,13 +244,32 @@ Safeguards:
 - Each consultant has a plan, A or B, and chooses whether insured patients pay the fee (Plan A
   only).
 - A monthly console job produces each invoice:
-  - the plan's price, for each **active** consultant past their pilot, once standard terms are
-    confirmed;
-  - absorbed fees for insured patients (see the open questions for the pilot months);
-  - Ksh 100 for each cancellation by the consultant or their front desk, at facilities that signed
-    v1.2, unless the patient asked for it or the facility closed. The consultant is emailed each
-    time one is added.
-- "Active" needs a definition (see the open questions).
+  - the plan's price, for each **active** consultant (at least one appointment that month) past
+    their pilot, once standard terms are confirmed;
+  - absorbed fees for insured patients, from day 31 of the pilot (during the pilot, the invoice is
+    a statement of absorbed fees only);
+  - from day 91, Ksh 100 for each cancellation by the consultant or their front desk, on either
+    plan, at facilities that signed v1.2, unless the patient asked for it or the facility closed.
+    The consultant is emailed each time one is added.
+- Invoices are paid by an **STK push** to the consultant's phone. An admin can also mark one paid
+  by hand with a reference.
+- An unpaid invoice gets email and WhatsApp reminders. **14 days after the due date**, patients can
+  no longer book that consultant online; bookings by staff keep working. Online booking resumes
+  when the invoice is paid.
+
+### Masked contact details
+
+- Patients' phone numbers and emails are masked (`0712***678`, `j***@mail.com`) in lists, boards,
+  search results and exports.
+- Staff see them in full only when they open an appointment they may handle. Each time they do,
+  the audit log records it.
+- Other facilities' appointments stay "busy" with no patient details, as today.
+
+### A facility leaving
+
+- Unused patient credits from that facility's consultants are refunded to M-Pesa.
+- Earned incentives are paid in the next weekly payout. Pending ones are paid only if the
+  appointment is completed before the exit date; the rest are cancelled.
 
 ### Backend for platform admins
 
@@ -289,18 +310,19 @@ consultant** to get a booking at the first pilot facility.
 
 | Step | Work | Needed by |
 |---|---|---|
-| 1 | Record the booking channel and who cancelled (and whether the patient asked); store each consultant's first booking; record facility agreements; the start of the pilot report. | **Day 1**: month 1 is the no-show baseline, so the data must be right from the start. |
+| 1 | Record the booking channel and who cancelled (and whether the patient asked); store each consultant's first booking; record facility agreements; mask contact details; the start of the pilot report. | **Day 1**: month 1 is the no-show baseline, so the data must be right from the start. |
 | 2 | The Daraja component, `.env` settings, the callback and the sandbox test command. Apply for B2C production credentials. | Before day 31 |
-| 3 | The commitment fee at booking: the payment hold, the exemptions and the patient's booking terms. | **Day 31** |
-| 4 | Refund, transfer, forfeit and credit rules. | Day 31 |
+| 3 | The commitment fee at booking: the payment hold, the exemptions, the patient's booking terms, cash or insurance, and the consultant's choice for insured patients (fees absorbed from day 31). | **Day 31** |
+| 4 | Transfer, forfeit and credit rules; refunds on request. | Day 31 |
 | 5 | Front-desk incentives and the weekly payout (manual until B2C is live). Backend screens for payouts. | Day 31; first payout around day 38 |
-| 6 | Cash or insurance at booking, pre-authorisation status, and absorbed fees for insured patients (covers F18 / gap G5). | **Day 61** |
-| 7 | The 90-day pilot report. | Day 90 |
-| 8 | Plans, monthly invoices with absorbed fees and penalties, and the RBAC module shared with the backend. | Day 91 (absorbed fees may be needed sooner; see question 3) |
+| 6 | Monthly statements of absorbed fees, paid by STK push. | End of the first month after day 31 |
+| 7 | Insurer details and pre-authorisation status at booking (covers F18 / gap G5). | **Day 61** |
+| 8 | The 90-day pilot report. | Day 90 |
+| 9 | Plan charges and penalties on the invoice; reminders and the online-booking pause; a facility leaving; the RBAC module shared with the backend. | Day 91 |
 
 Step 2 only needs the sandbox credentials in `.env`, so it can start at once, alongside step 1.
 
-## Open questions
+## Questions answered
 
 Answered by the agreement or the decisions above:
 
@@ -311,27 +333,20 @@ Answered by the agreement or the decisions above:
 - **The Ksh 100 penalty:** in the agreement from v1.2.
 - **Paying front-desk staff directly:** the facility agrees to it by signing the agreement.
 
-Still open:
+Answered on 15 November 2026, and written into agreement v1.2:
 
-1. **Who counts as an active consultant** for the monthly charge? For example, one who had at
-   least one bookable session, or one appointment, in the month.
-2. **What happens if standard terms are not confirmed** after the pilot, or an invoice goes
-   unpaid? Is booking paused, the consultant moved to Plan B, or nothing more than a reminder?
-3. **Absorbed fees during the pilot:** are fees absorbed in a consultant's days 31–90 billed (on a
-   monthly statement, although the plan charge is still Ksh 0), or waived until standard terms
-   start? Agreement v1.2 says they are billed monthly from day 31; confirm.
-4. **The penalty's exceptions:** agreement v1.2 does not charge it when the patient asked for the
-   cancellation or the facility closed. Confirm both.
-5. **"Once a day":** is that per patient across all consultants, or per patient per consultant?
-   Agreement v1.2 says across all consultants.
-6. **A same-day booking through a booking link:** is it a remote booking (pays) or a walk-in
-   (exempt)? Does a patient booking online for later the same day pay?
-7. **Credit or refund** when the clinic cancels: does the patient choose, or is a credit the
-   default with a refund on request? A refund needs B2C.
-8. **How are invoices paid**: by an STK push to the consultant, or recorded by hand?
-9. **"Masked contact records":** which screens should hide patients' phones and emails, and from
-   whom? Today nothing is masked except other facilities' appointments, which show only as "busy".
-10. **When does the penalty start, and does it apply on Plan B?** Agreement v1.2 does not say. It
-    could start on day 1, day 31 or day 91 of the consultant's pilot.
-11. **If a facility leaves the pilot:** are patients' unused credits refunded, and are pending
-    incentives still paid?
+| # | Question | Answer |
+|---|---|---|
+| 1 | Who counts as an active consultant for the monthly charge? | One with **at least one appointment** (any status) on the platform that month. |
+| 2 | What if standard terms are not confirmed, or an invoice goes unpaid? | **Reminders by email and WhatsApp, then a pause:** 14 days after the due date, patients can no longer book that consultant online. Bookings by staff keep working. Online booking resumes when the invoice is paid. |
+| 3 | Are fees absorbed in days 31–90 of the pilot billed? | **Yes, on a monthly statement from day 31**, although the plan charge is still Ksh 0. |
+| 4 | Which cancellations are exempt from the Ksh 100 charge? | Those made **at the patient's request**, and those caused by a **facility closure**. |
+| 5 | "Once a day": across all consultants, or per consultant? | **Across all consultants.** A patient seeing two consultants on the same day pays once. |
+| 6 | Do same-day bookings through a booking link, or online for later the same day, pay? | **Both pay.** Only same-day walk-ins at reception are exempt. |
+| 7 | Credit or refund when the clinic cancels? | **A credit automatically; an M-Pesa refund if the patient asks.** |
+| 8 | How are invoices paid? | **An STK push to the consultant's phone**, with an admin able to mark one paid by hand with a reference. |
+| 9 | Where are contact details masked? | **In lists, boards, search results and exports** (`0712***678`, `j***@mail.com`). Staff see them in full only when they open an appointment they may handle, and that is audited. |
+| 10 | When does the Ksh 100 charge start, and on which plans? | **From day 91 of the consultant's pilot, on both plans.** |
+| 11 | What happens if a facility leaves? | **Unused patient credits are refunded** to M-Pesa. Earned incentives are paid; pending ones are paid only if the appointment is completed before the exit date. |
+
+No questions are open. The next step is to file the work in [FEATURES.md](FEATURES.md).
