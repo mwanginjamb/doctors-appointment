@@ -1,29 +1,16 @@
-Copyright © 2008 by Yii Software LLC (http://www.yiisoft.com)
-All rights reserved.
+Copyright © 2025–2026 Gumzo HealthFirst. All rights reserved.
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions
-are met:
+This software and its source code, documentation and associated files (the "Software") are
+proprietary and confidential to Gumzo HealthFirst.
 
- * Redistributions of source code must retain the above copyright
-   notice, this list of conditions and the following disclaimer.
- * Redistributions in binary form must reproduce the above copyright
-   notice, this list of conditions and the following disclaimer in
-   the documentation and/or other materials provided with the
-   distribution.
- * Neither the name of Yii Software LLC nor the names of its
-   contributors may be used to endorse or promote products derived
-   from this software without specific prior written permission.
+No part of the Software may be used, copied, modified, merged, published, distributed,
+sublicensed, sold, hosted for others or otherwise exploited, in whole or in part, without the
+prior written permission of Gumzo HealthFirst. Access to the Software, including access granted
+for development, testing or a pilot, does not grant any licence to it.
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED. IN NO EVENT
+SHALL GUMZO HEALTHFIRST BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM THE USE
+OF THE SOFTWARE BY ANYONE NOT AUTHORISED IN WRITING TO USE IT.
+
+The Software includes code from third parties under their own licences. See
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and the licence files of the packages in `vendor/`.

@@ -170,6 +170,25 @@ return [
             'credentials_file' => env('FCM_CREDENTIALS_FILE'),
         ],
     ],
+    // M-Pesa through Daraja (T11), read by common\components\Mpesa. Every account setting is in .env;
+    // MPESA_ENV=sandbox until go-live. See docs/FEATURES.md, "T11 M-Pesa".
+    'mpesa' => [
+        'env' => env('MPESA_ENV', 'sandbox'),
+        'consumerKey' => env('MPESA_CONSUMER_KEY', ''),
+        'consumerSecret' => env('MPESA_CONSUMER_SECRET', ''),
+        'shortcode' => env('MPESA_SHORTCODE', ''),
+        'passkey' => env('MPESA_PASSKEY', ''),
+        // CustomerPayBillOnline for a paybill, CustomerBuyGoodsOnline for a till
+        'transactionType' => env('MPESA_TRANSACTION_TYPE', 'CustomerPayBillOnline'),
+        // The public https:// address Safaricom calls back; empty = APP_PUBLIC_URL
+        'callbackUrl' => env('MPESA_CALLBACK_URL', ''),
+        'callbackToken' => env('MPESA_CALLBACK_TOKEN', ''),
+        'b2cShortcode' => env('MPESA_B2C_SHORTCODE', ''),
+        'initiatorName' => env('MPESA_INITIATOR_NAME', ''),
+        'securityCredential' => env('MPESA_SECURITY_CREDENTIAL', ''),
+        // Only where PHP has no CA bundle of its own (some Windows set-ups)
+        'caFile' => env('MPESA_CA_FILE', ''),
+    ],
     // Firebase Configurations
     'firebase' => [
         'public' => [

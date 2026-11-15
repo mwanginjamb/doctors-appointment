@@ -3,16 +3,24 @@
 The state of the doctor-appointments app as a clinic booking system: what has been built, what was
 deliberately deferred, and what is still open. Keep this file up to date when an item is done.
 
-_Last reviewed: 12 November 2026._
+This is the only place status is tracked. The System Gaps in [USER_STORIES.md](USER_STORIES.md#system-gaps)
+are each filed here as an item marked "(from Gn)", or listed under **Deferred**. When an item that
+came from a gap is done:
+
+1. Strike it through here, add it to **Done** and write its deploy steps.
+2. In USER_STORIES.md, mark the gap's row "Fixed by Fn" in the **Tracked as** column.
+3. Rewrite the stories the gap affected so they describe the new behaviour.
+
+_Last reviewed: 15 November 2026._
 
 ## Where it stands
 
 | | Score | Summary |
 |---|---|---|
 | Functional | **9 / 10** | Covers every way an appointment is made (online, by staff, walk-in, remote walk-in link), realistic availability, the full appointment lifecycle and a usable back office. Patients are told about changes and can reschedule or cancel from a link. Consent is recorded under the Kenya Data Protection Act. No payments yet. |
-| Technical | **8 / 10** | Booking rules live in a tested service, locked against double booking; RBAC is the single permission system; the calendar scripts are out of the views; changes and sign-ins are audited; debug mode is off in production. There is no CI or error tracking yet. |
+| Technical | **8.5 / 10** | Booking rules live in a tested service, locked against double booking; RBAC is the single permission system; the calendar scripts are out of the views; changes and sign-ins are audited; debug mode is off in production. Errors are tracked and alerted on, and CI runs every test on each push and deploys release tags. There is no static analysis yet. |
 
-Doing **Next up** below should bring the app to about 9.5 functionally and 8.5 technically.
+Doing **Next up** below should bring the app to about 9.5 functionally.
 
 ---
 
@@ -73,6 +81,7 @@ Doing **Next up** below should bring the app to about 9.5 functionally and 8.5 t
 | T7 Audit log | An append-only `audit_log`: who (staff, patient, booking link, self-service link, system), what, which record, old → new values and IP. Records appointments, accounts, consultants, time off, holidays and booking links automatically; weekly hours, front-desk assignments, sign-ins, failed sign-ins and role changes explicitly. Passwords, keys and symptom details are never stored. Admins read it under **Audit Log**; staff see an appointment's **History**. Kept 7 years (`AUDIT_RETENTION_YEARS`), purged daily by `doctors-appointment-audit-purge.timer`. | `7820f94` |
 | F11 Consent (Kenya Data Protection Act) | A versioned privacy notice at `/site/privacy`, with the controller's details from `.env`. Consent to data processing (required) and to WhatsApp/SMS reminders (opt-in) is asked at email sign-up, on booking links, and by front desk for walk-ins (verbal consent, with who recorded it). Google/Microsoft/LinkedIn sign-ups, existing patients and everyone after a notice change are held on a consent page until they answer. Existing patients keep WhatsApp reminders until they answer (legacy carry-over). Answers are kept in an append-only `consent` table and in the audit log. Patients switch reminders and withdraw consent under **Privacy & messages**; withdrawing cancels upcoming appointments and opens an account-closure request for admins (**Closure Requests**). Staff see "consent not recorded" in patient lookup, and consent status on **System Users**. It can be switched off with `CONSENT_ENABLED=false` (outside Kenya, demos): nobody is asked, answers already given are kept, explicit "no" answers to WhatsApp/SMS still count, and admins see a warning on the dashboard. | `32f3cd5` |
 | T2 Monitoring and alerts | Errors from the website, console and queue worker go to a self-hosted GlitchTip (Sentry-compatible), with personal data scrubbed (no request data, frame arguments, contacts or link tokens). `php yii health/check` runs every 5 minutes (`doctors-appointment-health.timer`) and emails `ALERT_EMAILS` when the queue worker stalls, the reminder scheduler stops, messages keep failing, WhatsApp logs out or the database is down: once, a reminder every 6 hours, and when resolved. Each run pings a heartbeat URL (healthchecks.io), and `/health` answers `ok` for an uptime monitor. Admins see **System health** on the dashboard. | `feature/monitoring` |
+| T4 CI and deploys | Gitea Actions (`.gitea/workflows/ci.yml`) runs every Codeception suite on each push and pull request: MySQL 8 and PHP 8.3 as on the server, a test database built from scratch (migrations, RBAC, `rbac/init`). A pushed `vX.Y.Z` tag that passes is deployed by the **deploy** job over SSH with a key that can only run `deploy/deploy.sh`: it checks the tag is on `main`, backs up the database, then runs composer, migrations and `rbac/init`, restarts the services and checks `/health`. A full run takes about 25 minutes. | `feature/ci` |
 
 ### Scheduling depth
 
@@ -488,13 +497,157 @@ The privacy notice has one more line (version unchanged).
    Cancel an appointment with that doctor in the window: within a minute the patient gets an email
    with their link, and can book the freed time.
 
+### T4 CI on Gitea Actions
+
+The workflow is `.gitea/workflows/ci.yml`. On every push and pull request it starts MySQL 8, installs
+PHP 8.3 (as on the server), runs `php init`, builds the test database (RBAC tables, the app's and the
+queue's migrations, `rbac/init`) and runs every Codeception suite. Nothing changes on the app server.
+
+1. **Actions on the Gitea server** (`git.kemri.go.ke`): Actions is on by default from Gitea 1.21
+   (`[actions] ENABLED = true` in `app.ini`). In the repository, **Settings → Repository → Actions**
+   must be ticked.
+2. **A runner**, on any Linux machine with Docker and about 2 GB of free memory (MySQL and PHP run side
+   by side). Get a registration token from **Settings → Actions → Runners → Create new runner**, then:
+   ```bash
+   docker run -d --name healthfirst-runner --restart unless-stopped      -e GITEA_INSTANCE_URL=https://git.kemri.go.ke      -e GITEA_RUNNER_REGISTRATION_TOKEN=<token>      -e GITEA_RUNNER_NAME=healthfirst-ci      -e GITEA_RUNNER_LABELS=ubuntu-latest:docker://gitea/runner-images:ubuntu-latest      -v /var/run/docker.sock:/var/run/docker.sock      -v healthfirst-runner-data:/data      gitea/act_runner:latest
+   ```
+   The `ubuntu-latest` label must be there: the workflow asks for it.
+3. **Network:** the runner downloads Docker images (`mysql:8.0`, the runner image), the actions from
+   github.com, PHP from the setup-php sources, and packages from packagist.org. If a firewall blocks
+   any of them, the first run fails at that step.
+4. **Check:** push a branch. The repository's **Actions** tab shows **CI** running; the first run takes
+   longer while images and packages download, later ones about 25 minutes. Every step goes green.
+
+#### Deploying from CI
+
+Pushing a `vX.Y.Z` tag runs the tests on it and, if they pass, the **deploy** job. That job connects to
+the server over SSH with a key that can do only one thing: run `deploy/deploy.sh`, installed as
+`/usr/local/bin/healthfirst-deploy`, with the tag. The script:
+
+1. checks that the tag exists and is on `main`, and that nobody changed tracked files on the server;
+2. backs up the database (`/var/backups/healthfirst`, the newest 10 kept);
+3. checks out the tag, runs `composer install --no-dev` (going back to the previous release if that
+   fails), `php yii migrate` and `php yii rbac/init`;
+4. reloads PHP-FPM, restarts `doctors-appointment.target`, and checks that `/health` answers `ok`.
+
+If a step fails, the job turns red and the log names the step, the previous commit and the backup.
+
+**One-time setup on the server:**
+
+1. **A deploy user** that does nothing else: `sudo adduser --disabled-password --gecos "" deploy`.
+2. **The script**, owned by root so the CI key cannot change it:
+   ```bash
+   sudo install -o root -g root -m 755 deploy/deploy.sh /usr/local/bin/healthfirst-deploy
+   ```
+   Run this again whenever `deploy/deploy.sh` changes; CI never updates it.
+3. **Permission to run it**, and nothing more:
+   ```bash
+   echo 'deploy ALL=(root) NOPASSWD: /usr/local/bin/healthfirst-deploy' | sudo tee /etc/sudoers.d/healthfirst-deploy
+   sudo chmod 440 /etc/sudoers.d/healthfirst-deploy && sudo visudo -c
+   ```
+4. **A key for CI.** Make a key pair anywhere (`ssh-keygen -t ed25519 -f healthfirst-ci -N "" -C healthfirst-ci`)
+   and put the public key in `/home/deploy/.ssh/authorized_keys` (directory `700`, file `600`, owned by
+   `deploy`) with the command fixed:
+   ```
+   restrict,command="sudo /usr/local/bin/healthfirst-deploy \"$SSH_ORIGINAL_COMMAND\"" ssh-ed25519 AAAA… healthfirst-ci
+   ```
+5. **Where the server fetches from.** The script fetches the tag from the app checkout's `origin`. Point
+   it at Gitea with read-only access (a deploy key under the repository's **Settings → Deploy Keys**, for
+   the user that owns `/var/www/html/doctors-appointment`), or keep GitHub, as long as tags are pushed
+   there too. Check: `sudo -u <owner> git -C /var/www/html/doctors-appointment fetch --tags`.
+6. **The MySQL client** for the backup: `mysqldump --version` (install `mysql-client` if missing). The
+   script reads the database settings from `.env`.
+7. **Optional settings** in `/etc/default/healthfirst-deploy`, using the names at the top of the
+   script: for example `HEALTH_URL`, `PHP_FPM_SERVICE` or `RELEASE_BRANCH`.
+8. **Try it by hand** with the release already running, which changes nothing:
+   `sudo healthfirst-deploy $(git -C /var/www/html/doctors-appointment describe --tags --abbrev=0)`.
+
+**In Gitea** (**Settings → Actions → Secrets** of the repository):
+
+| Secret | Value |
+|---|---|
+| `DEPLOY_HOST` | the server's address, as the runner reaches it |
+| `DEPLOY_PORT` | the SSH port; leave unset for 22 |
+| `DEPLOY_USER` | `deploy` |
+| `DEPLOY_SSH_KEY` | the whole private key file `healthfirst-ci` |
+| `DEPLOY_KNOWN_HOSTS` | the output of `ssh-keyscan -p <port> <host>`; compare its fingerprint with `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` on the server |
+
+The runner must be able to reach the server's SSH port.
+
+**Releasing:**
+
+```bash
+git checkout main && git merge --no-ff develop
+git tag -a v1.2.0 -m "v1.2.0"
+git push origin main v1.2.0
+```
+
+The tag's run shows **tests**, then **deploy**. To go back, push or re-run an older tag: the code goes
+back, but migrations do not, so restore the backup by hand if a migration must be undone.
+
+### T11 M-Pesa (Daraja)
+
+`common\components\Mpesa` (`Yii::$app->mpesa`) sends STK pushes (a patient pays the platform from
+their phone), asks Safaricom how one ended, and makes B2C payments (refunds, front-desk payouts).
+Each request is a row in `mpesa_transaction`. Safaricom answers at `POST /mpesa/stk/<token>`,
+`/mpesa/b2c-result/<token>` and `/mpesa/b2c-timeout/<token>`:
+
+- a wrong token gets a 404;
+- each transaction is settled once, so a repeated callback changes nothing;
+- an STK success counts only when a status query confirms it;
+- `php yii mpesa/reconcile` settles payments whose callback never came.
+
+When a transaction is settled, `Mpesa::EVENT_SETTLED` is raised. The commitment-fee features (F22 to
+F24) listen for it. Nothing asks patients to pay yet.
+
+1. **Database:** `php yii migrate` creates `mpesa_transaction` (`m261130_090000_create_mpesa_transaction_table`).
+2. **`.env`:**
+   ```
+   MPESA_ENV=sandbox                      # production once Safaricom approves go-live
+   MPESA_CONSUMER_KEY=                    # from the Daraja app
+   MPESA_CONSUMER_SECRET=
+   MPESA_SHORTCODE=174379                 # sandbox paybill; the live paybill or till after go-live
+   MPESA_PASSKEY=                         # sandbox passkey from the Daraja simulator; Safaricom emails the live one
+   MPESA_TRANSACTION_TYPE=CustomerPayBillOnline   # CustomerBuyGoodsOnline for a till
+   MPESA_CALLBACK_URL=https://appointments.gumzosystems.tech   # this site's public address; empty = APP_PUBLIC_URL
+   MPESA_CALLBACK_TOKEN=                  # a long random secret: php -r 'echo bin2hex(random_bytes(24)), "\n";'
+   # B2C (refunds, payouts)
+   MPESA_B2C_SHORTCODE=                   # sandbox: the 600xxx shortcode on Daraja's test credentials page
+   MPESA_INITIATOR_NAME=                  # sandbox: testapi
+   MPESA_SECURITY_CREDENTIAL=             # the initiator password encrypted with Safaricom's certificate
+   MPESA_CA_FILE=                         # leave empty on Linux; only for a PHP with no CA bundle
+   ```
+   Values with spaces need double quotes. Changing the token changes the callback addresses, so
+   transactions still waiting for an answer are settled by `mpesa/reconcile` instead.
+3. **Timer** for `mpesa/reconcile`:
+   ```bash
+   sudo cp deploy/systemd/doctors-appointment-mpesa.* deploy/systemd/doctors-appointment.target /etc/systemd/system/
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now doctors-appointment-mpesa.timer
+   sudo systemctl restart doctors-appointment.target
+   ```
+4. **Reachable callbacks:** Safaricom posts to the site over HTTPS from the internet. Nothing in
+   nginx may block `POST /mpesa/…`.
+5. **Check:**
+   - `sudo -u www-data php yii mpesa/check`: settings (secrets hidden), the callback address, and
+     "Access token: OK";
+   - on the sandbox, `sudo -u www-data php yii mpesa/test-stk 07XXXXXXXX 1`: the phone shows a
+     prompt for KES 1 (no money moves on the sandbox), and the command reports **succeeded** with a
+     receipt, or **cancelled** if the prompt is declined;
+   - `sudo -u www-data php yii mpesa/status <id>` shows one transaction.
+6. **Going live** (when the pilot's fees start): apply for go-live on the Daraja portal for the
+   paybill. Then set the live consumer key and secret, shortcode, passkey and B2C credentials,
+   `MPESA_ENV=production`, and run `mpesa/check` again. Production B2C credentials take longer, so
+   apply early.
+
 ---
 
 ## Deferred
 
 | Item | Why | Needs before starting |
 |---|---|---|
-| M-Pesa deposits (STK push) | A project of its own. | Safaricom Daraja credentials (shortcode, passkey, API keys), a public callback URL, and a refund / expiry policy. |
+| G3 Triage and priority (from USER_STORIES.md) | Deferred on 15 Nov 2026: bookings are first come, first served, and it is not yet clear the clinics want an override. | A decision on who sets urgency (patient, front desk or consultant) and what it changes: queue order on the day, or access to held-back slots. |
+| G8 Rooms and equipment (from USER_STORIES.md) | Deferred on 15 Nov 2026: capacity is the consultants' hours, which is enough while each consultant has a room. | A facility that shares rooms or equipment between consultants, and how it books them today. |
 | F10 Kiswahili translation | Deferred on 11 Nov 2026. Approach agreed in outline: Yii message files, a per-user language, patient-facing pages and all outgoing messages first, then staff screens. | A translator or reviewer for medical and legal wording, the default language for walk-ins, and the PHP `intl` extension on the server. |
 
 ---
@@ -510,22 +663,52 @@ Priority: **P1** do next, **P2** soon, **P3** when there is time. Impact is the 
 | # | Item | Priority | Impact |
 |---|---|---|---|
 | F2 | WhatsApp booking confirmations for every booking, not only booking links. | P2 | |
+| F14 | Tell affected patients when a facility closes a day or a consultant adds time off, with a link to pick a new time, and let staff move the clashing bookings in bulk instead of one by one. (from G7) | P1 | +0.5 |
 
-#### Payments
+#### Front desk and the day of the visit
 
 | # | Item | Priority | Impact |
 |---|---|---|---|
-| F5 | M-Pesa deposits for new or no-show-prone patients (see **Deferred**). | P2 | +0.5 |
+| F13 | Front desk can confirm appointments for their consultants, for example after a patient confirms by phone. Today only the consultant can. (from G2) | P1 | |
+| F15 | Check-in on the day: "arrived" and "in consultation" states and a waiting-room queue for the front desk. (from G1) | P2 | +0.5 |
+| F18 | Capture the patient's insurer and member number at booking, check them against the covers the consultant accepts, and let the front desk record pre-authorisation (pending, approved, declined). Cash or insurance itself is asked from day 31 under F22. Needed by **day 61** of the pilot ([business case](business-case.md)). (from G5) | P1 | |
+| F19 | A structured intake form (reason, history, medication, allergies) in place of the free-text symptoms brief. (from G4) | P3 | |
+
+#### Facility admins
+
+| # | Item | Priority | Impact |
+|---|---|---|---|
+| F16 | Capacity use: booked minutes as a share of available minutes, per consultant and per facility, on the dashboard. (from G9) | P2 | |
+| F17 | Facility admins invite a consultant to their facility directly and edit that consultant's hours there. Needs a decision on what the consultant must approve. (from G10) | P2 | |
+
+#### Commercial pilot
+
+From [business-case.md](business-case.md) and pilot agreement v1.2. Each consultant's 90-day pilot runs
+from their first booking; "day N" below counts from the first consultant to get a booking at the first
+pilot facility. Amounts and M-Pesa credentials come from `.env`.
+
+| # | Item | Priority | Impact |
+|---|---|---|---|
+| ~~F5~~ | ~~M-Pesa deposits for new or no-show-prone patients.~~ **Replaced by F23–F25** (from G12). | — | |
+| F20 | Pilot groundwork: every booking records its channel (online, staff, booking link, walk-in); every cancellation records who, on whose side and whether the patient asked; each consultant's first booking is stored once; facility agreements (version, signatories, date) are recorded. Needed by **day 1**, because month 1 is the no-show baseline. | P1 | |
+| F21 | Mask patients' phone numbers and emails in lists, boards, search results and exports; show them in full when staff open an appointment they may handle, and audit that view. Needed by **day 1**. | P1 | |
+| F22 | Commitment fee at booking: Ksh 250 by STK push with the slot held while the patient pays; exemptions (pilot days 1–30, Plan B, same-day walk-ins at reception, one fee a day across consultants); patient booking terms; cash or insurance, and each consultant's choice to absorb the fee for insured patients. Needed by **day 31**. | P1 | +0.5 |
+| F23 | Fee after booking: moves with a reschedule more than 24 hours ahead; kept on a no-show or a later cancellation; a free rebooking credit when the clinic cancels, refunded to M-Pesa if the patient asks. Absorbed fees follow the same rules. Needed by **day 31**. | P1 | |
+| F24 | Front-desk incentive: Ksh 50 per completed Plan A booking, pending until then; cancelled on a no-show, a cancellation, or a cancel-and-rebook of the same patient within 24 hours (flagged); paid weekly, by hand with an M-Pesa reference until B2C is live. Needed by **day 31**, first payout around day 38. | P1 | |
+| F25 | Consultant invoices: monthly statements of absorbed fees from day 31; from day 91, the plan charge per active consultant (one with an appointment that month) and Ksh 100 per cancellation by the consultant or their front desk (not at the patient's request or for a closure), emailed each time. Paid by STK push; reminders, then online booking paused 14 days after the due date. | P1 | |
+| F26 | The 90-day pilot report: each consultant's month 1 against months 2 and 3 (no-shows, late cancellations, advance bookings against walk-ins, fees collected, absorbed, credited and refunded, incentives), added up per facility. Needed by **day 90**. | P2 | |
+| F27 | A facility leaving: unused patient credits refunded, earned incentives paid, pending ones paid only if completed before the exit date. Needed by **day 91**. | P3 | |
+| F28 | Backend for platform admins: sign-in, the RBAC menu shared with the frontend as one module, and screens for agreements and pilots, payments and refunds, weekly payouts, plans and invoices, and the pilot report. Payout screens by **day 31**, the rest by day 91. | P1 | |
 
 #### Scheduling depth
 
 | # | Item | Priority | Impact |
 |---|---|---|---|
 | F6 | Visit types with their own lengths (first consultation, review…); the unused `service_id` column is available. | P2 | |
-| F7 | Recurring appointments (the `recurring_appointment` field exists but nothing uses it). | P3 | |
+| F7 | Recurring appointments (the `recurring_appointment` field exists but nothing uses it). (from G6) | P3 | |
 | F8 | Consultants engaged at several facilities: one calendar, hours, session lengths, fees and front desk per facility, patient history scoped to a facility. In three phases; see **F8 Multiple facilities** below. **All three phases done** (`feature/facilities`, `feature/facilities-phase2`, `feature/facilities-phase3`), plus facility admins (`feature/facility-admins`). | P3 | Done |
 | F9 | Calendar sync (iCal / Google) for consultants. **Done** with F8 phase 3: a read-only iCal feed. Two-way sync (Google Calendar API) is not planned. | P3 | Done |
-| F10 | Swahili translation (see **Deferred**). | P3 | |
+| F10 | Swahili translation (see **Deferred**). (from G13) | P3 | |
 
 #### F8 Multiple facilities
 
@@ -673,7 +856,7 @@ Built as planned below, with these choices made on 12 Nov 2026:
 
 | # | Item | Priority | Impact |
 |---|---|---|---|
-| T4 | CI that runs the test suites (and PHPStan) on every push. A full local run takes about 10 minutes. | P1 | +0.5 (with T2) |
+| ~~T4~~ | ~~CI that runs the test suites on every push.~~ **Done** on Gitea Actions, with deploys of release tags. PHPStan joins it under T5. | — | +0.5 (with T2) |
 | T5 | Static analysis (PHPStan) at a modest level, raised over time. | P2 | |
 
 #### Architecture
@@ -689,9 +872,20 @@ Built as planned below, with these choices made on 12 Nov 2026:
 | # | Item | Priority | Impact |
 |---|---|---|---|
 | T9 | The booking-link rate limit uses the file cache, which only works on one server; use Redis if the app runs on more than one. | P3 | |
+| T10 | Waiting-list notices for new hours, removed time off and new sessions go out when the change is saved, not on the 15-minute `waitlist/sweep`. (from G11) | P3 | |
+
+#### Payments integration
+
+| # | Item | Priority | Impact |
+|---|---|---|---|
+| T11 | M-Pesa (Daraja) component: OAuth token, STK push and status query, B2C; every credential and amount from `.env` (`MPESA_ENV=sandbox` until go-live); a token-checked, idempotent callback; `php yii mpesa/test-stk` for the sandbox. Apply for production paybill and B2C credentials early. Needed before **day 31**; see [business-case.md](business-case.md). | P1 | |
 
 ## Next up
 
-1. **T4** CI on every push.
-2. **F12** Patients export and delete their data (completes the closure requests from F11).
-3. **F5** M-Pesa deposits, once Daraja credentials are available.
+1. **F20, F21** Pilot groundwork and masked contacts, before the first pilot booking.
+2. **T11** The M-Pesa component, tested on the Daraja sandbox (starts at once; needs only sandbox credentials).
+3. **F22, F23, F24, F28** (payouts) The fee, its rules and incentives, by day 31 of the pilot.
+4. **F13** Front desk confirms appointments (a small permission change).
+5. **F14** Patients are told when a closure or time off clashes with their booking.
+6. **F25, F18, F26** Invoices, insurer details and the pilot report, on the pilot's dates.
+7. **F12** Patients export and delete their data (completes the closure requests from F11).

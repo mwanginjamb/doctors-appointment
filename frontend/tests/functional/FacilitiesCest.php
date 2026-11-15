@@ -219,8 +219,10 @@ class FacilitiesCest
     public function selfServiceOffersTimesAtTheSameFacilityOnly(FunctionalTester $I)
     {
         $this->engageAtAvenue();
-        // Self-service needs the appointment more than 24 hours ahead: the fixture Monday is
-        $appointment = $this->book('09:00');
+        // Self-service needs the appointment more than 24 hours ahead, which the fixture Monday is not
+        // on a Sunday
+        $appointment = $this->newBooking('09:00', null, $this->laterMonday());
+        $I->assertTrue($appointment->saveBooking(), json_encode($appointment->errors));
         $I->amOnRoute('manage/index', ['id' => $appointment->id, 'sig' => SelfServiceLink::signature($appointment)]);
 
         $I->see('Main clinic');
