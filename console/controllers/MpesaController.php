@@ -48,7 +48,8 @@ class MpesaController extends Controller
 
     /**
      * Sends an STK push to a phone, then follows it by status query until it ends (or 2 minutes
-     * pass). On the sandbox the prompt reaches the phone but no money moves.
+     * pass), then waits up to 15 seconds more for the receipt, which only the callback brings. On
+     * the sandbox the prompt reaches the phone but no money moves.
      *
      * Usage: php yii mpesa/test-stk 0712345678 [amount=1]
      */
@@ -84,6 +85,20 @@ class MpesaController extends Controller
             $this->stdout('.');
         }
         $this->stdout("\n");
+
+        // A status query can settle the payment before Safaricom's callback brings the receipt
+        if ($transaction->status === MpesaTransaction::STATUS_SUCCEEDED && !$transaction->receipt) {
+            $this->stdout('Paid; waiting for the receipt from the callback');
+            for ($i = 0; $i < 15 && !$transaction->receipt; $i++) {
+                sleep(1);
+                $transaction->refresh();
+                $this->stdout('.');
+            }
+            $this->stdout("\n");
+            if (!$transaction->receipt) {
+                $this->stdout("No callback yet; check later with: php yii mpesa/status {$transaction->id}\n", Console::FG_YELLOW);
+            }
+        }
 
         return $this->report($transaction);
     }
