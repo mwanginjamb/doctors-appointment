@@ -41,7 +41,6 @@ use yii\bootstrap5\ActiveForm;
 
     <?= $form->field($model, 'recurring_appointment')->checkbox() ?>
 
-    <?= $form->field($model, 'walk_in_appointment')->checkbox() ?>
 
     <?= $form->field($model, 'symptoms_brief')->textarea(['rows' => 6]) ?>
 

@@ -84,6 +84,12 @@ Doing **Next up** below should bring the app to about 9.5 functionally.
 | T4 CI and deploys | Gitea Actions (`.gitea/workflows/ci.yml`) runs every Codeception suite on each push and pull request: MySQL 8 and PHP 8.3 as on the server, a test database built from scratch (migrations, RBAC, `rbac/init`). A pushed `vX.Y.Z` tag that passes is deployed by the **deploy** job over SSH with a key that can only run `deploy/deploy.sh`: it checks the tag is on `main`, backs up the database, then runs composer, migrations and `rbac/init`, restarts the services and checks `/health`. A full run takes about 25 minutes. | `feature/ci` |
 | T11 M-Pesa (Daraja) | `Yii::$app->mpesa` sends STK pushes, queries their outcome and makes B2C payments, every setting from `.env` (`MPESA_*`), so going live only changes `.env`. Each request is a row in `mpesa_transaction`. Safaricom answers at `POST /mpesa/{stk,b2c-result,b2c-timeout}/<token>`: a wrong token is a 404, a payment is settled once, an STK success counts only when a status query confirms it, and a callback that arrives after a query still records the receipt. `mpesa/reconcile` (every 5 minutes) settles payments whose callback never came. `Mpesa::EVENT_SETTLED` is for the commitment-fee features. | `feature/mpesa` |
 
+### Commercial pilot
+
+| Item | What it does | Branch |
+|---|---|---|
+| F20 Pilot groundwork | Every new booking records its channel (`online`, `link`, `staff` for a later day, `walk_in` for the same day), worked out by `BookingService::channelOf()` when it is saved. Every cancellation records who cancelled, on whose side (patient, consultant, front desk, facility, system) and whether the patient asked: patients and the manage link count as the patient asking; staff must answer "Why is it cancelled?" (the patient asked, the facility is closed, the clinic decided), with the facility answer pre-selected on a closed day. Each consultant's first booking is stored once in `consultant.first_booking_at` and starts their 90-day pilot; `frontend\services\Pilot` gives the day and phase. Facility agreements (version, signatories, date, walk-in exemption) are in `facility_agreement`, recorded with `php yii pilot/agreement` until the admin screens (F28); `pilot/status` lists pilots and agreements. | `feature/pilot-groundwork` |
+
 ### Scheduling depth
 
 | Item | What it does | Branch |
@@ -641,6 +647,25 @@ F24) listen for it. Nothing asks patients to pay yet.
    `MPESA_ENV=production`, and run `mpesa/check` again. Production B2C credentials take longer, so
    apply early.
 
+### F20 Pilot groundwork
+
+What the 90-day pilot needs recorded from the first booking: month 1 is each consultant's no-show
+baseline. Nothing is charged yet.
+
+1. **Database:** `php yii migrate` runs `m261201_090000_pilot_groundwork`: `booking_channel` and the
+   `cancelled_*` columns on `appointments`, `first_booking_at` on `consultant`, and the
+   `facility_agreement` table. Existing appointments keep an empty channel, and existing consultants
+   an empty pilot start: their pilot starts at their next booking.
+2. **Test bookings:** a test booking made after the deploy starts that consultant's pilot. Undo it
+   with `sudo -u www-data php yii pilot/restart <consultant user id>`.
+3. **Agreements:** record each facility's signed agreement:
+   ```bash
+   sudo -u www-data php yii pilot/agreement <facility id> "Jane Doe, Medical Director" "Gumzo HealthFirst" --version=1.2 --signedOn=2026-11-20
+   ```
+   Add `--walkInExempt=0` if the facility chose to charge same-day walk-ins.
+4. **Check:** `sudo -u www-data php yii pilot/status` lists each consultant's first booking, pilot day
+   and phase, and each facility's agreement. As staff, cancelling an appointment now asks why.
+
 ---
 
 ## Deferred
@@ -691,7 +716,7 @@ pilot facility. Amounts and M-Pesa credentials come from `.env`.
 | # | Item | Priority | Impact |
 |---|---|---|---|
 | ~~F5~~ | ~~M-Pesa deposits for new or no-show-prone patients.~~ **Replaced by F23–F25** (from G12). | — | |
-| F20 | Pilot groundwork: every booking records its channel (online, staff, booking link, walk-in); every cancellation records who, on whose side and whether the patient asked; each consultant's first booking is stored once; facility agreements (version, signatories, date) are recorded. Needed by **day 1**, because month 1 is the no-show baseline. | P1 | |
+| ~~F20~~ | ~~Pilot groundwork: every booking records its channel (online, staff, booking link, walk-in); every cancellation records who, on whose side and whether the patient asked; each consultant's first booking is stored once; facility agreements (version, signatories, date) are recorded.~~ **Done** (see Done, Commercial pilot). | — | |
 | F21 | Mask patients' phone numbers and emails in lists, boards, search results and exports; show them in full when staff open an appointment they may handle, and audit that view. Needed by **day 1**. | P1 | |
 | F22 | Commitment fee at booking: Ksh 250 by STK push with the slot held while the patient pays; exemptions (pilot days 1–30, Plan B, same-day walk-ins at reception, one fee a day across consultants); patient booking terms; cash or insurance, and each consultant's choice to absorb the fee for insured patients. Needed by **day 31**. | P1 | +0.5 |
 | F23 | Fee after booking: moves with a reschedule more than 24 hours ahead; kept on a no-show or a later cancellation; a free rebooking credit when the clinic cancels, refunded to M-Pesa if the patient asks. Absorbed fees follow the same rules. Needed by **day 31**. | P1 | |
@@ -883,7 +908,7 @@ Built as planned below, with these choices made on 12 Nov 2026:
 
 ## Next up
 
-1. **F20, F21** Pilot groundwork and masked contacts, before the first pilot booking.
+1. **F21** Masked contacts, before the first pilot booking (F20 is done).
 2. **F22, F23, F24, F28** (payouts) The fee, its rules and incentives, by day 31 of the pilot.
 3. **F13** Front desk confirms appointments (a small permission change).
 4. **F14** Patients are told when a closure or time off clashes with their booking.

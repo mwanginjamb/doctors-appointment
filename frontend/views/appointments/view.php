@@ -37,7 +37,10 @@ $this->params['breadcrumbs'][] = $this->title;
             <?php endif; ?>
         <?php endif; ?>
     </p>
-    <?= $model->canBeCancelled() ? $this->render('_cancel_modal', ['action' => Url::to(['cancel', 'id' => $model->id])]) : '' ?>
+    <?= $model->canBeCancelled() ? $this->render('_cancel_modal', [
+        'action' => Url::to(['cancel', 'id' => $model->id]),
+        'facilityClosed' => $model->facility_id && \frontend\models\FacilityClosure::isClosed($model->facility_id, $model->date),
+    ]) : '' ?>
 
     <?php $staffView = \frontend\components\FrontDesk::canRecordOutcome($model); ?>
     <?php if ($staffView && $model->canRecordOutcome()): ?>

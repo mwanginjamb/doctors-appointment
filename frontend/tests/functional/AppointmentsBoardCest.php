@@ -97,12 +97,16 @@ class AppointmentsBoardCest
         $I->amOnRoute('appointments/view', ['id' => $this->withDrTest->id]);
         $I->seeResponseCodeIs(200);
 
-        $I->submitForm('#cancel-appointment-form', ['note' => 'Clinic closed for maintenance']);
+        $I->submitForm('#cancel-appointment-form', ['note' => 'Clinic closed for maintenance', 'reason' => 'facility_closed']);
 
         $cancelled = Appointments::findOne($this->withDrTest->id);
         $I->assertSame(Appointments::STATUS_CANCELLED, $cancelled->status);
         $I->assertSame('Clinic closed for maintenance', $cancelled->cancellation_note);
         $I->assertSame($this->admin->id, (int) $cancelled->updated_by);
+        // F20: a facility closure is on the facility's side, whoever cancels
+        $I->assertSame($this->admin->id, (int) $cancelled->cancelled_by);
+        $I->assertSame(Appointments::PARTY_FACILITY, $cancelled->cancelled_party);
+        $I->assertSame(0, (int) $cancelled->cancelled_at_patient_request);
     }
 
     public function adminCannotEditOrConfirmOthersAppointments(FunctionalTester $I)

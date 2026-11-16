@@ -283,6 +283,7 @@ $today = date('Y-m-d');
                                 'bs-toggle' => 'modal',
                                 'bs-target' => '#cancelAppointmentModal',
                                 'cancel-url' => Url::to(['/appointments/cancel', 'id' => $model->id]),
+                                'facility-closed' => $model->facility_id && \frontend\models\FacilityClosure::isClosed($model->facility_id, $model->date) ? '1' : '0',
                             ],
                         ]);
                     }

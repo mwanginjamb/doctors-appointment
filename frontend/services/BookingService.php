@@ -50,6 +50,26 @@ class BookingService extends BaseObject
     }
 
     /**
+     * F20: how a new booking is being made; Appointments::beforeSave() records it once the slot is
+     * validated (the facility is known then). A booking link is its own channel; the consultant or
+     * their front desk book a walk-in for today or a staff booking for a later day; anyone else
+     * (the patient, signed in or from a waiting-list link) books online.
+     */
+    public function channelOf(Appointments $appointment)
+    {
+        if ($appointment->booking_link_id) {
+            return Appointments::CHANNEL_LINK;
+        }
+        if ($this->isClinicSide($appointment)) {
+            return $appointment->date === date('Y-m-d', $this->now())
+                ? Appointments::CHANNEL_WALK_IN
+                : Appointments::CHANNEL_STAFF;
+        }
+
+        return Appointments::CHANNEL_ONLINE;
+    }
+
+    /**
      * Moves an appointment to another start time, keeping the length it was booked with. On failure
      * the reasons are in $appointment->errors.
      *

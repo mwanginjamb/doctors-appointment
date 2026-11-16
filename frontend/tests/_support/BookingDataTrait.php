@@ -113,6 +113,20 @@ trait BookingDataTrait
         return date('Y-m-d', strtotime('next monday', strtotime('+2 days')));
     }
 
+    /**
+     * Tomorrow, or the day after when tomorrow is a Sunday: open in the default week (Mon–Sat) and
+     * within any "next 7 days" window, whatever day the tests run.
+     */
+    protected function soonOpenDay()
+    {
+        $day = strtotime('tomorrow');
+        if (date('N', $day) == 7) {
+            $day = strtotime('+1 day', $day);
+        }
+
+        return date('Y-m-d', $day);
+    }
+
     protected function book($time, $patient = null)
     {
         $appointment = $this->newBooking($time, $patient);

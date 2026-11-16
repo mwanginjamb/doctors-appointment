@@ -135,7 +135,7 @@ class FacilityAdminCest
 
         $I->amOnRoute('appointments/view', ['id' => $this->atMain->id]);
         $I->seeResponseCodeIs(200);
-        $I->submitForm('#cancel-appointment-form', ['note' => 'Clinic closed early']);
+        $I->submitForm('#cancel-appointment-form', ['note' => 'Clinic closed early', 'reason' => 'clinic']);
         $I->assertSame(Appointments::STATUS_CANCELLED, Appointments::findOne($this->atMain->id)->status);
 
         $refused = $I->sendJsonPost(['/api/visit'], [
