@@ -1,0 +1,17 @@
+# Fires doctors-appointment-pilot.service every morning.
+#
+#   systemctl list-timers doctors-appointment-pilot.timer   # last / next run
+
+[Unit]
+Description=Send due standard-terms notices daily
+PartOf=doctors-appointment.target
+
+[Timer]
+OnCalendar=*-*-* 08:00:00
+RandomizedDelaySec=10min
+# A run missed while the server was off happens at boot; notices are sent once anyway
+Persistent=true
+Unit=doctors-appointment-pilot.service
+
+[Install]
+WantedBy=doctors-appointment.target

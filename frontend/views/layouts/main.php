@@ -213,6 +213,7 @@ $username = Yii::$app->user->identity->username ?? 'User';
             <?= Alert::widget([
                 'options' => ['class' => 'my-3']
             ]) ?>
+            <?= $this->render('_standard_terms_banner') ?>
             <?= $content ?>
         </div>
     </main>

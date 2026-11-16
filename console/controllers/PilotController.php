@@ -6,6 +6,7 @@ use frontend\models\Consultant;
 use frontend\models\Facility;
 use frontend\models\FacilityAgreement;
 use frontend\services\Pilot;
+use frontend\services\StandardTerms;
 use yii\console\Controller;
 use yii\console\ExitCode;
 use yii\helpers\Console;
@@ -56,10 +57,12 @@ class PilotController extends Controller
         $this->stdout("\nAgreements:\n");
         foreach (Facility::find()->orderBy('name')->all() as $facility) {
             $agreement = FacilityAgreement::currentFor($facility->id);
+            $day = Pilot::facilityDay($facility->id);
             $this->stdout(sprintf("  %-30s %s\n", mb_substr($facility->name, 0, 30), $agreement
                 ? "v{$agreement->version}, signed {$agreement->signed_on} by {$agreement->facility_signatory}"
                     . ($agreement->walk_in_exempt ? '' : ', walk-ins pay')
                     . ($agreement->ended_on ? ", left {$agreement->ended_on}" : '')
+                    . '; pilot day ' . ($day ?? '—') . ', standard terms: ' . Pilot::termsLabels()[Pilot::termsStatus($facility->id)]
                 : 'none signed'));
         }
 
@@ -89,6 +92,68 @@ class PilotController extends Controller
             return ExitCode::DATAERR;
         }
         $this->stdout("Recorded agreement v{$agreement->version} for {$agreement->facility->name} (#{$agreement->id}).\n", Console::FG_GREEN);
+
+        return ExitCode::OK;
+    }
+
+    /**
+     * Step 1 for a facility, by a platform admin acting on the facility's word: confirms its
+     * standard terms. Its front desk or facility admin normally confirm on its terms page
+     * (/terms/<facility id>). A platform admin then approves (pilot/approve-standard).
+     *
+     * Usage: php yii pilot/confirm-standard <facility id>
+     */
+    public function actionConfirmStandard($facilityId)
+    {
+        $facility = Facility::findOne((int) $facilityId);
+        if ($facility === null) {
+            $this->stderr("No facility $facilityId.\n", Console::FG_RED);
+            return ExitCode::DATAERR;
+        }
+        if (!StandardTerms::confirm($facility->id)) {
+            $this->stderr("{$facility->name} has no agreement recorded, or its standard terms are already confirmed.\n", Console::FG_RED);
+            return ExitCode::DATAERR;
+        }
+        $this->stdout("Standard terms confirmed for {$facility->name}. Approve them with: php yii pilot/approve-standard {$facility->id}\n", Console::FG_GREEN);
+
+        return ExitCode::OK;
+    }
+
+    /**
+     * Step 2: approves standard terms the facility confirmed; they apply from then, and the facility
+     * is told. Platform admins can also approve on the terms page.
+     *
+     * Usage: php yii pilot/approve-standard <facility id>
+     */
+    public function actionApproveStandard($facilityId)
+    {
+        $facility = Facility::findOne((int) $facilityId);
+        if ($facility === null) {
+            $this->stderr("No facility $facilityId.\n", Console::FG_RED);
+            return ExitCode::DATAERR;
+        }
+        if (!StandardTerms::approve($facility->id)) {
+            $this->stderr("{$facility->name} has not confirmed standard terms yet, or they are already approved.\n", Console::FG_RED);
+            return ExitCode::DATAERR;
+        }
+        $this->stdout("Standard terms approved for {$facility->name}.\n", Console::FG_GREEN);
+
+        return ExitCode::OK;
+    }
+
+    /**
+     * Sends the standard-terms notices that are due: day 81 and day 91 to the facility admin and
+     * front desk, day 121 (still unconfirmed) to platform admins. Each is sent once; run daily.
+     *
+     * Usage: php yii pilot/notify
+     */
+    public function actionNotify()
+    {
+        $sent = StandardTerms::sendDueNotices();
+        foreach ($sent as $line) {
+            $this->stdout($line . "\n");
+        }
+        $this->stdout(count($sent) . " notices.\n");
 
         return ExitCode::OK;
     }

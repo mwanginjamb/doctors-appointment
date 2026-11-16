@@ -90,6 +90,7 @@ Doing **Next up** below should bring the app to about 9.5 functionally.
 |---|---|---|
 | F20 Pilot groundwork | Every new booking records its channel (`online`, `link`, `staff` for a later day, `walk_in` for the same day), worked out by `BookingService::channelOf()` when it is saved. Every cancellation records who cancelled, on whose side (patient, consultant, front desk, facility, system) and whether the patient asked: patients and the manage link count as the patient asking; staff must answer "Why is it cancelled?" (the patient asked, the facility is closed, the clinic decided), with the facility answer pre-selected on a closed day. Each consultant's first booking is stored once in `consultant.first_booking_at` and starts their 90-day pilot; `frontend\services\Pilot` gives the day and phase. Facility agreements (version, signatories, date, walk-in exemption) are in `facility_agreement`, recorded with `php yii pilot/agreement` until the admin screens (F28); `pilot/status` lists pilots and agreements. | `feature/pilot-groundwork` |
 | F21 Masked contacts | Patients' phone numbers and emails are partly hidden (`0712***678`, `j***@mail.com`, by `common\helpers\Contact`) on the board, the waiting list, booking links, closure requests, the users list (patients only; staff accounts are shown) and the calendar's patient search. The appointment page shows them in full to the patient and to staff who may handle it; each staff member's view is audited once a day per appointment ("Patient's contact viewed"). | `feature/masked-contacts` |
+| Standard terms confirmation | A facility's move to standard terms follows its earliest pilot, in two steps: the facility confirms, then a platform admin approves. On day 81 and day 91 its facility admin and front desk are emailed, with a button to the facility's terms page (`/terms/<facility id>`): the plans, the Ksh 100 charge where the agreement includes it, and **Confirm standard terms** for its front desk or facility admin (or a platform admin for it). From day 91 until confirmed, its consultants, front desk and facility admin see a warning on every page linking there; after the 30-day grace period (day 121) platform admins are emailed and the warning stays. Confirming emails the platform admins and shows them a warning until they **Approve standard terms**; approving emails the facility. Nothing is charged until approved: `Pilot::onStandardTerms()` needs the consultant past their own day 90 and their facility's terms approved. `php yii pilot/notify` (daily timer) sends the day 81, 91 and 121 emails; `pilot/confirm-standard` and `pilot/approve-standard` do the two steps from the console. | `feature/standard-terms` |
 
 ### Scheduling depth
 
@@ -666,6 +667,26 @@ baseline. Nothing is charged yet.
    Add `--walkInExempt=0` if the facility chose to charge same-day walk-ins.
 4. **Check:** `sudo -u www-data php yii pilot/status` lists each consultant's first booking, pilot day
    and phase, and each facility's agreement. As staff, cancelling an appointment now asks why.
+
+### Standard terms confirmation
+
+1. **Database:** `php yii migrate` runs `m261202_090000_standard_terms_confirmation` (who confirmed,
+   and which notices went out, on `facility_agreement`).
+2. **Timer** for the daily notices:
+   ```bash
+   sudo cp deploy/systemd/doctors-appointment-pilot.* deploy/systemd/doctors-appointment.target /etc/systemd/system/
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now doctors-appointment-pilot.timer
+   sudo systemctl restart doctors-appointment.target
+   ```
+3. **Who gets the emails:** active facility admin and front-desk accounts whose facility is set, with
+   an email. Check each facility has at least one.
+4. **Check:** `sudo -u www-data php yii pilot/status` shows each facility's pilot day and where its
+   standard terms stand; `sudo -u www-data php yii pilot/notify` sends what is due (safe to repeat).
+5. **The two steps:** the facility confirms on `/terms/<facility id>`; a platform admin then approves
+   there (they see a warning on every page until they do). From the console:
+   `php yii pilot/confirm-standard <facility id>` (for the facility) and
+   `php yii pilot/approve-standard <facility id>`.
 
 ### F21 Masked contacts
 
