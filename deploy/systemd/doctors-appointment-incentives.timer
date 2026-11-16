@@ -1,0 +1,17 @@
+# Fires doctors-appointment-incentives.service every Monday morning.
+#
+#   systemctl list-timers doctors-appointment-incentives.timer   # last / next run
+
+[Unit]
+Description=Build the weekly front-desk payouts every Monday
+PartOf=doctors-appointment.target
+
+[Timer]
+OnCalendar=Mon *-*-* 06:00:00
+RandomizedDelaySec=10min
+# A Monday missed while the server was off runs at boot; the run is safe to repeat
+Persistent=true
+Unit=doctors-appointment-incentives.service
+
+[Install]
+WantedBy=doctors-appointment.target

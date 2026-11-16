@@ -129,6 +129,8 @@ class AuditLog extends ActiveRecord
             'facility_agreement' => 'Facility agreement',
             'commitment_fee' => 'Commitment fee',
             'patient_credit' => 'Rebooking credit',
+            'frontdesk_incentive' => 'Front-desk incentive',
+            'incentive_payout' => 'Front-desk payout',
         ];
     }
 
