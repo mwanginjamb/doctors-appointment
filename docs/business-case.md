@@ -239,6 +239,21 @@ Safeguards:
    These are triggered from `cancel()`, `reschedule()`, `recordOutcome()` and facility closures.
 6. The patient accepts the **booking terms** (forfeit, transfer, at most one fee a day) at booking.
    This sits beside the existing consent step.
+7. **Decided on 16 November 2026** for building it:
+   - an unpaid booking holds its slot for **10 minutes** (`COMMITMENT_FEE_HOLD_MINUTES`), then the
+     slot is released;
+   - **staff bookings ahead** send the prompt to the patient's phone too, with the slot held, as
+     online;
+   - **platform admins set each consultant's plan** (`php yii pilot/plan`, an admin screen with F28);
+     every consultant starts on **Plan A, insured patients paying**;
+   - F22 asks only **cash or insurance**; the insurer, member number and pre-authorisation come
+     with F18;
+   - the prompt goes to the **patient's phone, which they or staff can change** before sending (a
+     relative may pay);
+   - fees are switched on per server with **`COMMITMENT_FEE_ENABLED=1`**, once live M-Pesa
+     credentials are in `.env`; until then nothing is charged or absorbed;
+   - "one fee a day" counts fees the patient **paid or is paying**: a fee a consultant absorbed for
+     an insured patient does not exempt the patient's next booking that day.
 
 ### Front-desk incentive (Ksh 50)
 

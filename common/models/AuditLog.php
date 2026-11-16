@@ -126,6 +126,8 @@ class AuditLog extends ActiveRecord
             'rbac' => 'Role / permission',
             'audit_log' => 'Audit log',
             'closure_request' => 'Account closure request',
+            'facility_agreement' => 'Facility agreement',
+            'commitment_fee' => 'Commitment fee',
         ];
     }
 

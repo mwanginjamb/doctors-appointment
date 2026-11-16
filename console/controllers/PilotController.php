@@ -5,6 +5,7 @@ namespace console\controllers;
 use frontend\models\Consultant;
 use frontend\models\Facility;
 use frontend\models\FacilityAgreement;
+use frontend\services\FeeRules;
 use frontend\services\Pilot;
 use frontend\services\StandardTerms;
 use yii\console\Controller;
@@ -22,12 +23,17 @@ class PilotController extends Controller
     public $signedOn;
     /** @var bool whether same-day walk-ins at reception pay no commitment fee, for pilot/agreement */
     public $walkInExempt = true;
+    /** @var bool|null Plan A: whether insured patients pay the fee, for pilot/plan; unchanged when not given */
+    public $insuredPay;
 
     public function options($actionID)
     {
         $options = parent::options($actionID);
         if ($actionID === 'agreement') {
             $options = array_merge($options, ['version', 'signedOn', 'walkInExempt']);
+        }
+        if ($actionID === 'plan') {
+            $options[] = 'insuredPay';
         }
 
         return $options;
@@ -50,10 +56,13 @@ class PilotController extends Controller
         foreach ($consultants as $consultant) {
             $first = $consultant->first_booking_at ? date('Y-m-d', $consultant->first_booking_at) : '—';
             $day = Pilot::day($consultant);
-            $this->stdout(sprintf("%-30s first booking %-10s  day %-4s %s\n",
-                mb_substr((string) $consultant->names, 0, 30), $first, $day ?? '—', $labels[Pilot::phase($consultant)]));
+            $this->stdout(sprintf("%-30s plan %s%s  first booking %-10s  day %-4s %s\n",
+                mb_substr((string) $consultant->names, 0, 30), $consultant->plan,
+                $consultant->plan === FeeRules::PLAN_A && !$consultant->insured_pay ? ' (absorbs for insured)' : '',
+                $first, $day ?? '—', $labels[Pilot::phase($consultant)]));
         }
 
+        $this->stdout('Commitment fees: ' . (FeeRules::enabled() ? 'on, Ksh ' . FeeRules::amount() : 'off (COMMITMENT_FEE_ENABLED=0)') . "\n");
         $this->stdout("\nAgreements:\n");
         foreach (Facility::find()->orderBy('name')->all() as $facility) {
             $agreement = FacilityAgreement::currentFor($facility->id);
@@ -154,6 +163,36 @@ class PilotController extends Controller
             $this->stdout($line . "\n");
         }
         $this->stdout(count($sent) . " notices.\n");
+
+        return ExitCode::OK;
+    }
+
+    /**
+     * F22: sets a consultant's plan: A (the patient pays the commitment fee) or B (flat, no fee).
+     * On Plan A, --insuredPay=0 makes the consultant absorb the fee for insured patients.
+     *
+     * Usage: php yii pilot/plan <consultant user id> <A|B> [--insuredPay=0|1]
+     */
+    public function actionPlan($userId, $plan)
+    {
+        $consultant = Consultant::findOne(['user_id' => (int) $userId]);
+        if ($consultant === null) {
+            $this->stderr("No consultant with user id $userId.\n", Console::FG_RED);
+            return ExitCode::DATAERR;
+        }
+        $plan = strtoupper((string) $plan);
+        if (!array_key_exists($plan, FeeRules::planLabels())) {
+            $this->stderr("The plan is A or B.\n", Console::FG_RED);
+            return ExitCode::DATAERR;
+        }
+        $attributes = ['plan' => $plan];
+        if ($this->insuredPay !== null) {
+            $attributes['insured_pay'] = filter_var($this->insuredPay, FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
+        }
+        $consultant->setAttributes($attributes, false);
+        $consultant->save(false, array_keys($attributes));
+        $this->stdout("{$consultant->names}: " . FeeRules::planLabels()[$plan]
+            . ($plan === FeeRules::PLAN_A ? ($consultant->insured_pay ? ', insured patients pay' : ', absorbs the fee for insured patients') : '') . ".\n", Console::FG_GREEN);
 
         return ExitCode::OK;
     }

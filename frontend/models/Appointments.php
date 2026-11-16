@@ -47,6 +47,7 @@ use yii\behaviors\TimestampBehavior;
  * @property string|null $cancelled_party F20: on whose side: patient, consultant, front_desk, facility or system
  * @property int|null $cancelled_at_patient_request F20: 1 when the patient asked for the cancellation
  * @property int|null $cancelled_at
+ * @property string|null $payment_mode F22: cash or insurance, asked at booking
  */
 class Appointments extends \yii\db\ActiveRecord
 {
@@ -147,6 +148,7 @@ class Appointments extends \yii\db\ActiveRecord
             [['location', 'symptoms_brief'], 'string'],
             [['status'], 'string', 'max' => 20],
             [['booking_channel'], 'in', 'range' => array_keys(self::channelLabels())],
+            [['payment_mode'], 'in', 'range' => [\frontend\services\FeeRules::PAYMENT_CASH, \frontend\services\FeeRules::PAYMENT_INSURANCE]],
             [['cancellation_note'], 'string', 'max' => 500],
             [['duration_minutes'], 'integer', 'min' => 5, 'max' => 240],
             [['facility_id'], 'integer'],
@@ -502,6 +504,7 @@ class Appointments extends \yii\db\ActiveRecord
             'fee' => Yii::t('app', 'Fee'),
             'booking_channel' => Yii::t('app', 'Booked'),
             'cancelled_party' => Yii::t('app', 'Cancelled by'),
+            'payment_mode' => Yii::t('app', 'Paying by'),
         ];
     }
 
