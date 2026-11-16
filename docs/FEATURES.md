@@ -82,6 +82,7 @@ Doing **Next up** below should bring the app to about 9.5 functionally.
 | F11 Consent (Kenya Data Protection Act) | A versioned privacy notice at `/site/privacy`, with the controller's details from `.env`. Consent to data processing (required) and to WhatsApp/SMS reminders (opt-in) is asked at email sign-up, on booking links, and by front desk for walk-ins (verbal consent, with who recorded it). Google/Microsoft/LinkedIn sign-ups, existing patients and everyone after a notice change are held on a consent page until they answer. Existing patients keep WhatsApp reminders until they answer (legacy carry-over). Answers are kept in an append-only `consent` table and in the audit log. Patients switch reminders and withdraw consent under **Privacy & messages**; withdrawing cancels upcoming appointments and opens an account-closure request for admins (**Closure Requests**). Staff see "consent not recorded" in patient lookup, and consent status on **System Users**. It can be switched off with `CONSENT_ENABLED=false` (outside Kenya, demos): nobody is asked, answers already given are kept, explicit "no" answers to WhatsApp/SMS still count, and admins see a warning on the dashboard. | `32f3cd5` |
 | T2 Monitoring and alerts | Errors from the website, console and queue worker go to a self-hosted GlitchTip (Sentry-compatible), with personal data scrubbed (no request data, frame arguments, contacts or link tokens). `php yii health/check` runs every 5 minutes (`doctors-appointment-health.timer`) and emails `ALERT_EMAILS` when the queue worker stalls, the reminder scheduler stops, messages keep failing, WhatsApp logs out or the database is down: once, a reminder every 6 hours, and when resolved. Each run pings a heartbeat URL (healthchecks.io), and `/health` answers `ok` for an uptime monitor. Admins see **System health** on the dashboard. | `feature/monitoring` |
 | T4 CI and deploys | Gitea Actions (`.gitea/workflows/ci.yml`) runs every Codeception suite on each push and pull request: MySQL 8 and PHP 8.3 as on the server, a test database built from scratch (migrations, RBAC, `rbac/init`). A pushed `vX.Y.Z` tag that passes is deployed by the **deploy** job over SSH with a key that can only run `deploy/deploy.sh`: it checks the tag is on `main`, backs up the database, then runs composer, migrations and `rbac/init`, restarts the services and checks `/health`. A full run takes about 25 minutes. | `feature/ci` |
+| T11 M-Pesa (Daraja) | `Yii::$app->mpesa` sends STK pushes, queries their outcome and makes B2C payments, every setting from `.env` (`MPESA_*`), so going live only changes `.env`. Each request is a row in `mpesa_transaction`. Safaricom answers at `POST /mpesa/{stk,b2c-result,b2c-timeout}/<token>`: a wrong token is a 404, a payment is settled once, an STK success counts only when a status query confirms it, and a callback that arrives after a query still records the receipt. `mpesa/reconcile` (every 5 minutes) settles payments whose callback never came. `Mpesa::EVENT_SETTLED` is for the commitment-fee features. | `feature/mpesa` |
 
 ### Scheduling depth
 
@@ -878,14 +879,13 @@ Built as planned below, with these choices made on 12 Nov 2026:
 
 | # | Item | Priority | Impact |
 |---|---|---|---|
-| T11 | M-Pesa (Daraja) component: OAuth token, STK push and status query, B2C; every credential and amount from `.env` (`MPESA_ENV=sandbox` until go-live); a token-checked, idempotent callback; `php yii mpesa/test-stk` for the sandbox. Apply for production paybill and B2C credentials early. Needed before **day 31**; see [business-case.md](business-case.md). | P1 | |
+| ~~T11~~ | ~~M-Pesa (Daraja) component: STK push, status query and B2C, set from `.env`.~~ **Done** in v1.2.0; tested on production against the Daraja sandbox on 16 Nov 2026. | — | |
 
 ## Next up
 
 1. **F20, F21** Pilot groundwork and masked contacts, before the first pilot booking.
-2. **T11** The M-Pesa component, tested on the Daraja sandbox (starts at once; needs only sandbox credentials).
-3. **F22, F23, F24, F28** (payouts) The fee, its rules and incentives, by day 31 of the pilot.
-4. **F13** Front desk confirms appointments (a small permission change).
-5. **F14** Patients are told when a closure or time off clashes with their booking.
-6. **F25, F18, F26** Invoices, insurer details and the pilot report, on the pilot's dates.
-7. **F12** Patients export and delete their data (completes the closure requests from F11).
+2. **F22, F23, F24, F28** (payouts) The fee, its rules and incentives, by day 31 of the pilot.
+3. **F13** Front desk confirms appointments (a small permission change).
+4. **F14** Patients are told when a closure or time off clashes with their booking.
+5. **F25, F18, F26** Invoices, insurer details and the pilot report, on the pilot's dates.
+6. **F12** Patients export and delete their data (completes the closure requests from F11).
