@@ -16,6 +16,8 @@ class DashboardNumbersCest
     {
         FrontDesk::reset();
         $this->createParticipants();
+        // Inside "the next 7 days" on any weekday: "next monday" is 7 days away on a Monday
+        $this->date = $this->soonOpenDay();
         $this->book('10:00');
 
         $otherDoctor = $this->createUser('other.doctor', 'consultant');

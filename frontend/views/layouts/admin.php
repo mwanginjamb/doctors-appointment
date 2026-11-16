@@ -87,6 +87,7 @@ AdminAsset::register($this);
                         </div>
                     <?php endforeach ?>
                 <?php endforeach ?>
+                <?= $this->render('_standard_terms_banner') ?>
 
                 <!-- Page Content -->
                 <?= $content ?>

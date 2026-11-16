@@ -1,0 +1,29 @@
+# One run of the standard-terms notices (php yii pilot/notify): day 81 and day 91 emails to a
+# facility's admin and front desk, day 121 to platform admins, each sent once. Started daily by
+# doctors-appointment-pilot.timer.
+#
+# Run it by hand:   sudo systemctl start doctors-appointment-pilot
+# Logs:             journalctl -u doctors-appointment-pilot
+#
+# Same path / PHP / user assumptions as doctors-appointment-queue.service.
+
+[Unit]
+Description=Doctor appointments standard-terms notices (one run)
+After=network-online.target mysql.service mariadb.service
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/html/doctors-appointment
+ExecStart=/usr/bin/php /var/www/html/doctors-appointment/yii pilot/notify --color=0
+TimeoutStartSec=5min
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=doctors-pilot
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true

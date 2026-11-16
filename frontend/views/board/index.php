@@ -233,7 +233,7 @@ $today = date('Y-m-d');
                         return Html::tag('span', '(deleted account)', ['class' => 'text-muted']);
                     }
                     return Html::encode($patient->full_name ?: $patient->username)
-                        . ($patient->phone_number ? '<div class="small text-muted">' . Html::encode($patient->phone_number) . '</div>' : '');
+                        . ($patient->phone_number ? '<div class="small text-muted">' . Html::encode(\common\helpers\Contact::phone($patient->phone_number)) . '</div>' : '');
                 },
             ],
             [
@@ -283,6 +283,7 @@ $today = date('Y-m-d');
                                 'bs-toggle' => 'modal',
                                 'bs-target' => '#cancelAppointmentModal',
                                 'cancel-url' => Url::to(['/appointments/cancel', 'id' => $model->id]),
+                                'facility-closed' => $model->facility_id && \frontend\models\FacilityClosure::isClosed($model->facility_id, $model->date) ? '1' : '0',
                             ],
                         ]);
                     }

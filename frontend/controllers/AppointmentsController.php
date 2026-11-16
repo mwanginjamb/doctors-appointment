@@ -11,6 +11,7 @@ use yii\filters\AccessControl;
 use frontend\models\AppointmentsSearch;
 use frontend\models\CalendarViewModel;
 use frontend\services\BookingService;
+use common\components\Audit;
 use common\models\AuditLog;
 use frontend\components\FrontDesk;
 use yii\web\ForbiddenHttpException;
@@ -93,11 +94,32 @@ class AppointmentsController extends Controller
 
         // Its history (audit log) is for the clinic side: the consultant, their front desk, admins
         $staffView = $appointment->isConsultant(Yii::$app->user->id) || FrontDesk::canHandle($appointment);
+        // F21: the patient's phone and email are shown in full here, so staff views are audited
+        if ((int) $appointment->patient_id !== (int) Yii::$app->user->id) {
+            self::auditContactView($appointment);
+        }
 
         return $this->render('view', [
             'model' => $appointment,
             'history' => $staffView ? AuditLog::forEntity('appointment', $appointment->id) : null,
         ]);
+    }
+
+    /**
+     * F21: records that the signed-in user saw this appointment's patient contact in full, once a
+     * day per user and appointment, so refreshing the page does not flood the log.
+     */
+    private static function auditContactView(Appointments $appointment)
+    {
+        $seenToday = AuditLog::find()->where([
+            'action' => AuditLog::ACTION_CONTACT_VIEWED,
+            'entity_type' => 'appointment',
+            'entity_id' => (string) $appointment->id,
+            'actor_id' => Yii::$app->user->id,
+        ])->andWhere(['>=', 'created_at', strtotime('today')])->exists();
+        if (!$seenToday) {
+            Audit::log(AuditLog::ACTION_CONTACT_VIEWED, 'appointment', $appointment->id, [], null, null, $appointment->facility_id);
+        }
     }
 
     /**
@@ -160,7 +182,15 @@ class AppointmentsController extends Controller
     {
         $model = $this->findModel($id, true);
 
-        if ($model->cancel($this->request->post('note'))) {
+        // F20: staff say why, as the refund and the Ksh 100 charge depend on it
+        $reason = $this->request->post('reason');
+        if (Appointments::asksCancelReason(Yii::$app->user->identity)
+            && !array_key_exists((string) $reason, Appointments::cancelReasonLabels())) {
+            Yii::$app->session->setFlash('error', Yii::t('app', 'Say why the appointment is cancelled: the patient asked, the facility is closed, or the clinic decided.'));
+            return $this->redirect(Yii::$app->request->referrer ?: ['index']);
+        }
+
+        if ($model->cancel($this->request->post('note'), $reason)) {
             Yii::$app->session->setFlash('success', Yii::t('app', 'Appointment cancelled. It stays in the appointment history.'));
         } elseif ($model->hasErrors()) {
             Yii::$app->session->setFlash('error', $model->getFirstError('cancellation_note'));

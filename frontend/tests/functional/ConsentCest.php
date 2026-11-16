@@ -35,7 +35,8 @@ class ConsentCest
         $I->seeResponseCodeIs(200);
         $I->see('Privacy notice', 'h1');
         $I->see('Version ' . Consent::noticeVersion());
-        $I->see('to be provided'); // controller details come from .env
+        // The controller's details come from .env: empty in CI, filled in on a developer's machine
+        $I->see(\Yii::$app->params['privacy.controllerName'] ?: 'to be provided');
     }
 
     public function patientsWithoutConsentAreHeldOnTheConsentPage(FunctionalTester $I)

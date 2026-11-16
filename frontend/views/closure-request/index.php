@@ -50,7 +50,7 @@ $filters = [AccountClosureRequest::STATUS_OPEN => 'Open', AccountClosureRequest:
                             }
                             $u = $r->user;
                             return Html::encode($u->full_name ?: $u->username)
-                                . Html::tag('div', Html::encode(trim($u->email . ' · ' . $u->phone_number, ' ·')), ['class' => 'small text-muted']);
+                                . Html::tag('div', Html::encode(\common\helpers\Contact::summary($u->phone_number, $u->email)), ['class' => 'small text-muted']);
                         },
                     ],
                     [

@@ -42,6 +42,11 @@ use yii\behaviors\TimestampBehavior;
  * @property int|null $outcome_by who recorded it
  * @property int|null $booking_link_id the booking link a remote walk-in booked through
  * @property int|null $patient_age
+ * @property string|null $booking_channel F20: online, link, staff or walk_in; set by BookingService::book()
+ * @property int|null $cancelled_by F20: who cancelled; null for a guest using the manage link
+ * @property string|null $cancelled_party F20: on whose side: patient, consultant, front_desk, facility or system
+ * @property int|null $cancelled_at_patient_request F20: 1 when the patient asked for the cancellation
+ * @property int|null $cancelled_at
  */
 class Appointments extends \yii\db\ActiveRecord
 {
@@ -50,6 +55,24 @@ class Appointments extends \yii\db\ActiveRecord
     const STATUS_CANCELLED = 'cancelled';
     const STATUS_NO_SHOW = 'no_show';
     const STATUS_CONFIRMED = 'confirmed';
+
+    /** F20: how the booking was made. Decides the commitment fee from day 31 of the pilot. */
+    const CHANNEL_ONLINE = 'online';    // the patient, signed in or from a waiting-list link
+    const CHANNEL_LINK = 'link';        // a booking link staff sent
+    const CHANNEL_STAFF = 'staff';      // the consultant or their front desk, for a later day
+    const CHANNEL_WALK_IN = 'walk_in';  // the consultant or their front desk, for the same day
+
+    /** F20: on whose side a cancellation was made */
+    const PARTY_PATIENT = 'patient';
+    const PARTY_CONSULTANT = 'consultant';
+    const PARTY_FRONT_DESK = 'front_desk';
+    const PARTY_FACILITY = 'facility';
+    const PARTY_SYSTEM = 'system';
+
+    /** F20: why staff cancelled; asked in the cancel dialog */
+    const REASON_PATIENT_REQUEST = 'patient_request';
+    const REASON_FACILITY_CLOSED = 'facility_closed';
+    const REASON_CLINIC = 'clinic';
 
     /**
      * Attributes that are set by the system or derived from the logged-in user,
@@ -70,6 +93,11 @@ class Appointments extends \yii\db\ActiveRecord
         'booking_link_id',
         'facility_id',
         'fee',
+        'booking_channel',
+        'cancelled_by',
+        'cancelled_party',
+        'cancelled_at_patient_request',
+        'cancelled_at',
     ];
 
     /** Days during which a recorded outcome can still be changed (attended <-> no-show). */
@@ -118,6 +146,7 @@ class Appointments extends \yii\db\ActiveRecord
             [['patient_id', 'speciality_id', 'service_id', 'provider_id', 'recurring_appointment', 'walk_in_appointment', 'created_at', 'updated_at', 'created_by', 'updated_by', 'consultant_id'], 'integer'],
             [['location', 'symptoms_brief'], 'string'],
             [['status'], 'string', 'max' => 20],
+            [['booking_channel'], 'in', 'range' => array_keys(self::channelLabels())],
             [['cancellation_note'], 'string', 'max' => 500],
             [['duration_minutes'], 'integer', 'min' => 5, 'max' => 240],
             [['facility_id'], 'integer'],
@@ -227,13 +256,19 @@ class Appointments extends \yii\db\ActiveRecord
     }
 
     /**
-     * Cancels the appointment and keeps the record. afterSave() cancels its pending reminders,
-     * BlameableBehavior records who cancelled it (updated_by), and the slot becomes free.
+     * Cancels the appointment and keeps the record. afterSave() cancels its pending reminders and
+     * the slot becomes free. F20 records who cancelled, on whose side, and whether the patient
+     * asked: the refund and the Ksh 100 charge depend on them.
+     *
+     * The side follows from the signed-in user: a patient (or a guest using the manage link) cancels
+     * at their own request; staff say why with $reason, one of the REASON_* constants. A facility
+     * closure puts the cancellation on the facility's side, whoever made it.
      *
      * @param string|null $note optional reason, up to 500 characters
+     * @param string|null $reason staff only: REASON_PATIENT_REQUEST, REASON_FACILITY_CLOSED or REASON_CLINIC
      * @return bool false when the appointment cannot be cancelled or the note is invalid (see getErrors())
      */
-    public function cancel($note = null)
+    public function cancel($note = null, $reason = null)
     {
         if (!$this->canBeCancelled()) {
             return false;
@@ -245,8 +280,74 @@ class Appointments extends \yii\db\ActiveRecord
             return false;
         }
 
+        $user = Yii::$app->get('user', false);
+        $identity = $user && !$user->isGuest ? $user->identity : null;
+        $party = self::partyOf($identity);
+        if ($party === self::PARTY_PATIENT) {
+            $atRequest = true;
+        } elseif ($reason === self::REASON_FACILITY_CLOSED) {
+            $party = self::PARTY_FACILITY;
+            $atRequest = false;
+        } else {
+            $atRequest = $reason === self::REASON_PATIENT_REQUEST;
+        }
+
         $this->status = self::STATUS_CANCELLED;
+        $this->cancelled_by = $identity ? $identity->id : null;
+        $this->cancelled_party = $party;
+        $this->cancelled_at_patient_request = $atRequest ? 1 : 0;
+        $this->cancelled_at = time();
         return $this->save(false);
+    }
+
+    /**
+     * The side a user cancels for: a patient account, or a guest using the manage link, is the
+     * patient; staff are their own role; a platform admin is the system.
+     *
+     * @param \common\models\User|null $identity
+     */
+    public static function partyOf($identity)
+    {
+        if ($identity === null || $identity->isPatientAccount()) {
+            return self::PARTY_PATIENT;
+        }
+        if ($identity->isConsultantAccount()) {
+            return self::PARTY_CONSULTANT;
+        }
+        if ($identity->isFrontDeskAccount()) {
+            return self::PARTY_FRONT_DESK;
+        }
+        if ($identity->isFacilityAdminAccount()) {
+            return self::PARTY_FACILITY;
+        }
+
+        return self::PARTY_SYSTEM;
+    }
+
+    /** Whether the cancel dialog asks this user why: everyone signed in but patients. */
+    public static function asksCancelReason($identity)
+    {
+        return $identity !== null && self::partyOf($identity) !== self::PARTY_PATIENT;
+    }
+
+    /** The staff answers to "Why is it cancelled?" */
+    public static function cancelReasonLabels()
+    {
+        return [
+            self::REASON_PATIENT_REQUEST => Yii::t('app', 'The patient asked'),
+            self::REASON_FACILITY_CLOSED => Yii::t('app', 'The facility is closed that day'),
+            self::REASON_CLINIC => Yii::t('app', "The clinic's decision (the consultant cannot see the patient)"),
+        ];
+    }
+
+    public static function channelLabels()
+    {
+        return [
+            self::CHANNEL_ONLINE => Yii::t('app', 'Online'),
+            self::CHANNEL_LINK => Yii::t('app', 'Booking link'),
+            self::CHANNEL_STAFF => Yii::t('app', 'Booked by staff'),
+            self::CHANNEL_WALK_IN => Yii::t('app', 'Walk-in'),
+        ];
     }
 
     /**
@@ -399,7 +500,24 @@ class Appointments extends \yii\db\ActiveRecord
             'cancellation_note' => Yii::t('app', 'Cancellation note'),
             'facility_id' => Yii::t('app', 'Facility'),
             'fee' => Yii::t('app', 'Fee'),
+            'booking_channel' => Yii::t('app', 'Booked'),
+            'cancelled_party' => Yii::t('app', 'Cancelled by'),
         ];
+    }
+
+    /**
+     * F20: a new booking records how it was made.
+     */
+    public function beforeSave($insert)
+    {
+        if (!parent::beforeSave($insert)) {
+            return false;
+        }
+        if ($insert && !$this->booking_channel) {
+            $this->booking_channel = Yii::createObject(BookingService::class)->channelOf($this);
+        }
+
+        return true;
     }
 
     /**
@@ -408,6 +526,15 @@ class Appointments extends \yii\db\ActiveRecord
     public function afterSave($insert, $changedAttributes)
     {
         parent::afterSave($insert, $changedAttributes);
+
+        if ($insert && $this->consultant_id) {
+            // F20: the consultant's pilot starts with their first booking, by any channel, and never
+            // moves. Rolled back with the booking when the caller's transaction fails.
+            Consultant::updateAll(
+                ['first_booking_at' => $this->created_at ?: time()],
+                ['user_id' => $this->consultant_id, 'first_booking_at' => null]
+            );
+        }
 
         if ($insert) {
             // Schedule notifications for new appointment

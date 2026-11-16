@@ -163,8 +163,12 @@ class FrontDeskCest
 
         // Pages first: in tests the app is reused, and the JSON API calls below switch its response format
         $I->amOnRoute('appointments/view', ['id' => $this->assignedAppointment->id]);
-        $I->submitForm('#cancel-appointment-form', ['note' => 'Patient phoned to cancel']);
-        $I->assertSame(Appointments::STATUS_CANCELLED, Appointments::findOne($this->assignedAppointment->id)->status);
+        $I->submitForm('#cancel-appointment-form', ['note' => 'Patient phoned to cancel', 'reason' => 'patient_request']);
+        $cancelled = Appointments::findOne($this->assignedAppointment->id);
+        $I->assertSame(Appointments::STATUS_CANCELLED, $cancelled->status);
+        // F20: on the front desk's side, at the patient's request (so no Ksh 100 charge later)
+        $I->assertSame(Appointments::PARTY_FRONT_DESK, $cancelled->cancelled_party);
+        $I->assertSame(1, (int) $cancelled->cancelled_at_patient_request);
 
         $I->amOnRoute('appointments/view', ['id' => $this->otherAppointment->id]);
         $I->seeResponseCodeIs(404);

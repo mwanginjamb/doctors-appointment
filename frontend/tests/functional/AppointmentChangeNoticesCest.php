@@ -58,9 +58,10 @@ class AppointmentChangeNoticesCest
 
     public function theConsultantCancellingTellsThePatient(FunctionalTester $I)
     {
-        $before = $this->snapshot();
         $I->amLoggedInAs($this->consultantUser);
-        $I->sendCsrfPost(['/appointments/cancel', 'id' => $this->appointment->id]);
+        $I->amOnRoute('appointments/view', ['id' => $this->appointment->id]);
+        $before = $this->snapshot();
+        $I->postAsLink(['/appointments/cancel', 'id' => $this->appointment->id], ['reason' => 'clinic']);
 
         $I->assertSame(['patientEmail' => 1, 'patientWhatsapp' => 1, 'doctorEmail' => 0, 'doctorWhatsapp' => 0, 'oldRescheduleEmail' => 0], $this->delta($before));
         $I->assertSame(1, $this->queued('SendEmailMessageJob', ['client@example.com', 'is cancelled']));
@@ -81,7 +82,7 @@ class AppointmentChangeNoticesCest
         $before = $this->snapshot();
         $I->amLoggedInAs($this->admin);
         $I->amOnRoute('appointments/view', ['id' => $this->appointment->id]);
-        $I->submitForm('#cancel-appointment-form', ['note' => 'Doctor unwell']);
+        $I->submitForm('#cancel-appointment-form', ['note' => 'Doctor unwell', 'reason' => 'clinic']);
 
         $delta = $this->delta($before);
         $I->assertSame(1, $delta['patientEmail']);
@@ -120,7 +121,8 @@ class AppointmentChangeNoticesCest
         $before = $this->snapshot();
 
         $I->amLoggedInAs($this->consultantUser);
-        $I->sendCsrfPost(['/appointments/cancel', 'id' => $this->appointment->id]);
+        $I->amOnRoute('appointments/view', ['id' => $this->appointment->id]);
+        $I->postAsLink(['/appointments/cancel', 'id' => $this->appointment->id], ['reason' => 'clinic']);
 
         $I->assertSame($emailsBefore, $this->queued('SendEmailMessageJob'));
         $I->assertSame(1, $this->delta($before)['patientWhatsapp']);
