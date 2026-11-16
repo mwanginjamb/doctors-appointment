@@ -688,6 +688,25 @@ baseline. Nothing is charged yet.
    `php yii pilot/confirm-standard <facility id>` (for the facility) and
    `php yii pilot/approve-standard <facility id>`.
 
+### F22 Commitment fee, part 1: plans and rules
+
+Nothing is charged yet: this part stores each consultant's plan and decides which bookings would
+carry the fee. Payment at booking comes in part 2.
+
+1. **Database:** `php yii migrate` runs `m261203_090000_commitment_fee`: `plan` (A) and `insured_pay`
+   (yes) on `consultant`, `payment_mode` on `appointments`, and the `commitment_fee` table.
+2. **`.env`** (fees stay off until live M-Pesa credentials are in):
+   ```
+   COMMITMENT_FEE_ENABLED=0          # 1 to charge; leave 0 while M-Pesa is on the sandbox
+   COMMITMENT_FEE=250
+   COMMITMENT_FEE_HOLD_MINUTES=10
+   ```
+3. **Plans:** every consultant starts on Plan A with insured patients paying. Change one with
+   `sudo -u www-data php yii pilot/plan <consultant user id> B`, or keep Plan A and absorb the fee for
+   insured patients with `pilot/plan <consultant user id> A --insuredPay=0`.
+4. **Check:** `sudo -u www-data php yii pilot/status` lists each consultant's plan, and whether fees
+   are on.
+
 ### F21 Masked contacts
 
 No migration or settings. After deploying, check:
@@ -748,7 +767,7 @@ pilot facility. Amounts and M-Pesa credentials come from `.env`.
 | ~~F5~~ | ~~M-Pesa deposits for new or no-show-prone patients.~~ **Replaced by F23–F25** (from G12). | — | |
 | ~~F20~~ | ~~Pilot groundwork: every booking records its channel (online, staff, booking link, walk-in); every cancellation records who, on whose side and whether the patient asked; each consultant's first booking is stored once; facility agreements (version, signatories, date) are recorded.~~ **Done** (see Done, Commercial pilot). | — | |
 | ~~F21~~ | ~~Mask patients' phone numbers and emails in lists, boards, search results and exports; show them in full when staff open an appointment they may handle, and audit that view.~~ **Done** (see Done, Commercial pilot). | — | |
-| F22 | Commitment fee at booking: Ksh 250 by STK push with the slot held while the patient pays; exemptions (pilot days 1–30, Plan B, same-day walk-ins at reception, one fee a day across consultants); patient booking terms; cash or insurance, and each consultant's choice to absorb the fee for insured patients. Needed by **day 31**. | P1 | +0.5 |
+| F22 | Commitment fee at booking: Ksh 250 by STK push with the slot held while the patient pays; exemptions (pilot days 1–30, Plan B, same-day walk-ins at reception, one fee a day across consultants); patient booking terms; cash or insurance, and each consultant's choice to absorb the fee for insured patients. Needed by **day 31**. **Rules done** (`feature/commitment-fee-rules`: plans, cash or insurance, `commitment_fee`, `FeeRules::decide()`); **payment at booking next**. | P1 | +0.5 |
 | F23 | Fee after booking: moves with a reschedule more than 24 hours ahead; kept on a no-show or a later cancellation; a free rebooking credit when the clinic cancels, refunded to M-Pesa if the patient asks. Absorbed fees follow the same rules. Needed by **day 31**. | P1 | |
 | F24 | Front-desk incentive: Ksh 50 per completed Plan A booking, pending until then; cancelled on a no-show, a cancellation, or a cancel-and-rebook of the same patient within 24 hours (flagged); paid weekly, by hand with an M-Pesa reference until B2C is live. Needed by **day 31**, first payout around day 38. | P1 | |
 | F25 | Consultant invoices: monthly statements of absorbed fees from day 31; from day 91, the plan charge per active consultant (one with an appointment that month) and Ksh 100 per cancellation by the consultant or their front desk (not at the patient's request or for a closure), emailed each time. Paid by STK push; reminders, then online booking paused 14 days after the due date. | P1 | |

@@ -189,6 +189,15 @@ return [
         // Only where PHP has no CA bundle of its own (some Windows set-ups)
         'caFile' => env('MPESA_CA_FILE', ''),
     ],
+    // F22 commitment fee (docs/business-case.md). Off until live M-Pesa credentials are in .env:
+    // with it off, no booking is charged or absorbed, whatever the pilot day.
+    'commitmentFee' => [
+        // "1", "true", "on" or "yes"; anything else is off
+        'enabled' => filter_var(env('COMMITMENT_FEE_ENABLED', '0'), FILTER_VALIDATE_BOOLEAN),
+        'amount' => (int) env('COMMITMENT_FEE', 250),
+        // Minutes an unpaid booking holds its slot while the patient answers the M-Pesa prompt
+        'holdMinutes' => (int) env('COMMITMENT_FEE_HOLD_MINUTES', 10),
+    ],
     // Firebase Configurations
     'firebase' => [
         'public' => [
