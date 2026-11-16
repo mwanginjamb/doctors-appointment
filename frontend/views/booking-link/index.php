@@ -40,7 +40,7 @@ $f = Yii::$app->formatter;
                     <td class="text-nowrap"><?= Html::encode($f->asDatetime($link->created_at, 'php:D j M, H:i')) ?></td>
                     <td>
                         <?= Html::encode($link->recipient_name) ?>
-                        <div class="small text-muted"><?= Html::encode(implode(' · ', array_filter([$link->recipient_phone, $link->recipient_email]))) ?></div>
+                        <div class="small text-muted"><?= Html::encode(\common\helpers\Contact::summary($link->recipient_phone, $link->recipient_email)) ?></div>
                     </td>
                     <td><?= Html::encode($link->consultant->names ?? '') ?></td>
                     <td class="small">

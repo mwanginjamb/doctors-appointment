@@ -89,6 +89,7 @@ Doing **Next up** below should bring the app to about 9.5 functionally.
 | Item | What it does | Branch |
 |---|---|---|
 | F20 Pilot groundwork | Every new booking records its channel (`online`, `link`, `staff` for a later day, `walk_in` for the same day), worked out by `BookingService::channelOf()` when it is saved. Every cancellation records who cancelled, on whose side (patient, consultant, front desk, facility, system) and whether the patient asked: patients and the manage link count as the patient asking; staff must answer "Why is it cancelled?" (the patient asked, the facility is closed, the clinic decided), with the facility answer pre-selected on a closed day. Each consultant's first booking is stored once in `consultant.first_booking_at` and starts their 90-day pilot; `frontend\services\Pilot` gives the day and phase. Facility agreements (version, signatories, date, walk-in exemption) are in `facility_agreement`, recorded with `php yii pilot/agreement` until the admin screens (F28); `pilot/status` lists pilots and agreements. | `feature/pilot-groundwork` |
+| F21 Masked contacts | Patients' phone numbers and emails are partly hidden (`0712***678`, `j***@mail.com`, by `common\helpers\Contact`) on the board, the waiting list, booking links, closure requests, the users list (patients only; staff accounts are shown) and the calendar's patient search. The appointment page shows them in full to the patient and to staff who may handle it; each staff member's view is audited once a day per appointment ("Patient's contact viewed"). | `feature/masked-contacts` |
 
 ### Scheduling depth
 
@@ -666,6 +667,14 @@ baseline. Nothing is charged yet.
 4. **Check:** `sudo -u www-data php yii pilot/status` lists each consultant's first booking, pilot day
    and phase, and each facility's agreement. As staff, cancelling an appointment now asks why.
 
+### F21 Masked contacts
+
+No migration or settings. After deploying, check:
+
+- the board and the users list show patients' numbers as `0712***678` and emails as `j***@mail.com`;
+- opening an appointment as staff shows them in full and adds "Patient's contact viewed" to the
+  audit log, once a day per staff member and appointment.
+
 ---
 
 ## Deferred
@@ -717,7 +726,7 @@ pilot facility. Amounts and M-Pesa credentials come from `.env`.
 |---|---|---|---|
 | ~~F5~~ | ~~M-Pesa deposits for new or no-show-prone patients.~~ **Replaced by F23–F25** (from G12). | — | |
 | ~~F20~~ | ~~Pilot groundwork: every booking records its channel (online, staff, booking link, walk-in); every cancellation records who, on whose side and whether the patient asked; each consultant's first booking is stored once; facility agreements (version, signatories, date) are recorded.~~ **Done** (see Done, Commercial pilot). | — | |
-| F21 | Mask patients' phone numbers and emails in lists, boards, search results and exports; show them in full when staff open an appointment they may handle, and audit that view. Needed by **day 1**. | P1 | |
+| ~~F21~~ | ~~Mask patients' phone numbers and emails in lists, boards, search results and exports; show them in full when staff open an appointment they may handle, and audit that view.~~ **Done** (see Done, Commercial pilot). | — | |
 | F22 | Commitment fee at booking: Ksh 250 by STK push with the slot held while the patient pays; exemptions (pilot days 1–30, Plan B, same-day walk-ins at reception, one fee a day across consultants); patient booking terms; cash or insurance, and each consultant's choice to absorb the fee for insured patients. Needed by **day 31**. | P1 | +0.5 |
 | F23 | Fee after booking: moves with a reschedule more than 24 hours ahead; kept on a no-show or a later cancellation; a free rebooking credit when the clinic cancels, refunded to M-Pesa if the patient asks. Absorbed fees follow the same rules. Needed by **day 31**. | P1 | |
 | F24 | Front-desk incentive: Ksh 50 per completed Plan A booking, pending until then; cancelled on a no-show, a cancellation, or a cancel-and-rebook of the same patient within 24 hours (flagged); paid weekly, by hand with an M-Pesa reference until B2C is live. Needed by **day 31**, first payout around day 38. | P1 | |
@@ -908,9 +917,8 @@ Built as planned below, with these choices made on 12 Nov 2026:
 
 ## Next up
 
-1. **F21** Masked contacts, before the first pilot booking (F20 is done).
-2. **F22, F23, F24, F28** (payouts) The fee, its rules and incentives, by day 31 of the pilot.
-3. **F13** Front desk confirms appointments (a small permission change).
-4. **F14** Patients are told when a closure or time off clashes with their booking.
-5. **F25, F18, F26** Invoices, insurer details and the pilot report, on the pilot's dates.
-6. **F12** Patients export and delete their data (completes the closure requests from F11).
+1. **F22, F23, F24, F28** (payouts) The fee, its rules and incentives, by day 31 of the pilot (F20 and F21, needed by day 1, are done).
+2. **F13** Front desk confirms appointments (a small permission change).
+3. **F14** Patients are told when a closure or time off clashes with their booking.
+4. **F25, F18, F26** Invoices, insurer details and the pilot report, on the pilot's dates.
+5. **F12** Patients export and delete their data (completes the closure requests from F11).
