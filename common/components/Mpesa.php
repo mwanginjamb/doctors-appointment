@@ -351,7 +351,20 @@ class Mpesa extends Component
             return null;
         }
         if ($transaction->isSettled()) {
-            return $transaction; // already settled: a repeated callback changes nothing
+            // Already settled: the status stays as it is and nothing is raised again. A status query
+            // may have settled a success before this callback came; only the callback carries the
+            // receipt, so keep it when it reports the same success and amount.
+            if ($transaction->status === MpesaTransaction::STATUS_SUCCEEDED && !$transaction->receipt
+                && (string) ($callback['ResultCode'] ?? '') === '0') {
+                $json = Json::encode($payload);
+                $receipt = self::callbackItem($json, 'MpesaReceiptNumber');
+                if ($receipt && (int) self::callbackItem($json, 'Amount') === (int) $transaction->amount) {
+                    $transaction->callback = $json;
+                    $transaction->receipt = (string) $receipt;
+                    $this->saveTransaction($transaction);
+                }
+            }
+            return $transaction;
         }
 
         $transaction->callback = Json::encode($payload);

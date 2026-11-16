@@ -336,6 +336,31 @@ class MpesaTest extends \Codeception\Test\Unit
         $this->assertSame('TKF1ABC2DE', $settled->receipt, 'the receipt from the earlier callback');
     }
 
+    public function testACallbackAfterTheQueryStillGivesTheReceipt()
+    {
+        // As on production: the status query settled the payment before Safaricom's callback came
+        $mpesa = $this->mpesa();
+        $transaction = $this->pushed($mpesa);
+        $this->answerQuery(0);
+        $this->assertTrue($mpesa->refreshStk($transaction));
+        $this->assertNull(MpesaTransaction::findOne($transaction->id)->receipt, 'the query carries no receipt');
+
+        $result = $mpesa->handleStkCallback(self::paidCallback());
+
+        $this->assertSame(MpesaTransaction::STATUS_SUCCEEDED, $result->status);
+        $this->assertSame('TKF1ABC2DE', MpesaTransaction::findOne($transaction->id)->receipt);
+        $this->assertCount(1, $this->settled, 'settled once, not again');
+        $this->assertCount(1, $this->requestsTo('/mpesa/stkpushquery/v1/query'), 'no second query');
+
+        // A callback with another amount is not taken as this payment's receipt
+        $this->answerStkAccepted('ws_CO_2');
+        $other = $mpesa->stkPush('0712345678', 250, 'Ref', 'Fee');
+        $this->answerQuery(0);
+        $mpesa->refreshStk($other);
+        $mpesa->handleStkCallback(self::stkCallback(0, ['Amount' => 1, 'MpesaReceiptNumber' => 'OTHER123'], 'ws_CO_2'));
+        $this->assertNull(MpesaTransaction::findOne($other->id)->receipt);
+    }
+
     public function testAQueryAloneSettlesAPushWhoseCallbackNeverCame()
     {
         $mpesa = $this->mpesa();
