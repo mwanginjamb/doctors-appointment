@@ -2,6 +2,7 @@
 
 namespace frontend\controllers;
 
+use common\helpers\Contact;
 use common\models\User;
 use common\components\RbacHelper;
 use frontend\components\FrontDesk;
@@ -312,8 +313,8 @@ class ApiController extends Controller
         return [
             'id' => $p->id,
             'name' => $p->full_name ?: $p->username,
-            'email' => self::mask($p->email, '@'),
-            'phone' => $p->phone_number ? '••••' . substr($p->phone_number, -3) : null,
+            'email' => Contact::email($p->email),
+            'phone' => Contact::phone($p->phone_number),
             // Staff only (both callers require consultant or front desk): no-shows in the last 12 months
             // that the viewer may see (their own as a consultant, their facility's as front desk)
             'noShows' => Appointments::countNoShows($p->id, 365, FrontDesk::historyCondition()),
@@ -321,19 +322,6 @@ class ApiController extends Controller
             'consent' => !Consent::isEnabled() || Consent::hasDataConsent($p->id),
             'consentStatus' => Consent::statusLabels()[Consent::status($p->id)],
         ];
-    }
-
-    /**
-     * Keeps the first two characters and everything from $from on: "jane@x.com" -> "ja••@x.com".
-     */
-    private static function mask($value, $from)
-    {
-        $pos = strpos((string) $value, $from);
-        if ($pos === false) {
-            return null;
-        }
-
-        return substr($value, 0, min(2, $pos)) . '••' . substr($value, $pos);
     }
 
     private function getJsonBody()

@@ -39,7 +39,7 @@ $this->params['breadcrumbs'][] = $this->title;
                         <tr>
                             <td>
                                 <?= Html::encode($entry->patient->full_name ?? '') ?>
-                                <div class="small text-muted"><?= Html::encode($entry->patient->phone_number ?? '') ?></div>
+                                <div class="small text-muted"><?= Html::encode(\common\helpers\Contact::phone($entry->patient->phone_number ?? null)) ?></div>
                             </td>
                             <td><?= Html::encode($entry->consultant->names ?? '') ?></td>
                             <td><?= Html::encode($entry->facility->name ?? '') ?></td>

@@ -46,6 +46,8 @@ class AuditLog extends ActiveRecord
     const ACTION_PURGED = 'purged';
     const ACTION_CONSENT_GRANTED = 'consent_granted';
     const ACTION_CONSENT_WITHDRAWN = 'consent_withdrawn';
+    /** F21: staff opened an appointment showing the patient's phone and email in full */
+    const ACTION_CONTACT_VIEWED = 'contact_viewed';
 
     /** Written in place of a value that must not be kept (password hashes, health details). */
     const MASKED = '[changed]';
@@ -103,6 +105,7 @@ class AuditLog extends ActiveRecord
             self::ACTION_PURGED => 'Old entries purged',
             self::ACTION_CONSENT_GRANTED => 'Consent given',
             self::ACTION_CONSENT_WITHDRAWN => 'Consent withdrawn',
+            self::ACTION_CONTACT_VIEWED => "Patient's contact viewed",
         ];
     }
 

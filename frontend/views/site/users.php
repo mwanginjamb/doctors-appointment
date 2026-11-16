@@ -51,8 +51,19 @@ $canAssign = Yii::$app->user->can(\common\components\RbacHelper::PERM_MANAGE_RBA
                     'id',
                     'username',
                     'full_name',
-                    'email:email',
-                    'phone_number',
+                    // F21: patients' contacts are partly hidden; staff accounts' are shown
+                    [
+                        'attribute' => 'email',
+                        'value' => function ($user) {
+                            return $user->isPatientAccount() ? \common\helpers\Contact::email($user->email) : $user->email;
+                        },
+                    ],
+                    [
+                        'attribute' => 'phone_number',
+                        'value' => function ($user) {
+                            return $user->isPatientAccount() ? \common\helpers\Contact::phone($user->phone_number) : $user->phone_number;
+                        },
+                    ],
                     [
                         'attribute' => 'role',
                         'label' => 'Account type',
