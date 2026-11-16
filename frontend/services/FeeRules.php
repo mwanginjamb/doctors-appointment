@@ -80,6 +80,35 @@ class FeeRules
         return [self::CHARGE, 'The patient pays the commitment fee.'];
     }
 
+    /**
+     * Whether bookings with the consultant may carry the fee now, to show the fee questions on a
+     * booking form. The booking itself is decided by decide().
+     *
+     * @param Consultant|null $consultant
+     */
+    public static function mayCharge($consultant)
+    {
+        if (!self::enabled() || $consultant === null || $consultant->plan === self::PLAN_B) {
+            return false;
+        }
+        $day = Pilot::day($consultant);
+
+        return $day !== null && $day > 30;
+    }
+
+    /**
+     * The fee answers of a booking form (see the _fee_fields view) onto the appointment.
+     *
+     * @param array $data with payment_mode, pay_phone and fee_terms
+     */
+    public static function load(Appointments $appointment, array $data)
+    {
+        $mode = $data['payment_mode'] ?? null;
+        $appointment->payment_mode = in_array($mode, [self::PAYMENT_CASH, self::PAYMENT_INSURANCE], true) ? $mode : self::PAYMENT_CASH;
+        $appointment->payPhone = trim((string) ($data['pay_phone'] ?? ''));
+        $appointment->feeTermsAccepted = filter_var($data['fee_terms'] ?? false, FILTER_VALIDATE_BOOLEAN);
+    }
+
     /** Whether the facility exempts same-day walk-ins: as its agreement says; yes without one. */
     public static function walkInsExempt($facilityId)
     {

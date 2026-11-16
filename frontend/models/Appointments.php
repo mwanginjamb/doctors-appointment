@@ -48,6 +48,7 @@ use yii\behaviors\TimestampBehavior;
  * @property int|null $cancelled_at_patient_request F20: 1 when the patient asked for the cancellation
  * @property int|null $cancelled_at
  * @property string|null $payment_mode F22: cash or insurance, asked at booking
+ * @property int|null $hold_expires_at F22: awaiting payment, the slot is released after this
  */
 class Appointments extends \yii\db\ActiveRecord
 {
@@ -56,6 +57,10 @@ class Appointments extends \yii\db\ActiveRecord
     const STATUS_CANCELLED = 'cancelled';
     const STATUS_NO_SHOW = 'no_show';
     const STATUS_CONFIRMED = 'confirmed';
+    /** F22: booked, holding its slot while the patient pays the commitment fee */
+    const STATUS_AWAITING_PAYMENT = 'awaiting_payment';
+    /** F22: the fee was not paid in time, so the slot was released; not a cancellation */
+    const STATUS_UNPAID = 'unpaid';
 
     /** F20: how the booking was made. Decides the commitment fee from day 31 of the pilot. */
     const CHANNEL_ONLINE = 'online';    // the patient, signed in or from a waiting-list link
@@ -99,6 +104,7 @@ class Appointments extends \yii\db\ActiveRecord
         'cancelled_party',
         'cancelled_at_patient_request',
         'cancelled_at',
+        'hold_expires_at',
     ];
 
     /** Days during which a recorded outcome can still be changed (attended <-> no-show). */
@@ -117,6 +123,15 @@ class Appointments extends \yii\db\ActiveRecord
     public $changedByPatient = false;
 
     public $patient_age;
+
+    /** @var string|null F22: the phone asked to pay the commitment fee; the patient's when empty */
+    public $payPhone;
+
+    /** @var bool F22: the patient accepted the booking terms (asked only when a fee applies) */
+    public $feeTermsAccepted = false;
+
+    /** @var array|null F22: [FeeRules decision, reason], settled when a new booking is validated */
+    public $feeDecision;
 
     /**
      * {@inheritdoc}
@@ -167,6 +182,10 @@ class Appointments extends \yii\db\ActiveRecord
                     || $model->isAttributeChanged('date', false)
                     || $model->isAttributeChanged('time', false)
                     || $model->isAttributeChanged('consultant_id', false);
+            }],
+            // F22: after the slot, which settles the facility the fee rules need
+            [['time'], 'validateFee', 'when' => function ($model) {
+                return $model->isNewRecord;
             }],
         ];
     }
@@ -219,6 +238,55 @@ class Appointments extends \yii\db\ActiveRecord
     }
 
     /**
+     * F22: decides whether the new booking carries the commitment fee (FeeRules::decide()). One the
+     * patient pays needs the booking terms accepted and a phone to send the M-Pesa prompt to.
+     */
+    public function validateFee($attribute, $params)
+    {
+        if ($this->hasErrors()) {
+            return;
+        }
+        if (!$this->booking_channel) {
+            $this->booking_channel = Yii::createObject(BookingService::class)->channelOf($this);
+        }
+        $this->feeDecision = \frontend\services\FeeRules::decide($this);
+        if ($this->feeDecision[0] !== \frontend\services\FeeRules::CHARGE) {
+            return;
+        }
+        if (!$this->feeTermsAccepted) {
+            $this->addError('feeTermsAccepted', Yii::t('app', 'Please accept the booking terms: the Ksh {amount} commitment fee is paid by M-Pesa now.', ['amount' => \frontend\services\FeeRules::amount()]));
+        }
+        $phone = trim((string) $this->payPhone) !== '' ? $this->payPhone : (User::find()->select('phone_number')->where(['id' => $this->patient_id])->scalar() ?: '');
+        $normalized = \common\helpers\Phone::normalize($phone);
+        if ($normalized === null || strpos($normalized, \common\helpers\Phone::DEFAULT_COUNTRY) !== 0) {
+            $this->addError('payPhone', Yii::t('app', 'Enter the Kenyan M-Pesa number that pays the Ksh {amount} commitment fee.', ['amount' => \frontend\services\FeeRules::amount()]));
+            return;
+        }
+        $this->payPhone = $normalized;
+    }
+
+    /** F22: the statuses whose slot is free again: cancelled, and unpaid holds. */
+    public static function releasedStatuses()
+    {
+        return [self::STATUS_CANCELLED, self::STATUS_UNPAID];
+    }
+
+    /**
+     * Appointments that hold their slot: everything but cancelled and unpaid ones.
+     *
+     * @param string $column the status column, e.g. "a.status"
+     */
+    public static function activeCondition($column = 'status')
+    {
+        return ['or', [$column => null], ['not in', $column, self::releasedStatuses()]];
+    }
+
+    public function isAwaitingPayment()
+    {
+        return $this->status === self::STATUS_AWAITING_PAYMENT;
+    }
+
+    /**
      * This appointment's length in minutes: the length stored when it was booked. Before it is
      * booked, the consultant's current session length.
      */
@@ -252,7 +320,7 @@ class Appointments extends \yii\db\ActiveRecord
      */
     public function canBeCancelled()
     {
-        $active = $this->status === null || in_array($this->status, [self::STATUS_SCHEDULED, self::STATUS_CONFIRMED], true);
+        $active = $this->status === null || in_array($this->status, [self::STATUS_SCHEDULED, self::STATUS_CONFIRMED, self::STATUS_AWAITING_PAYMENT], true);
 
         return $active && $this->isFuture();
     }
@@ -294,12 +362,22 @@ class Appointments extends \yii\db\ActiveRecord
             $atRequest = $reason === self::REASON_PATIENT_REQUEST;
         }
 
+        $wasHeld = $this->isAwaitingPayment();
         $this->status = self::STATUS_CANCELLED;
+        $this->hold_expires_at = null;
         $this->cancelled_by = $identity ? $identity->id : null;
         $this->cancelled_party = $party;
         $this->cancelled_at_patient_request = $atRequest ? 1 : 0;
         $this->cancelled_at = time();
-        return $this->save(false);
+        if (!$this->save(false)) {
+            return false;
+        }
+        if ($wasHeld) {
+            // F22: a held booking cancelled before payment: its pending fee goes too
+            \frontend\services\CommitmentFees::cancelPending($this);
+        }
+
+        return true;
     }
 
     /**
@@ -519,6 +597,11 @@ class Appointments extends \yii\db\ActiveRecord
         if ($insert && !$this->booking_channel) {
             $this->booking_channel = Yii::createObject(BookingService::class)->channelOf($this);
         }
+        // F22: a booking the patient pays for holds its slot until the payment arrives
+        if ($insert && ($this->feeDecision[0] ?? null) === \frontend\services\FeeRules::CHARGE) {
+            $this->status = self::STATUS_AWAITING_PAYMENT;
+            $this->hold_expires_at = time() + 60 * \frontend\services\CommitmentFees::holdMinutes();
+        }
 
         return true;
     }
@@ -540,10 +623,22 @@ class Appointments extends \yii\db\ActiveRecord
         }
 
         if ($insert) {
+            // F22: the fee, paid or absorbed; a booking awaiting payment is confirmed once paid
+            \frontend\services\CommitmentFees::recordFor($this);
+        }
+
+        $paid = !$insert && ($changedAttributes['status'] ?? null) === self::STATUS_AWAITING_PAYMENT
+            && in_array($this->status, [self::STATUS_SCHEDULED, self::STATUS_CONFIRMED], true);
+        if (($insert && !$this->isAwaitingPayment()) || $paid) {
             // Schedule notifications for new appointment
             $this->scheduleNotifications();
             // Send immediate confirmation notification
             NotificationService::sendImmediateConfirmation($this);
+        } elseif ($insert) {
+            // F22: awaiting payment: nothing is sent until it is paid
+        } elseif (($changedAttributes['status'] ?? null) === self::STATUS_AWAITING_PAYMENT) {
+            // F22: a held booking cancelled or released: no reminders were scheduled, nothing to tell
+            NotificationService::cancelNotificationsForAppointment($this->id);
         } else {
             // Handle updates (reminders)
             $this->handleAppointmentUpdate($changedAttributes);
@@ -722,6 +817,8 @@ class Appointments extends \yii\db\ActiveRecord
             self::STATUS_CANCELLED => 'Cancelled',
             self::STATUS_NO_SHOW => 'No Show',
             self::STATUS_CONFIRMED => 'Confirmed',
+            self::STATUS_AWAITING_PAYMENT => 'Awaiting payment',
+            self::STATUS_UNPAID => 'Unpaid (released)',
         ];
     }
 

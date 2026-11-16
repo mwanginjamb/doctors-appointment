@@ -152,7 +152,7 @@ class Waitlist
 
             $cancelled = array_key_exists('status', $changedAttributes)
                 && $changedAttributes['status'] !== $appointment->status
-                && $appointment->status === Appointments::STATUS_CANCELLED;
+                && in_array($appointment->status, Appointments::releasedStatuses(), true);
             $moved = !$cancelled && (isset($changedAttributes['date']) || isset($changedAttributes['time']) || isset($changedAttributes['consultant_id']));
 
             if ($cancelled) {
@@ -325,7 +325,7 @@ class Waitlist
      *
      * @return array [Appointments|null, string|null error]
      */
-    public static function book(WaitlistEntry $entry, $date, $time)
+    public static function book(WaitlistEntry $entry, $date, $time, array $feeData = [])
     {
         $time = substr((string) $time, 0, 5);
         $db = Yii::$app->db;
@@ -362,6 +362,8 @@ class Waitlist
                 ]);
                 // The clinic offered this time from its waiting list, as with a booking link
                 $appointment->skipNotice = true;
+                // F22: the commitment-fee answers from the offer page
+                FeeRules::load($appointment, $feeData);
                 $ok = $service->book($appointment);
             }
             if (!$ok) {

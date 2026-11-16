@@ -12,6 +12,7 @@ waiting-list sweep every 15 minutes and a daily clean-up of the audit log:
 | `doctors-appointment-waitlist.timer` → `doctors-appointment-waitlist.service` | Every 15 minutes, runs `php yii waitlist/sweep`: tells waiting patients about times that opened other than by a cancellation or move, sends notices held over quiet hours, and ends old entries. |
 | `doctors-appointment-mpesa.timer` → `doctors-appointment-mpesa.service` | Every 5 minutes, runs `php yii mpesa/reconcile`: settles M-Pesa payments still pending after a minute by status query, for when Safaricom's callback did not arrive. |
 | `doctors-appointment-pilot.timer` → `doctors-appointment-pilot.service` | Daily at 08:00, runs `php yii pilot/notify`: emails a facility's admin and front desk 10 days before standard terms start and on the day they start, and platform admins when a facility has not confirmed them after the 30-day grace period. |
+| `doctors-appointment-fees.timer` → `doctors-appointment-fees.service` | Every minute, runs `php yii fee/release`: releases bookings whose 10-minute commitment-fee hold ran out unpaid (asking M-Pesa first), and tells the patient. |
 | `doctors-appointment.target` | Groups them so they start, stop and restart together. |
 
 ## How the pieces fit
@@ -32,6 +33,8 @@ multi-user.target                                (normal boot)
             └─ doctors-appointment-mpesa.service       one run: settles pending M-Pesa payments by query
        └─ doctors-appointment-pilot.timer        fires daily at 08:00
             └─ doctors-appointment-pilot.service       one run: standard-terms notices
+       └─ doctors-appointment-fees.timer         fires every minute
+            └─ doctors-appointment-fees.service        one run: releases unpaid bookings
 ```
 
 A reminder goes through two steps:
@@ -144,7 +147,7 @@ The units assume the app lives at `/var/www/html/doctors-appointment`, PHP CLI i
 sudo cp deploy/systemd/doctors-appointment* /etc/systemd/system/
 sudo systemd-analyze verify /etc/systemd/system/doctors-appointment*.{service,timer,target}
 sudo systemctl daemon-reload
-sudo systemctl enable doctors-appointment-queue.service doctors-appointment-scheduler.timer doctors-appointment-audit-purge.timer doctors-appointment-health.timer doctors-appointment-waitlist.timer doctors-appointment-mpesa.timer doctors-appointment-pilot.timer
+sudo systemctl enable doctors-appointment-queue.service doctors-appointment-scheduler.timer doctors-appointment-audit-purge.timer doctors-appointment-health.timer doctors-appointment-waitlist.timer doctors-appointment-mpesa.timer doctors-appointment-pilot.timer doctors-appointment-fees.timer
 sudo systemctl enable --now doctors-appointment.target
 ```
 
@@ -158,7 +161,7 @@ sudo systemctl restart doctors-appointment.target        # after every deploy (l
 sudo systemctl stop doctors-appointment.target           # pause all notifications
 
 systemctl status doctors-appointment.target doctors-appointment-queue
-systemctl list-timers doctors-appointment-scheduler.timer doctors-appointment-audit-purge.timer doctors-appointment-health.timer doctors-appointment-waitlist.timer doctors-appointment-mpesa.timer doctors-appointment-pilot.timer
+systemctl list-timers doctors-appointment-scheduler.timer doctors-appointment-audit-purge.timer doctors-appointment-health.timer doctors-appointment-waitlist.timer doctors-appointment-mpesa.timer doctors-appointment-pilot.timer doctors-appointment-fees.timer
 journalctl -u doctors-appointment-queue -f               # worker output
 journalctl -u doctors-appointment-scheduler --since -1h  # scheduler runs
 journalctl -u doctors-appointment-health --since -1h     # health checks

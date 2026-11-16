@@ -30,6 +30,8 @@ return [
         // M-Pesa (Daraja), T11: settings in params['mpesa'] (.env MPESA_*)
         'mpesa' => [
             'class' => \common\components\Mpesa::class,
+            // F22: a commitment fee's payment confirms its held booking
+            'on settled' => [\frontend\services\CommitmentFees::class, 'onSettled'],
         ],
         'authClientCollection' => [
             'class' => 'yii\authclient\Collection',

@@ -34,7 +34,12 @@ class BookController extends Controller
         // Not signed in: logged as the booking link, named after its recipient
         Audit::actAs(AuditLog::ACTOR_BOOKING_LINK, null, $link->recipient_name . " (link #{$link->id})");
         $form = new RemoteWalkInForm($link);
+        $form->feeData = (array) $this->request->post();
         if ($this->request->isPost && $form->load($this->request->post()) && $form->book()) {
+            // F22: the booking waits for its commitment fee, paid on the next page
+            if ($form->appointment->isAwaitingPayment()) {
+                return $this->redirect(\frontend\services\CommitmentFees::payUrl($form->appointment));
+            }
             return $this->render('booked', ['form' => $form, 'link' => $link]);
         }
 

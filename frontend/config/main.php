@@ -121,6 +121,9 @@ return [
                 // Standard terms after the pilot: /terms/<facility id>, confirmed by POST to /terms/<facility id>/confirm
                 'terms/<facility:\d+>' => 'terms/view',
                 'POST terms/<facility:\d+>/<action:confirm|approve>' => 'terms/<action>',
+                // F22: paying the commitment fee of a held booking: /pay/<appointment id>/<signature>
+                'pay/<id:\d+>/<sig:[a-f0-9]{32}>' => 'fee/pay',
+                'pay/<id:\d+>/<sig:[a-f0-9]{32}>/<action:status|resend|cancel>' => 'fee/<action>',
             ],
         ],
 

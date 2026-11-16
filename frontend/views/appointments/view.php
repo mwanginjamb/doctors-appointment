@@ -68,6 +68,21 @@ $this->params['breadcrumbs'][] = $this->title;
         </div>
     <?php endif; ?>
 
+    <?php $commitmentFee = \frontend\models\CommitmentFee::forAppointment($model->id); ?>
+    <?php if ($commitmentFee !== null): ?>
+        <!-- F22: the commitment fee, and its payment page while the booking waits for it -->
+        <div class="alert <?= $model->isAwaitingPayment() ? 'alert-warning' : 'alert-light border' ?>" role="status" id="commitment-fee">
+            <strong><?= Yii::t('app', 'Commitment fee') ?>:</strong>
+            Ksh <?= number_format($commitmentFee->amount) ?>,
+            <?= Html::encode(\frontend\models\CommitmentFee::stateLabels()[$commitmentFee->state] ?? $commitmentFee->state) ?>.
+            <?php if ($model->isAwaitingPayment()): ?>
+                <?= Html::a(Yii::t('app', 'Open the payment page'), \frontend\services\CommitmentFees::payUrl($model), ['class' => 'alert-link ms-1']) ?>
+            <?php elseif ($model->status === Appointments::STATUS_UNPAID): ?>
+                <?= Yii::t('app', 'The time was released because the fee was not paid in time.') ?>
+            <?php endif; ?>
+        </div>
+    <?php endif; ?>
+
     <?php if ($model->status === Appointments::STATUS_CANCELLED): ?>
         <div class="alert alert-secondary" role="status">
             <strong><?= Yii::t('app', 'Cancelled') ?></strong>
