@@ -138,8 +138,12 @@ class AppointmentsController extends Controller
         }
 
         if ($this->request->isPost) {
+            // F22: the commitment-fee answers, used when the booking carries the fee
+            \frontend\services\FeeRules::load($model, (array) $this->request->post());
             if ($model->load($this->request->post()) && Yii::createObject(BookingService::class)->book($model)) {
-                return $this->redirect(['view', 'id' => $model->id]);
+                return $model->isAwaitingPayment()
+                    ? $this->redirect(\frontend\services\CommitmentFees::payUrl($model))
+                    : $this->redirect(['view', 'id' => $model->id]);
             }
         } else {
             $model->loadDefaultValues();

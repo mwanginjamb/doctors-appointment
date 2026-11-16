@@ -59,7 +59,7 @@ class SlotFinder extends BaseObject
         $busy = Appointments::find()->orderBy(null)
             ->where(['consultant_id' => $consultant->user_id])
             ->andWhere(['between', 'date', $this->from, $this->to])
-            ->andWhere(['or', ['status' => null], ['<>', 'status', Appointments::STATUS_CANCELLED]])
+            ->andWhere(Appointments::activeCondition())
             ->andFilterWhere(['<>', 'id', $this->excludeAppointmentId])
             ->all();
         foreach ($busy as $appointment) {

@@ -79,7 +79,7 @@ class ApiController extends Controller
                 $otherAppointments = Appointments::find()
                     ->where(['consultant_id' => $consultantUserId])
                     ->andWhere(['<>', 'patient_id', $user->id])
-                    ->andWhere(['or', ['status' => null], ['<>', 'status', Appointments::STATUS_CANCELLED]])
+                    ->andWhere(Appointments::activeCondition())
                     ->with('consultant')
                     ->all();
             }
@@ -102,7 +102,7 @@ class ApiController extends Controller
                 foreach ($all as $app) {
                     if (FrontDesk::canHandle($app)) {
                         $appointments[] = $app;
-                    } elseif ($app->status !== Appointments::STATUS_CANCELLED) {
+                    } elseif (!in_array($app->status, Appointments::releasedStatuses(), true)) {
                         $otherAppointments[] = $app;
                     }
                 }
@@ -125,7 +125,18 @@ class ApiController extends Controller
                 $event['color'] = $app->facility->getColor();
                 $event['classNames'] = ['fac-' . $app->facility_id];
             }
-            // Cancelled appointments stay visible as history: greyed out and not draggable
+            // F22: held while the patient pays; not movable until paid
+            if ($app->isAwaitingPayment()) {
+                $event['title'] = 'Awaiting payment: ' . $event['title'];
+                $event['color'] = '#fd7e14';
+                $event['editable'] = false;
+            }
+            // Cancelled and unpaid appointments stay visible as history: greyed out and not draggable
+            if ($app->status === Appointments::STATUS_UNPAID) {
+                $event['title'] = 'Unpaid: ' . $event['title'];
+                $event['color'] = '#adb5bd';
+                $event['editable'] = false;
+            }
             if ($app->status === Appointments::STATUS_CANCELLED) {
                 $event['title'] = 'Cancelled: ' . $event['title'];
                 if ($app->cancellation_note) {
@@ -190,7 +201,17 @@ class ApiController extends Controller
             $consent->save($model->patient_id, Consent::METHOD_FRONT_DESK);
         }
 
+        // F22: cash or insurance, the paying phone and the booking terms, where a fee may apply
+        \frontend\services\FeeRules::load($model, $data);
+
         if (Yii::createObject(BookingService::class)->book($model)) {
+            if ($model->isAwaitingPayment()) {
+                return [
+                    'status' => 'success',
+                    'message' => 'Booked. The time is held while the Ksh ' . \frontend\services\FeeRules::amount() . ' commitment fee is paid.',
+                    'payUrl' => \frontend\services\CommitmentFees::payUrl($model),
+                ];
+            }
             $message = 'Appointment #' . $model->id . ' booked successfully!';
             // F4: staff also put the patient on the waiting list for an earlier time
             if (!empty($data['waitlist']) && ($user->isConsultantAccount() || $user->isFrontDeskAccount()) && \frontend\services\Waitlist::isEnabled()) {

@@ -75,6 +75,9 @@ $this->title = 'Book with ' . $consultant->names;
                     <?= $f->field($form, 'consent_reminders')->radioList(\frontend\models\ConsentForm::reminderChoices())
                         ->hint('Emails are sent either way.') ?>
                 <?php endif; ?>
+                <?php if (\frontend\services\FeeRules::mayCharge($link->consultant)): ?>
+                    <?= $this->render('@frontend/views/fee/_fee_fields', ['idPrefix' => 'book-fee', 'phone' => $form->phone]) ?>
+                <?php endif; ?>
                 <?= Html::submitButton('Book this time', ['class' => 'btn btn-primary', 'id' => 'book-button', 'disabled' => !$form->time]) ?>
                 <?php ActiveForm::end(); ?>
             </div>

@@ -89,7 +89,7 @@ class CalendarFeed extends BaseObject
         $appointments = Appointments::find()->orderBy(['date' => SORT_ASC, 'time' => SORT_ASC])->with('facility')
             ->where(['consultant_id' => $consultant->user_id])
             ->andWhere(['between', 'date', $from, $to])
-            ->andWhere(['or', ['status' => null], ['<>', 'status', Appointments::STATUS_CANCELLED]])
+            ->andWhere(Appointments::activeCondition())
             ->all();
         foreach ($appointments as $appointment) {
             $start = strtotime($appointment->date . ' ' . $appointment->time);

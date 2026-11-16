@@ -357,6 +357,12 @@
             // F4: staff can also put the patient on the waiting list for an earlier time
             waitlist: $('#appointment-waitlist').is(':checked')
         };
+        // F22: the commitment-fee questions, where the consultant may charge it
+        if ($('#appointment-fee-fields').length) {
+            appointment.payment_mode = $('#appointment-fee-fields input[name=payment_mode]:checked').val();
+            appointment.pay_phone = $('#appointment-fee-phone').val();
+            appointment.fee_terms = $('#appointment-fee-terms').is(':checked');
+        }
         // The consent box only exists while consent recording is on
         if ($('#patient-consent').length && !$('#patient-consent').hasClass('d-none')) {
             if (!$('#patient-consent-given').is(':checked')) {
@@ -385,6 +391,11 @@
             contentType: 'application/json',
             success: function (response) {
                 if (response.status === 'success') {
+                    // F22: the fee is paid next, on its own page
+                    if (response.payUrl) {
+                        window.location.href = response.payUrl;
+                        return;
+                    }
                     alert(response.message);
                     $('#appointmentModal').modal('hide');
                     calendar.refetchEvents();

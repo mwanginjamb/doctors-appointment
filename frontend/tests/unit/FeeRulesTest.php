@@ -49,6 +49,16 @@ class FeeRulesTest extends \Codeception\Test\Unit
         return $appointment;
     }
 
+    /** A booking that is only there to have a fee on the same day: booked with fees off */
+    private function bookFixture($time)
+    {
+        Yii::$app->params['commitmentFee']['enabled'] = false;
+        $appointment = $this->book($time);
+        Yii::$app->params['commitmentFee']['enabled'] = true;
+
+        return $appointment;
+    }
+
     private function decision(Appointments $appointment)
     {
         return FeeRules::decide($appointment)[0];
@@ -100,7 +110,7 @@ class FeeRulesTest extends \Codeception\Test\Unit
 
     public function testOneFeeADayAcrossConsultants()
     {
-        $earlier = $this->book('09:00');
+        $earlier = $this->bookFixture('09:00');
         $fee = new CommitmentFee([
             'appointment_id' => $earlier->id, 'patient_id' => $this->client->id, 'consultant_id' => 999,
             'fee_date' => $this->date, 'amount' => 250, 'payer' => CommitmentFee::PAYER_PATIENT, 'state' => CommitmentFee::STATE_PAID,
@@ -116,7 +126,7 @@ class FeeRulesTest extends \Codeception\Test\Unit
 
     public function testAnAbsorbedFeeDoesNotExemptTheNextConsultant()
     {
-        $earlier = $this->book('09:00');
+        $earlier = $this->bookFixture('09:00');
         (new CommitmentFee([
             'appointment_id' => $earlier->id, 'patient_id' => $this->client->id, 'consultant_id' => 999,
             'fee_date' => $this->date, 'amount' => 250, 'payer' => CommitmentFee::PAYER_CONSULTANT, 'state' => CommitmentFee::STATE_ABSORBED,

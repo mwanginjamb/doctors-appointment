@@ -177,7 +177,7 @@ class NotificationService
             $appointment = $notification->appointment;
             if (
                 !$appointment
-                || $appointment->status === Appointments::STATUS_CANCELLED
+                || in_array($appointment->status, Appointments::releasedStatuses(), true)
                 || new \DateTime($appointment->date . ' ' . $appointment->time) <= new \DateTime()
             ) {
                 $notification->status = AppointmentNotifications::STATUS_CANCELLED;
