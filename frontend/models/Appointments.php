@@ -387,6 +387,8 @@ class Appointments extends \yii\db\ActiveRecord
         } else {
             // F23: a paid or absorbed fee is credited, cancelled or forfeited
             \frontend\services\FeeLifecycle::onCancelled($this);
+            // F24: so is the front desk's incentive
+            \frontend\services\Incentives::onCancelled($this);
         }
 
         return true;
@@ -481,8 +483,9 @@ class Appointments extends \yii\db\ActiveRecord
         if (!$this->save(false)) {
             return false;
         }
-        // F23: a no-show forfeits the commitment fee
+        // F23: a no-show forfeits the commitment fee; F24: attending earns the front desk's incentive
         \frontend\services\FeeLifecycle::onOutcome($this);
+        \frontend\services\Incentives::onOutcome($this);
 
         return true;
     }

@@ -67,7 +67,10 @@ class CommitmentFees
         ]);
         $fee->save(false);
 
-        if (!$absorbed) {
+        if ($absorbed) {
+            // F24: an absorbed fee confirms the booking at once
+            Incentives::onFeeConfirmed($fee);
+        } else {
             self::afterCommit(function () use ($fee) {
                 self::sendPrompt($fee);
             });
@@ -97,6 +100,7 @@ class CommitmentFees
         if ($credit !== null) {
             FeeLifecycle::useCredit($credit, $fee);
         }
+        Incentives::onFeeConfirmed($fee);
 
         return $fee;
     }
@@ -155,7 +159,7 @@ class CommitmentFees
             FeeLifecycle::onRefundSettled($transaction);
             return;
         }
-        if ($transaction->link_type === 'incentive_payout' && class_exists(Incentives::class)) {
+        if ($transaction->link_type === Incentives::LINK_TYPE) {
             Incentives::onPayoutSettled($transaction);
             return;
         }
@@ -208,6 +212,8 @@ class CommitmentFees
             $appointment->status = Appointments::STATUS_SCHEDULED;
             $appointment->hold_expires_at = null;
             $appointment->save(false, ['status', 'hold_expires_at', 'updated_at', 'updated_by']);
+            // F24: a front-desk booking ahead earns its pending incentive
+            Incentives::onFeeConfirmed($fee);
         }
     }
 

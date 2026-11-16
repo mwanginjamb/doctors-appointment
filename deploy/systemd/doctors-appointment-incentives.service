@@ -1,0 +1,29 @@
+# One run of the weekly front-desk payouts (php yii incentive/payouts, F24): last week's earned
+# incentives grouped into one payout per front-desk user, for a platform admin to send or record in
+# the backend. Started every Monday by doctors-appointment-incentives.timer.
+#
+# Run it by hand:   sudo systemctl start doctors-appointment-incentives
+# Logs:             journalctl -u doctors-appointment-incentives
+#
+# Same path / PHP / user assumptions as doctors-appointment-queue.service.
+
+[Unit]
+Description=Doctor appointments weekly front-desk payouts (one run)
+After=network-online.target mysql.service mariadb.service
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/html/doctors-appointment
+ExecStart=/usr/bin/php /var/www/html/doctors-appointment/yii incentive/payouts --color=0
+TimeoutStartSec=5min
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=doctors-incentives
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
