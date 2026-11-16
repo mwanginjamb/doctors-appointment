@@ -118,6 +118,9 @@ return [
                 'calendar/<token:[A-Za-z0-9_-]{43}>.ics' => 'calendar-feed/ics',
                 // M-Pesa callbacks (T11): Safaricom posts here; the token is MPESA_CALLBACK_TOKEN
                 'POST mpesa/<action:stk|b2c-result|b2c-timeout>/<token:[A-Za-z0-9_-]{20,128}>' => 'mpesa/<action>',
+                // Standard terms after the pilot: /terms/<facility id>, confirmed by POST to /terms/<facility id>/confirm
+                'terms/<facility:\d+>' => 'terms/view',
+                'POST terms/<facility:\d+>/<action:confirm|approve>' => 'terms/<action>',
             ],
         ],
 

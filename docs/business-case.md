@@ -183,8 +183,22 @@ Safeguards:
   - days 1–30: no fees (their no-show baseline);
   - days 31–60: the patient fee and front-desk incentive, if they are on Plan A;
   - days 61–90: full operation;
-  - from day 91: standard terms, once a platform admin has confirmed the facility's move (the
-    agreement makes it depend on the pilot figures). Until then, consultants are not charged.
+  - from day 91: standard terms, once the facility has confirmed them and a platform admin has
+    approved them. Until then, consultants are not charged.
+- **Confirming standard terms** (decided 16 November 2026) is per facility, on the clock of its
+  earliest pilot:
+  - day 81: the facility admin and front desk are emailed that standard terms start in 10 days,
+    with a button to the facility's terms page;
+  - day 91: the same email again if not confirmed, and a 30-day grace period starts, with a warning
+    on every page for the facility's consultants, front desk and facility admin;
+  - the facility's front desk or facility admin confirms on the terms page (a platform admin can
+    also confirm for it, with `php yii pilot/confirm-standard`);
+  - then a platform admin approves, on the terms page or with `php yii pilot/approve-standard`.
+    Confirming emails the platform admins and shows them a warning until they approve; approving
+    emails the facility. This is the agreement's "once the Platform Provider and the facility have
+    confirmed the transition";
+  - day 121, still not confirmed: platform admins are emailed and the warning stays. Nothing is
+    charged and nothing is paused until the terms are confirmed.
 - The **pilot report** compares each consultant's month 1 (the baseline) with their months 2 and 3,
   and adds them up per facility:
   - no-show rate;
@@ -338,7 +352,7 @@ Answered on 15 November 2026, and written into agreement v1.2:
 | # | Question | Answer |
 |---|---|---|
 | 1 | Who counts as an active consultant for the monthly charge? | One with **at least one appointment** (any status) on the platform that month. |
-| 2 | What if standard terms are not confirmed, or an invoice goes unpaid? | **Reminders by email and WhatsApp, then a pause:** 14 days after the due date, patients can no longer book that consultant online. Bookings by staff keep working. Online booking resumes when the invoice is paid. |
+| 2 | What if standard terms are not confirmed, or an invoice goes unpaid? | **Unconfirmed terms** (revised 16 November 2026): emails on days 81 and 91, a warning in the app during a 30-day grace period, then platform admins are told; nothing is charged or paused until confirmed and approved (see Design). **An unpaid invoice: reminders by email and WhatsApp, then a pause:** 14 days after the due date, patients can no longer book that consultant online. Bookings by staff keep working. Online booking resumes when the invoice is paid. |
 | 3 | Are fees absorbed in days 31–90 of the pilot billed? | **Yes, on a monthly statement from day 31**, although the plan charge is still Ksh 0. |
 | 4 | Which cancellations are exempt from the Ksh 100 charge? | Those made **at the patient's request**, and those caused by a **facility closure**. |
 | 5 | "Once a day": across all consultants, or per consultant? | **Across all consultants.** A patient seeing two consultants on the same day pays once. |

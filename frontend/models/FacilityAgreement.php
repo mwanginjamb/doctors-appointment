@@ -20,7 +20,13 @@ use yii\db\ActiveRecord;
  * @property string $facility_signatory name and title
  * @property string $platform_signatory
  * @property int $walk_in_exempt same-day walk-ins at reception pay no commitment fee
- * @property int|null $standard_terms_confirmed_at a platform admin confirmed the move to standard terms
+ * @property int|null $standard_terms_confirmed_at step 1: the facility (or a platform admin for it) confirmed standard terms
+ * @property int|null $standard_terms_confirmed_by user.id; null when confirmed from the console
+ * @property int|null $standard_terms_approved_at step 2: a platform admin approved; standard terms apply from then
+ * @property int|null $standard_terms_approved_by user.id; null when approved from the console
+ * @property int|null $notice_upcoming_sent_at day 81 notice sent
+ * @property int|null $notice_grace_sent_at day 91 notice sent
+ * @property int|null $notice_overdue_sent_at day 121 notice to platform admins sent
  * @property string|null $ended_on the facility left
  * @property string|null $notes
  * @property int|null $created_at
