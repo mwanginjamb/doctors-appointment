@@ -133,6 +133,12 @@ class BookingService extends BaseObject
         if (!$appointment->isNewRecord && $appointment->getOldAttribute('status') === Appointments::STATUS_UNPAID) {
             return Yii::t('app', 'This booking was released because its commitment fee was not paid. Book a new one instead.');
         }
+        // F23: a patient cannot move a paid booking in its last 24 hours; staff can
+        if (!$appointment->isNewRecord && !$this->isClinicSide($appointment)
+            && ($appointment->isAttributeChanged('date', false) || $appointment->isAttributeChanged('time', false))
+            && ($problem = FeeLifecycle::patientMoveProblem($appointment)) !== null) {
+            return $problem;
+        }
 
         $startTs = strtotime($appointment->date . ' ' . $appointment->time);
         if ($startTs === false) {

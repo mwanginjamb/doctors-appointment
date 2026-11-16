@@ -27,6 +27,8 @@ class FeeRules
     const NONE = 'none';
     const CHARGE = 'charge';
     const ABSORB = 'absorb';
+    /** F23: charged, and paid with one of the patient's rebooking credits */
+    const CREDIT = 'credit';
 
     const PLAN_A = 'A';
     const PLAN_B = 'B';

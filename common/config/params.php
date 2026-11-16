@@ -198,6 +198,9 @@ return [
         // Minutes an unpaid booking holds its slot while the patient answers the M-Pesa prompt
         'holdMinutes' => (int) env('COMMITMENT_FEE_HOLD_MINUTES', 10),
     ],
+    // F23/F24: send refunds and front-desk payouts by M-Pesa B2C. Off: platform admins pay by hand
+    // and record the M-Pesa reference. Turn on once live B2C credentials are in .env.
+    'payouts.b2cEnabled' => filter_var(env('MPESA_B2C_PAYOUTS_ENABLED', '0'), FILTER_VALIDATE_BOOLEAN),
     // Firebase Configurations
     'firebase' => [
         'public' => [

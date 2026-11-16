@@ -253,6 +253,15 @@ class Appointments extends \yii\db\ActiveRecord
         if ($this->feeDecision[0] !== \frontend\services\FeeRules::CHARGE) {
             return;
         }
+        // F23: a rebooking credit pays it; the booking terms still apply
+        $credit = \frontend\services\FeeLifecycle::usableCredit($this->patient_id);
+        if ($credit !== null) {
+            $this->feeDecision = [\frontend\services\FeeRules::CREDIT, 'Paid with a rebooking credit.', $credit->id];
+            if (!$this->feeTermsAccepted) {
+                $this->addError('feeTermsAccepted', Yii::t('app', 'Please accept the booking terms: your Ksh {amount} credit pays the commitment fee.', ['amount' => \frontend\services\FeeRules::amount()]));
+            }
+            return;
+        }
         if (!$this->feeTermsAccepted) {
             $this->addError('feeTermsAccepted', Yii::t('app', 'Please accept the booking terms: the Ksh {amount} commitment fee is paid by M-Pesa now.', ['amount' => \frontend\services\FeeRules::amount()]));
         }
@@ -375,6 +384,9 @@ class Appointments extends \yii\db\ActiveRecord
         if ($wasHeld) {
             // F22: a held booking cancelled before payment: its pending fee goes too
             \frontend\services\CommitmentFees::cancelPending($this);
+        } else {
+            // F23: a paid or absorbed fee is credited, cancelled or forfeited
+            \frontend\services\FeeLifecycle::onCancelled($this);
         }
 
         return true;
@@ -466,7 +478,13 @@ class Appointments extends \yii\db\ActiveRecord
         $this->outcome_at = time();
         $this->outcome_by = $user && !$user->isGuest ? $user->id : null;
 
-        return $this->save(false);
+        if (!$this->save(false)) {
+            return false;
+        }
+        // F23: a no-show forfeits the commitment fee
+        \frontend\services\FeeLifecycle::onOutcome($this);
+
+        return true;
     }
 
     public function getFacility()
@@ -648,6 +666,8 @@ class Appointments extends \yii\db\ActiveRecord
             if ($statusChanged && $this->status === self::STATUS_CANCELLED) {
                 AppointmentChangeNotifier::notify($this, AppointmentChangeNotifier::CANCELLED);
             } elseif (isset($changedAttributes['date']) || isset($changedAttributes['time'])) {
+                // F23: the commitment fee moves with the booking
+                \frontend\services\FeeLifecycle::onMoved($this, $changedAttributes['date'] ?? $this->date, $changedAttributes['time'] ?? $this->time);
                 AppointmentChangeNotifier::notify(
                     $this,
                     AppointmentChangeNotifier::MOVED,

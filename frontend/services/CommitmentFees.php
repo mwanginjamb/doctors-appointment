@@ -49,6 +49,9 @@ class CommitmentFees
         if ($decision === FeeRules::NONE) {
             return null;
         }
+        if ($decision === FeeRules::CREDIT) {
+            return self::payWithCredit($appointment, (int) ($appointment->feeDecision[2] ?? 0));
+        }
         $absorbed = $decision === FeeRules::ABSORB;
         $fee = new CommitmentFee([
             'appointment_id' => $appointment->id,
@@ -68,6 +71,31 @@ class CommitmentFees
             self::afterCommit(function () use ($fee) {
                 self::sendPrompt($fee);
             });
+        }
+
+        return $fee;
+    }
+
+    /** F23: the fee of a new booking, paid at once with one of the patient's credits. */
+    private static function payWithCredit(Appointments $appointment, $creditId)
+    {
+        $credit = \frontend\models\PatientCredit::findOne($creditId);
+        $fee = new CommitmentFee([
+            'appointment_id' => $appointment->id,
+            'patient_id' => $appointment->patient_id,
+            'consultant_id' => $appointment->consultant_id,
+            'facility_id' => $appointment->facility_id,
+            'fee_date' => $appointment->date,
+            'amount' => FeeRules::amount(),
+            'payer' => CommitmentFee::PAYER_PATIENT,
+            'state' => CommitmentFee::STATE_PAID,
+            'paid_at' => self::now(),
+            'terms_accepted_at' => self::now(),
+            'note' => 'Paid with credit #' . $creditId . '.',
+        ]);
+        $fee->save(false);
+        if ($credit !== null) {
+            FeeLifecycle::useCredit($credit, $fee);
         }
 
         return $fee;
@@ -113,11 +141,25 @@ class CommitmentFees
         return self::sendPrompt($fee);
     }
 
-    /** Mpesa::EVENT_SETTLED: a commitment fee's M-Pesa payment ended. */
+    /**
+     * Mpesa::EVENT_SETTLED: an M-Pesa payment the app made or asked for ended. Commitment fees are
+     * handled here; refunds of credits by FeeLifecycle, front-desk payouts by Incentives.
+     */
     public static function onSettled(MpesaEvent $event)
     {
         $transaction = $event->transaction;
-        if ($transaction->link_type !== self::LINK_TYPE || !$transaction->link_id) {
+        if (!$transaction->link_id) {
+            return;
+        }
+        if ($transaction->link_type === FeeLifecycle::LINK_TYPE_REFUND) {
+            FeeLifecycle::onRefundSettled($transaction);
+            return;
+        }
+        if ($transaction->link_type === 'incentive_payout' && class_exists(Incentives::class)) {
+            Incentives::onPayoutSettled($transaction);
+            return;
+        }
+        if ($transaction->link_type !== self::LINK_TYPE) {
             return;
         }
         $fee = CommitmentFee::findOne((int) $transaction->link_id);
@@ -155,7 +197,8 @@ class CommitmentFees
             $service = Yii::createObject(BookingService::class);
             $start = strtotime($appointment->date . ' ' . $appointment->time);
             if ($service->overlapProblem($appointment->consultant_id, $start, $start + $appointment->getDurationMinutes() * 60, $appointment->id) !== null) {
-                $fee->updateAttributes(['note' => 'Paid after the time was released and taken by someone else: refund it.']);
+                // F23: kept as a credit the patient can use or ask back
+                FeeLifecycle::creditLatePayment($fee);
                 return;
             }
             $appointment->status = Appointments::STATUS_AWAITING_PAYMENT;

@@ -23,6 +23,11 @@ class FeeController extends Controller
         if ($released) {
             $this->stdout("$released unpaid bookings released.\n");
         }
+        // F23: credits past their 90 days
+        $expired = \frontend\services\FeeLifecycle::expireCredits();
+        if ($expired) {
+            $this->stdout("$expired credits expired.\n");
+        }
 
         return ExitCode::OK;
     }

@@ -254,6 +254,19 @@ Safeguards:
      credentials are in `.env`; until then nothing is charged or absorbed;
    - "one fee a day" counts fees the patient **paid or is paying**: a fee a consultant absorbed for
      an insured patient does not exempt the patient's next booking that day.
+8. **Decided on 16 November 2026** for the fee after booking (F23):
+   - a patient who cancels **more than 24 hours ahead** gets a **credit** (not a refund);
+   - a patient who **moves** a paid booking **less than 24 hours ahead** forfeits the fee and pays
+     again. In practice they cannot move it themselves then: they cancel (forfeiting it) and book
+     again. Staff moves always carry the fee;
+   - a credit pays the fee of the patient's next booking with **any consultant**, within **90
+     days**; an expired credit is not refunded;
+   - a refund (clinic cancellations, and payments that arrive after their time was taken) is asked
+     for from the link in the message, **approved by a platform admin**, and sent by M-Pesa B2C
+     once `MPESA_B2C_PAYOUTS_ENABLED=1`; until then it is paid by hand and recorded with its M-Pesa
+     reference;
+   - platform admins work in the **backend app** (refunds, weekly payouts), which shares the
+     `user` table and sign-in with the frontend.
 
 ### Front-desk incentive (Ksh 50)
 
