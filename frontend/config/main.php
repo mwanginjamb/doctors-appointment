@@ -124,6 +124,9 @@ return [
                 // F22: paying the commitment fee of a held booking: /pay/<appointment id>/<signature>
                 'pay/<id:\d+>/<sig:[a-f0-9]{32}>' => 'fee/pay',
                 'pay/<id:\d+>/<sig:[a-f0-9]{32}>/<action:status|resend|cancel>' => 'fee/<action>',
+                // F23: a patient's rebooking credit: /credit/<id>/<signature>[/refund]
+                'credit/<id:\d+>/<sig:[a-f0-9]{32}>' => 'credit/view',
+                'POST credit/<id:\d+>/<sig:[a-f0-9]{32}>/refund' => 'credit/refund',
             ],
         ],
 

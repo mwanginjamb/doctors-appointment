@@ -261,7 +261,7 @@ class CommitmentFeesTest extends \Codeception\Test\Unit
         $this->assertSame(Appointments::STATUS_SCHEDULED, $appointment->status);
     }
 
-    public function testALatePaymentForATimeTakenSinceIsNotedForARefund()
+    public function testALatePaymentForATimeTakenSinceBecomesARefundableCredit()
     {
         $this->answerStkAccepted();
         [, $appointment] = $this->bookPaying();
@@ -278,8 +278,10 @@ class CommitmentFeesTest extends \Codeception\Test\Unit
         $appointment->refresh();
         $fee->refresh();
         $this->assertSame(Appointments::STATUS_UNPAID, $appointment->status);
-        $this->assertSame(CommitmentFee::STATE_PAID, $fee->state);
-        $this->assertStringContainsString('refund', $fee->note);
+        $this->assertSame(CommitmentFee::STATE_CREDITED, $fee->state);
+        $credit = \frontend\models\PatientCredit::findOne(['source_fee_id' => $fee->id]);
+        $this->assertSame(\frontend\models\PatientCredit::REASON_LATE_PAYMENT, $credit->reason);
+        $this->assertSame(1, (int) $credit->refundable);
     }
 
     public function testAHeldBookingCanBeCancelledButNotMoved()

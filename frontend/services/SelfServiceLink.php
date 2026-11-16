@@ -126,6 +126,14 @@ class SelfServiceLink
      * SELF_SERVICE_KEY; without it, a key derived from the database credentials, which both the
      * website and the queue worker share (set SELF_SERVICE_KEY in production).
      */
+    /**
+     * An HMAC of $payload with the self-service key, for other signed links (F23 credits).
+     */
+    public static function sign($payload)
+    {
+        return substr(hash_hmac('sha256', (string) $payload, self::key()), 0, 32);
+    }
+
     private static function key()
     {
         $key = (string) (Yii::$app->params['selfService.key'] ?? '');

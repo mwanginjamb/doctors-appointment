@@ -128,6 +128,7 @@ class AuditLog extends ActiveRecord
             'closure_request' => 'Account closure request',
             'facility_agreement' => 'Facility agreement',
             'commitment_fee' => 'Commitment fee',
+            'patient_credit' => 'Rebooking credit',
         ];
     }
 
