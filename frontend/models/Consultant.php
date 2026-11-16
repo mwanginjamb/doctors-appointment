@@ -45,6 +45,7 @@ use yii\helpers\ArrayHelper;
  * @property int $travel_buffer_minutes gap needed before a block at another facility (F8 phase 2)
  * @property string|null $rotation_week_a Y-m-d, the Monday of a week A for alternate-week hours (F8 phase 3)
  * @property string|null $calendar_feed_hash sha256 of the secret in their iCal feed address (F9)
+ * @property int|null $first_booking_at F20: start of their pilot, the first booking with them; set once
  *
  * @property ConsultantSession[] $sessions one-off sessions
  * @property ConsultantExternalBlock[] $externalBlocks weekly hours at places that do not use the app

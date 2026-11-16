@@ -160,7 +160,15 @@ class AppointmentsController extends Controller
     {
         $model = $this->findModel($id, true);
 
-        if ($model->cancel($this->request->post('note'))) {
+        // F20: staff say why, as the refund and the Ksh 100 charge depend on it
+        $reason = $this->request->post('reason');
+        if (Appointments::asksCancelReason(Yii::$app->user->identity)
+            && !array_key_exists((string) $reason, Appointments::cancelReasonLabels())) {
+            Yii::$app->session->setFlash('error', Yii::t('app', 'Say why the appointment is cancelled: the patient asked, the facility is closed, or the clinic decided.'));
+            return $this->redirect(Yii::$app->request->referrer ?: ['index']);
+        }
+
+        if ($model->cancel($this->request->post('note'), $reason)) {
             Yii::$app->session->setFlash('success', Yii::t('app', 'Appointment cancelled. It stays in the appointment history.'));
         } elseif ($model->hasErrors()) {
             Yii::$app->session->setFlash('error', $model->getFirstError('cancellation_note'));

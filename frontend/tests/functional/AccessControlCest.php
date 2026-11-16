@@ -80,7 +80,7 @@ class AccessControlCest
     {
         $I->amLoggedInAs($this->consultantUser);
         $I->amOnRoute('appointments/view', ['id' => $this->appointment->id]);
-        $I->submitForm('#cancel-appointment-form', ['note' => '  Doctor is away at a <conference>  ']);
+        $I->submitForm('#cancel-appointment-form', ['note' => '  Doctor is away at a <conference>  ', 'reason' => 'clinic']);
 
         $cancelled = Appointments::findOne($this->appointment->id);
         $I->assertSame(Appointments::STATUS_CANCELLED, $cancelled->status);
@@ -106,7 +106,8 @@ class AccessControlCest
     public function consultantCanCancelTheirPatientsAppointment(FunctionalTester $I)
     {
         $I->amLoggedInAs($this->consultantUser);
-        $I->sendCsrfPost(['/appointments/cancel', 'id' => $this->appointment->id]);
+        $I->amOnRoute('appointments/view', ['id' => $this->appointment->id]);
+        $I->postAsLink(['/appointments/cancel', 'id' => $this->appointment->id], ['reason' => 'clinic']);
 
         $I->assertSame(Appointments::STATUS_CANCELLED, Appointments::findOne($this->appointment->id)->status);
         $I->assertSame($this->consultantUser->id, (int) Appointments::findOne($this->appointment->id)->updated_by);
