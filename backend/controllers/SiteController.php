@@ -2,7 +2,9 @@
 
 namespace backend\controllers;
 
-use common\models\LoginForm;
+use backend\models\AdminLoginForm;
+use frontend\models\IncentivePayout;
+use frontend\models\PatientCredit;
 use Yii;
 use yii\filters\VerbFilter;
 use yii\filters\AccessControl;
@@ -62,7 +64,12 @@ class SiteController extends Controller
      */
     public function actionIndex()
     {
-        return $this->render('index');
+        // What waits for a platform admin
+        return $this->render('index', [
+            'refunds' => (int) PatientCredit::find()->where(['status' => PatientCredit::STATUS_REFUND_REQUESTED])->count(),
+            'payoutsReady' => (int) IncentivePayout::find()->where(['status' => IncentivePayout::STATUS_READY])->count(),
+            'payoutsHeld' => (int) IncentivePayout::find()->where(['status' => IncentivePayout::STATUS_HELD])->count(),
+        ]);
     }
 
     /**
@@ -78,7 +85,7 @@ class SiteController extends Controller
 
         $this->layout = 'blank';
 
-        $model = new LoginForm();
+        $model = new AdminLoginForm();
         if ($model->load(Yii::$app->request->post()) && $model->login()) {
             return $this->goBack();
         }

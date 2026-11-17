@@ -94,6 +94,7 @@ Doing **Next up** below should bring the app to about 9.5 functionally.
 | F22 Commitment fee at booking | Platform admins set each consultant's plan (`pilot/plan`; everyone starts on Plan A, insured patients paying). From day 31 of a Plan A consultant's pilot, a booking asks cash or insurance, the M-Pesa number that pays (the patient's, editable) and the booking terms, wherever it is made (calendar, booking link, waiting list, appointment form). `FeeRules::decide()` settles it: nothing on Plan B, in days 1–30, for a same-day walk-in where the facility exempts them, or when the patient already paid that day; absorbed by the consultant for an insured patient when they chose so (confirmed at once, no prompt); otherwise charged. A charged booking is saved **awaiting payment**, holds its slot for 10 minutes, and the M-Pesa prompt goes out once it is committed; the "Check your phone" page (`/pay/<id>/<signature>`) follows the payment, sends the prompt again and cancels. When M-Pesa reports the payment the booking is scheduled and the usual confirmation and reminders go out. `php yii fee/release` (every minute) asks M-Pesa about holds that ran out and releases the unpaid ones as **unpaid** (not a cancellation: no notices, not in the figures); the patient is emailed (and WhatsApped with consent) a link to book again. A payment arriving after release books the time again if it is still free, else is noted for a refund. Held bookings can be cancelled, not moved. Off until `COMMITMENT_FEE_ENABLED=1`. | `feature/commitment-fee-rules`, `feature/commitment-fee-payment` |
 | F23 Fee after booking | When the clinic cancels (anything the patient did not ask for, a facility closure included), a paid fee becomes a **refundable credit** and an absorbed one is not billed. When the patient cancels more than 24 hours ahead, a paid fee becomes a credit (not refundable); later, or a no-show, forfeits it (a no-show corrected to attended restores it). A moved booking keeps its fee; a patient cannot move a paid booking themselves in its last 24 hours. A credit (`patient_credit`) pays the fee of the next booking with any consultant within 90 days, confirming it at once; `fee/release` expires old ones. The patient is emailed (and WhatsApped with consent) a link to the credit's page (`/credit/<id>/<signature>`), where a refundable one can be asked back to an M-Pesa number. A payment that arrives after its time was taken also becomes a refundable credit. `FeeLifecycle` approves refunds (sent by B2C when `MPESA_B2C_PAYOUTS_ENABLED=1`), records ones paid by hand with their M-Pesa reference, and declines them (the credit stays usable). | `feature/fee-after-booking` |
 | F24 Front-desk incentive | Ksh 50 (`FRONTDESK_INCENTIVE`) for each booking a front-desk user made ahead (a staff booking, not a same-day walk-in) whose commitment fee was paid or absorbed: **pending** from then, **earned** when the patient attends, **cancelled** on a no-show or any cancellation (a no-show corrected to attended earns it again). When the same front desk cancelled an appointment of the same patient in the 24 hours before rebooking, the new incentive is cancelled at once and **flagged**. Every Monday, `php yii incentive/payouts` groups each front-desk user's earned incentives up to Sunday into one payout to the phone on their account (**held** without a Kenyan number until the account is fixed). A platform admin sends it by B2C (`MPESA_B2C_PAYOUTS_ENABLED=1`) or pays by hand and records the M-Pesa reference; the incentives are then paid, and no longer cancelled by later changes. | `feature/frontdesk-incentive` |
+| Admin area, first screens (F28 started) | The backend app, at `/admin`, is the platform admins' area. It shares the `user` table and passwords with the frontend but has its own session, and signs in **only platform admins** (others get "Incorrect username or password", and a staff member already signed in is signed out and refused). Home shows what waits: refund requests and payouts to send. **Refunds** (F23): approve (sent by B2C when `MPESA_B2C_PAYOUTS_ENABLED=1`), record one paid by hand with its M-Pesa reference, or decline with a reason. **Weekly payouts** (F24): each front-desk user's week with its bookings; send by B2C, record a manual payment, check a held one's phone again, or build last week's now. | `feature/admin-backend` |
 
 ### Scheduling depth
 
@@ -691,6 +692,21 @@ baseline. Nothing is charged yet.
    `php yii pilot/confirm-standard <facility id>` (for the facility) and
    `php yii pilot/approve-standard <facility id>`.
 
+### Admin area at /admin
+
+1. **nginx:** the site config now has an `/admin` section serving `backend/web`
+   ([deploy/nginx/appointments.gumzosystems.tech.conf](../deploy/nginx/appointments.gumzosystems.tech.conf)).
+   Copy the section into the server's config, with the same path as the rest (on the current
+   server the app is in `/var/www/html/doctors-appointment`), then `sudo nginx -t && sudo systemctl
+   reload nginx`.
+2. **Files:** `php init --env=Production` already made `backend/web/index.php` and
+   `backend/config/*-local.php`. The web server writes to `backend/runtime` and
+   `backend/web/assets`: `sudo chown -R www-data:www-data backend/runtime backend/web/assets`.
+3. **Who gets in:** platform admins (`php yii rbac/assign-admin <username>` makes one; `rbac/list-admins` lists them). They sign in
+   at `https://appointments.gumzosystems.tech/admin/` with their usual username and password.
+4. **Check:** sign in as a platform admin and see "Waiting for you"; signing in as anyone else says
+   "Incorrect username or password".
+
 ### F24 Front-desk incentive
 
 1. **Database:** `php yii migrate` runs `m261206_090000_frontdesk_incentive` (`frontdesk_incentive`,
@@ -818,7 +834,7 @@ pilot facility. Amounts and M-Pesa credentials come from `.env`.
 | F25 | Consultant invoices: monthly statements of absorbed fees from day 31; from day 91, the plan charge per active consultant (one with an appointment that month) and Ksh 100 per cancellation by the consultant or their front desk (not at the patient's request or for a closure), emailed each time. Paid by STK push; reminders, then online booking paused 14 days after the due date. | P1 | |
 | F26 | The 90-day pilot report: each consultant's month 1 against months 2 and 3 (no-shows, late cancellations, advance bookings against walk-ins, fees collected, absorbed, credited and refunded, incentives), added up per facility. Needed by **day 90**. | P2 | |
 | F27 | A facility leaving: unused patient credits refunded, earned incentives paid, pending ones paid only if completed before the exit date. Needed by **day 91**. | P3 | |
-| F28 | Backend for platform admins: sign-in, the RBAC menu shared with the frontend as one module, and screens for agreements and pilots, payments and refunds, weekly payouts, plans and invoices, and the pilot report. Payout screens by **day 31**, the rest by day 91. | P1 | |
+| F28 | **Started**: the backend at `/admin` with platform-admin sign-in, refunds and weekly payouts (see Done). Still to come: the RBAC menu shared with the frontend as one module, and screens for agreements and pilots, consultants' plans, payments, invoices and the pilot report, by day 91. | P1 | |
 
 #### Scheduling depth
 
