@@ -1,0 +1,17 @@
+# Fires doctors-appointment-fees.service every minute.
+#
+#   systemctl list-timers doctors-appointment-fees.timer   # last / next run
+
+[Unit]
+Description=Release unpaid bookings every minute
+PartOf=doctors-appointment.target
+
+[Timer]
+OnCalendar=*:*:30
+AccuracySec=5s
+# Missed runs need no catch-up: the next run releases everything overdue
+Persistent=false
+Unit=doctors-appointment-fees.service
+
+[Install]
+WantedBy=doctors-appointment.target

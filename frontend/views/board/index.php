@@ -32,6 +32,8 @@ $statusBadges = [
     Appointments::STATUS_CANCELLED => 'text-bg-secondary',
     Appointments::STATUS_COMPLETED => 'text-bg-dark',
     Appointments::STATUS_NO_SHOW => 'text-bg-warning',
+    Appointments::STATUS_AWAITING_PAYMENT => 'text-bg-warning',
+    Appointments::STATUS_UNPAID => 'text-bg-light border',
 ];
 
 /** Same filters with a different date range. */

@@ -70,6 +70,8 @@ $this->params['breadcrumbs'][] = $this->title;
                     Appointments::STATUS_CANCELLED => 'Cancelled',
                     Appointments::STATUS_NO_SHOW => 'No Show',
                     Appointments::STATUS_CONFIRMED => 'confirmed',
+                    Appointments::STATUS_AWAITING_PAYMENT => 'Awaiting payment',
+                    Appointments::STATUS_UNPAID => 'Unpaid (released)',
                 ], ['class' => 'form-control', 'prompt' => 'Select ...']),
             ],
             [

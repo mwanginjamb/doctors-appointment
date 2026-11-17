@@ -46,6 +46,8 @@ use yii\helpers\ArrayHelper;
  * @property string|null $rotation_week_a Y-m-d, the Monday of a week A for alternate-week hours (F8 phase 3)
  * @property string|null $calendar_feed_hash sha256 of the secret in their iCal feed address (F9)
  * @property int|null $first_booking_at F20: start of their pilot, the first booking with them; set once
+ * @property string $plan F22: A (commitment fee) or B (flat); set by platform admins
+ * @property int $insured_pay F22, Plan A: insured patients pay the fee; when 0 the consultant absorbs it
  *
  * @property ConsultantSession[] $sessions one-off sessions
  * @property ConsultantExternalBlock[] $externalBlocks weekly hours at places that do not use the app

@@ -92,9 +92,12 @@ class WaitlistController extends Controller
         }
         $this->actAsPatient($entry);
 
-        [$appointment, $error] = Waitlist::book($entry, (string) $this->request->post('date'), (string) $this->request->post('time'));
+        [$appointment, $error] = Waitlist::book($entry, (string) $this->request->post('date'), (string) $this->request->post('time'), (array) $this->request->post());
         if ($error !== null) {
             Yii::$app->session->setFlash('error', Html::encode($error));
+        } elseif ($appointment->isAwaitingPayment()) {
+            // F22: the booking waits for its commitment fee, paid on the next page
+            return $this->redirect(\frontend\services\CommitmentFees::payUrl($appointment));
         } else {
             Yii::$app->session->setFlash('success', $entry->wantsEarlier()
                 ? Yii::t('app', 'Done: your appointment is moved to {when}. The clinic has been told.', ['when' => $this->when($appointment)])

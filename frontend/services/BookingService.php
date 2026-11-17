@@ -126,6 +126,19 @@ class BookingService extends BaseObject
         if (!$appointment->isNewRecord && $appointment->getOldAttribute('status') === Appointments::STATUS_CANCELLED) {
             return Yii::t('app', 'This appointment was cancelled and cannot be rescheduled. Book a new one instead.');
         }
+        // F22: a held booking is paid first; an unpaid one was released
+        if (!$appointment->isNewRecord && $appointment->getOldAttribute('status') === Appointments::STATUS_AWAITING_PAYMENT) {
+            return Yii::t('app', 'This booking is waiting for its commitment fee. It can be moved once it is paid, or cancelled.');
+        }
+        if (!$appointment->isNewRecord && $appointment->getOldAttribute('status') === Appointments::STATUS_UNPAID) {
+            return Yii::t('app', 'This booking was released because its commitment fee was not paid. Book a new one instead.');
+        }
+        // F23: a patient cannot move a paid booking in its last 24 hours; staff can
+        if (!$appointment->isNewRecord && !$this->isClinicSide($appointment)
+            && ($appointment->isAttributeChanged('date', false) || $appointment->isAttributeChanged('time', false))
+            && ($problem = FeeLifecycle::patientMoveProblem($appointment)) !== null) {
+            return $problem;
+        }
 
         $startTs = strtotime($appointment->date . ' ' . $appointment->time);
         if ($startTs === false) {
@@ -377,7 +390,7 @@ class BookingService extends BaseObject
     {
         $conflict = Appointments::find()
             ->where(['date' => date('Y-m-d', $startTs), 'consultant_id' => $consultantUserId])
-            ->andWhere(['or', ['status' => null], ['<>', 'status', Appointments::STATUS_CANCELLED]])
+            ->andWhere(Appointments::activeCondition())
             ->andWhere(['<', 'time', date('H:i:s', $endTs)])
             ->andWhere(new Expression('ADDTIME([[time]], SEC_TO_TIME(COALESCE(NULLIF([[duration_minutes]], 0), :fallback) * 60)) > :start', [
                 ':fallback' => Appointments::defaultSessionMinutes(),

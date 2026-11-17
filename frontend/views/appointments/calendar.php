@@ -151,6 +151,11 @@ $this->registerCss('#calendar .facility-block { pointer-events: none; opacity: .
                         <div class="form-text"><?= Yii::t('app', 'If someone cancels before this time, the patient is told and can move up.') ?></div>
                     </div>
                 <?php endif; ?>
+                <?php if (\frontend\services\FeeRules::mayCharge($consultant ?? null)): ?>
+                    <!-- F22: the Ksh 250 commitment fee, paid by M-Pesa once booked -->
+                    <?= $this->render('@frontend/views/fee/_fee_fields', ['forStaff' => $booksForPatients, 'idPrefix' => 'appointment-fee',
+                        'phone' => $booksForPatients ? null : (Yii::$app->user->identity->phone_number ?? null)]) ?>
+                <?php endif; ?>
 
 
                 <div class="form-group">

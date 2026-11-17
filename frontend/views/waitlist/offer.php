@@ -84,6 +84,9 @@ $this->title = 'Waiting list: ' . $doctor;
                 <?= Html::hiddenInput('date', '', ['id' => 'waitlist-date']) ?>
                 <?= Html::hiddenInput('time', '', ['id' => 'waitlist-time']) ?>
                 <p id="waitlist-choice" class="fw-semibold text-primary">Choose a time above.</p>
+                <?php if (!$earlier && \frontend\services\FeeRules::mayCharge($entry->consultant)): ?>
+                    <?= $this->render('@frontend/views/fee/_fee_fields', ['idPrefix' => 'waitlist-fee', 'phone' => $entry->patient->phone_number ?? null]) ?>
+                <?php endif; ?>
                 <?= Html::submitButton($earlier ? 'Move my appointment' : 'Book this time', ['class' => 'btn btn-primary', 'id' => 'waitlist-book-button', 'disabled' => true]) ?>
             <?= Html::endForm() ?>
         <?php endif; ?>

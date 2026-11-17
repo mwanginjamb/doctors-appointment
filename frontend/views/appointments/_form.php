@@ -54,6 +54,13 @@ use yii\bootstrap5\ActiveForm;
 
     <?= $form->field($model, 'consultant_id')->textInput(['readonly' => true, 'disabled' => true]) ?>
 
+    <?php if ($model->isNewRecord && \frontend\services\FeeRules::enabled()): ?>
+        <!-- F22: asked whenever fees are on; the booking decides whether the fee applies -->
+        <?= $this->render('@frontend/views/fee/_fee_fields', ['idPrefix' => 'form-fee',
+            'forStaff' => !Yii::$app->user->identity->isPatientAccount(),
+            'phone' => Yii::$app->user->identity->isPatientAccount() ? Yii::$app->user->identity->phone_number : null]) ?>
+    <?php endif; ?>
+
     <div class="form-group">
         <?= Html::submitButton(Yii::t('app', 'Save'), ['class' => 'btn btn-success']) ?>
     </div>

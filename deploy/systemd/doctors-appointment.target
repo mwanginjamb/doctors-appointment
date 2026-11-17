@@ -6,13 +6,15 @@
 #   * doctors-appointment-waitlist.timer     — waiting-list sweep every 15 minutes
 #   * doctors-appointment-mpesa.timer        — settles pending M-Pesa payments every 5 minutes
 #   * doctors-appointment-pilot.timer        — standard-terms notices after the pilot, daily
+#   * doctors-appointment-fees.timer         — releases unpaid bookings every minute
+#   * doctors-appointment-incentives.timer   — weekly front-desk payouts, Mondays
 #
 #   sudo systemctl restart doctors-appointment.target   # after every deploy
 #   sudo systemctl stop doctors-appointment.target      # pause all notifications
 
 [Unit]
 Description=Doctor appointments background services
-Wants=doctors-appointment-queue.service doctors-appointment-scheduler.timer doctors-appointment-audit-purge.timer doctors-appointment-health.timer doctors-appointment-waitlist.timer doctors-appointment-mpesa.timer doctors-appointment-pilot.timer
+Wants=doctors-appointment-queue.service doctors-appointment-scheduler.timer doctors-appointment-audit-purge.timer doctors-appointment-health.timer doctors-appointment-waitlist.timer doctors-appointment-mpesa.timer doctors-appointment-pilot.timer doctors-appointment-fees.timer doctors-appointment-incentives.timer
 
 [Install]
 WantedBy=multi-user.target

@@ -207,7 +207,9 @@ class ClinicStats extends BaseObject
     /** Appointments in scope, without AppointmentsQuery's default ordering. */
     private function scoped()
     {
-        $query = Appointments::find()->orderBy(null);
+        // F22: bookings awaiting payment or released unpaid are not appointments yet
+        $query = Appointments::find()->orderBy(null)->andWhere(['or', ['status' => null],
+            ['not in', 'status', [Appointments::STATUS_AWAITING_PAYMENT, Appointments::STATUS_UNPAID]]]);
         if ($this->consultantUserIds !== null) {
             $query->andWhere(['consultant_id' => $this->consultantUserIds ?: [0]]);
         }

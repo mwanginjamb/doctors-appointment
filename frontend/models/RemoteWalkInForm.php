@@ -36,6 +36,9 @@ class RemoteWalkInForm extends Model
     /** @var Appointments|null after book() */
     public $appointment;
 
+    /** @var array F22: the commitment-fee answers posted with the form (payment_mode, pay_phone, fee_terms) */
+    public $feeData = [];
+
     public function __construct(BookingLink $link, $config = [])
     {
         $this->link = $link;
@@ -143,6 +146,11 @@ class RemoteWalkInForm extends Model
             $appointment->consultant_id = $this->link->consultant->user_id;
             $appointment->booking_link_id = $this->link->id;
             $appointment->skipNotice = true;
+            // F22: the fee's answers; the phone given here pays unless another is entered
+            \frontend\services\FeeRules::load($appointment, $this->feeData);
+            if ($appointment->payPhone === '') {
+                $appointment->payPhone = $this->phone;
+            }
             if (!Yii::createObject(BookingService::class)->book($appointment)) {
                 $errors = $appointment->getFirstErrors();
                 $this->addError('time', $errors ? reset($errors) : Yii::t('app', 'The appointment could not be booked.'));
@@ -160,7 +168,10 @@ class RemoteWalkInForm extends Model
         }
 
         $this->appointment = $appointment;
-        $this->confirmByWhatsapp($patient);
+        // F22: a booking awaiting its commitment fee is confirmed once paid, like any other
+        if (!$appointment->isAwaitingPayment()) {
+            $this->confirmByWhatsapp($patient);
+        }
 
         return true;
     }

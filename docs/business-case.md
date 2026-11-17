@@ -239,6 +239,34 @@ Safeguards:
    These are triggered from `cancel()`, `reschedule()`, `recordOutcome()` and facility closures.
 6. The patient accepts the **booking terms** (forfeit, transfer, at most one fee a day) at booking.
    This sits beside the existing consent step.
+7. **Decided on 16 November 2026** for building it:
+   - an unpaid booking holds its slot for **10 minutes** (`COMMITMENT_FEE_HOLD_MINUTES`), then the
+     slot is released;
+   - **staff bookings ahead** send the prompt to the patient's phone too, with the slot held, as
+     online;
+   - **platform admins set each consultant's plan** (`php yii pilot/plan`, an admin screen with F28);
+     every consultant starts on **Plan A, insured patients paying**;
+   - F22 asks only **cash or insurance**; the insurer, member number and pre-authorisation come
+     with F18;
+   - the prompt goes to the **patient's phone, which they or staff can change** before sending (a
+     relative may pay);
+   - fees are switched on per server with **`COMMITMENT_FEE_ENABLED=1`**, once live M-Pesa
+     credentials are in `.env`; until then nothing is charged or absorbed;
+   - "one fee a day" counts fees the patient **paid or is paying**: a fee a consultant absorbed for
+     an insured patient does not exempt the patient's next booking that day.
+8. **Decided on 16 November 2026** for the fee after booking (F23):
+   - a patient who cancels **more than 24 hours ahead** gets a **credit** (not a refund);
+   - a patient who **moves** a paid booking **less than 24 hours ahead** forfeits the fee and pays
+     again. In practice they cannot move it themselves then: they cancel (forfeiting it) and book
+     again. Staff moves always carry the fee;
+   - a credit pays the fee of the patient's next booking with **any consultant**, within **90
+     days**; an expired credit is not refunded;
+   - a refund (clinic cancellations, and payments that arrive after their time was taken) is asked
+     for from the link in the message, **approved by a platform admin**, and sent by M-Pesa B2C
+     once `MPESA_B2C_PAYOUTS_ENABLED=1`; until then it is paid by hand and recorded with its M-Pesa
+     reference;
+   - platform admins work in the **backend app** (refunds, weekly payouts), which shares the
+     `user` table and sign-in with the frontend.
 
 ### Front-desk incentive (Ksh 50)
 
