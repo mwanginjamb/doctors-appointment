@@ -83,6 +83,9 @@ class RbacHelper
     const PERM_MANAGE_OWN_FACILITY_CLOSURES = 'manageOwnFacilityClosures';
     const PERM_EDIT_OWN_FACILITY_CONTACT = 'editOwnFacilityContact';
     const PERM_VIEW_OWN_FACILITY_AUDIT_LOG = 'viewOwnFacilityAuditLog';
+    // F28: invite consultants to a facility and add new consultant accounts there
+    const PERM_MANAGE_FACILITY_CONSULTANTS = 'manageFacilityConsultants';
+    const PERM_MANAGE_OWN_FACILITY_CONSULTANTS = 'manageOwnFacilityConsultants';
 
     // F8 phase 3: one-off sessions. Params: ['consultant' => Consultant, 'facilityId' => …]
     const PERM_MANAGE_SESSIONS = 'manageConsultantSessions';
@@ -139,6 +142,7 @@ class RbacHelper
                 self::PERM_EDIT_FACILITY_CONTACT => "Edit a facility's address, phone and map link",
                 self::PERM_VIEW_FACILITY_AUDIT_LOG => "Read a facility's audit log",
                 self::PERM_MANAGE_SESSIONS => "Add and remove a consultant's one-off sessions at a facility",
+                self::PERM_MANAGE_FACILITY_CONSULTANTS => 'Invite consultants to a facility and add new consultant accounts there',
             ],
             'ruledPermissions' => [
                 self::PERM_BOOK_OWN_CALENDAR => ['Book in own calendar', 'isTheConsultant', self::PERM_BOOK_FOR_CONSULTANT],
@@ -160,6 +164,7 @@ class RbacHelper
                 self::PERM_MANAGE_OWN_FACILITY_CLOSURES => ['Close own facility for a day', 'facilityAdmin', self::PERM_MANAGE_FACILITY_CLOSURES],
                 self::PERM_EDIT_OWN_FACILITY_CONTACT => ["Edit own facility's contact details", 'facilityAdmin', self::PERM_EDIT_FACILITY_CONTACT],
                 self::PERM_VIEW_OWN_FACILITY_AUDIT_LOG => ["Read own facility's audit log", 'facilityAdmin', self::PERM_VIEW_FACILITY_AUDIT_LOG],
+                self::PERM_MANAGE_OWN_FACILITY_CONSULTANTS => ['Invite and add consultants at own facility', 'facilityAdmin', self::PERM_MANAGE_FACILITY_CONSULTANTS],
                 // One-off sessions: the consultant; their front desk at its facility; facility admins at theirs
                 self::PERM_MANAGE_OWN_SESSIONS => ['Add and remove own one-off sessions', 'isTheConsultant', self::PERM_MANAGE_SESSIONS],
                 self::PERM_MANAGE_ASSIGNED_SESSIONS => ["Add and remove assigned consultants' sessions", 'assignedConsultant', self::PERM_MANAGE_SESSIONS],
@@ -176,7 +181,7 @@ class RbacHelper
                         self::PERM_MANAGE_CONSULTANTS, self::PERM_VIEW_AUDIT_LOG,
                         self::PERM_MANAGE_FRONT_DESK, self::PERM_MANAGE_FACILITY_CLOSURES,
                         self::PERM_EDIT_FACILITY_CONTACT, self::PERM_VIEW_FACILITY_AUDIT_LOG,
-                        self::PERM_MANAGE_SESSIONS,
+                        self::PERM_MANAGE_SESSIONS, self::PERM_MANAGE_FACILITY_CONSULTANTS,
                     ],
                 ],
                 self::ROLE_FACILITY_ADMIN => [
@@ -186,7 +191,7 @@ class RbacHelper
                         self::PERM_HANDLE_FACILITY_APPOINTMENT, self::PERM_RECORD_FACILITY_OUTCOME,
                         self::PERM_MANAGE_OWN_FACILITY_FRONT_DESK, self::PERM_MANAGE_OWN_FACILITY_CLOSURES,
                         self::PERM_EDIT_OWN_FACILITY_CONTACT, self::PERM_VIEW_OWN_FACILITY_AUDIT_LOG,
-                        self::PERM_MANAGE_FACILITY_SESSIONS,
+                        self::PERM_MANAGE_FACILITY_SESSIONS, self::PERM_MANAGE_OWN_FACILITY_CONSULTANTS,
                     ],
                 ],
                 self::ROLE_CONSULTANT => [

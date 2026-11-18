@@ -3,8 +3,11 @@
 namespace backend\controllers;
 
 use backend\models\AdminLoginForm;
+use frontend\models\Facility;
+use frontend\models\FacilityAgreement;
 use frontend\models\IncentivePayout;
 use frontend\models\PatientCredit;
+use frontend\services\Pilot;
 use Yii;
 use yii\filters\VerbFilter;
 use yii\filters\AccessControl;
@@ -65,10 +68,25 @@ class SiteController extends Controller
     public function actionIndex()
     {
         // What waits for a platform admin
+        $toApprove = [];
+        $unsigned = [];
+        $withAgreement = FacilityAgreement::find()->select('facility_id')->distinct()->column();
+        foreach (Facility::find()->where(['or', ['active' => 1], ['id' => $withAgreement]])->orderBy('name')->all() as $facility) {
+            if (Pilot::termsStatus($facility->id) === Pilot::TERMS_AWAITING_APPROVAL) {
+                $toApprove[] = $facility;
+            }
+            // Taking bookings with consultants there, but no agreement on record
+            if ($facility->active && !in_array($facility->id, $withAgreement) && $facility->getEngagements()->exists()) {
+                $unsigned[] = $facility;
+            }
+        }
+
         return $this->render('index', [
             'refunds' => (int) PatientCredit::find()->where(['status' => PatientCredit::STATUS_REFUND_REQUESTED])->count(),
             'payoutsReady' => (int) IncentivePayout::find()->where(['status' => IncentivePayout::STATUS_READY])->count(),
             'payoutsHeld' => (int) IncentivePayout::find()->where(['status' => IncentivePayout::STATUS_HELD])->count(),
+            'toApprove' => $toApprove,
+            'unsigned' => $unsigned,
         ]);
     }
 

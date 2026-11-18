@@ -19,6 +19,12 @@ class NewConsultantForm extends Model
     public $practice_name;
     public $password;
 
+    /**
+     * @var int|null the facility the consultant starts at, with the default week there (a facility
+     * admin adding a consultant to theirs). When null, the facility named by the practice name.
+     */
+    public $facilityId;
+
     /** @var Consultant|null the profile created by save() */
     public $consultant;
 
@@ -78,8 +84,23 @@ class NewConsultantForm extends Model
                 'consultant_phone_number' => $this->phone,
                 'practice_name' => $this->practice_name ?: null,
             ]);
+            $facility = $this->facilityId ? Facility::findOne((int) $this->facilityId) : null;
+            if ($facility !== null) {
+                // ConsultantFacility::createDefault() engages them at the facility of this name
+                $this->consultant->facility = $facility->name;
+                $this->consultant->physical_address = $facility->address;
+            }
             if (!$this->consultant->save(false)) {
                 throw new \RuntimeException('Could not create the consultant profile.');
+            }
+            if ($facility !== null) {
+                $engagement = ConsultantFacility::findOne(['consultant_id' => $this->consultant->id]);
+                if ($engagement !== null && (int) $engagement->facility_id !== (int) $facility->id) {
+                    // A facility of a similar name matched: move the engagement and its hours here
+                    ConsultantWorkingHours::updateAll(['facility_id' => $facility->id], ['consultant_id' => $this->consultant->id, 'facility_id' => $engagement->facility_id]);
+                    $engagement->facility_id = $facility->id;
+                    $engagement->save(false, ['facility_id']);
+                }
             }
             $transaction->commit();
         } catch (\Throwable $e) {

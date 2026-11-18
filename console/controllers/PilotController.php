@@ -13,7 +13,8 @@ use yii\console\ExitCode;
 use yii\helpers\Console;
 
 /**
- * F20: the pilot's agreements and each consultant's pilot, until the platform admin screens (F28).
+ * F20: the pilot's agreements and each consultant's pilot. Platform admins do the same in the admin
+ * area (/admin → Pilots); these commands stay for use on the server.
  */
 class PilotController extends Controller
 {
@@ -180,19 +181,12 @@ class PilotController extends Controller
             $this->stderr("No consultant with user id $userId.\n", Console::FG_RED);
             return ExitCode::DATAERR;
         }
-        $plan = strtoupper((string) $plan);
-        if (!array_key_exists($plan, FeeRules::planLabels())) {
+        $insuredPay = $this->insuredPay === null ? null : filter_var($this->insuredPay, FILTER_VALIDATE_BOOLEAN);
+        if (!Pilot::setPlan($consultant, $plan, $insuredPay)) {
             $this->stderr("The plan is A or B.\n", Console::FG_RED);
             return ExitCode::DATAERR;
         }
-        $attributes = ['plan' => $plan];
-        if ($this->insuredPay !== null) {
-            $attributes['insured_pay'] = filter_var($this->insuredPay, FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
-        }
-        $consultant->setAttributes($attributes, false);
-        $consultant->save(false, array_keys($attributes));
-        $this->stdout("{$consultant->names}: " . FeeRules::planLabels()[$plan]
-            . ($plan === FeeRules::PLAN_A ? ($consultant->insured_pay ? ', insured patients pay' : ', absorbs the fee for insured patients') : '') . ".\n", Console::FG_GREEN);
+        $this->stdout("{$consultant->names}: " . Pilot::planSummary($consultant) . ".\n", Console::FG_GREEN);
 
         return ExitCode::OK;
     }
@@ -213,7 +207,7 @@ class PilotController extends Controller
         if (!$this->confirm("Clear the pilot start of {$consultant->names}? Their pilot starts again at their next booking.")) {
             return ExitCode::OK;
         }
-        $consultant->updateAttributes(['first_booking_at' => null]);
+        Pilot::restart($consultant);
         $this->stdout("Cleared. {$consultant->names}'s pilot starts at their next booking.\n", Console::FG_GREEN);
 
         return ExitCode::OK;

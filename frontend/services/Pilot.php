@@ -200,6 +200,52 @@ class Pilot
             || ($identity !== null && in_array((int) $facilityId, self::facilitiesOf($identity), true));
     }
 
+    /**
+     * F22: sets the consultant's plan, A (the patient pays the commitment fee) or B (flat, no fee),
+     * and on Plan A whether insured patients pay (else the consultant absorbs it). Audited.
+     *
+     * @param bool|null $insuredPay unchanged when null
+     * @return bool false for an unknown plan
+     */
+    public static function setPlan(Consultant $consultant, $plan, $insuredPay = null)
+    {
+        $plan = strtoupper((string) $plan);
+        if (!array_key_exists($plan, FeeRules::planLabels())) {
+            return false;
+        }
+        $consultant->plan = $plan;
+        if ($insuredPay !== null) {
+            $consultant->insured_pay = $insuredPay ? 1 : 0;
+        }
+
+        return $consultant->save(false, ['plan', 'insured_pay', 'updated_at', 'updated_by']);
+    }
+
+    /** The consultant's plan in words, e.g. "Plan A: commitment fee, absorbs it for insured patients". */
+    public static function planSummary(Consultant $consultant)
+    {
+        $label = FeeRules::planLabels()[$consultant->plan] ?? (string) $consultant->plan;
+        if ($consultant->plan === FeeRules::PLAN_A) {
+            $label .= $consultant->insured_pay ? ', insured patients pay' : ', absorbs it for insured patients';
+        }
+
+        return $label;
+    }
+
+    /**
+     * Clears the consultant's first booking, so their pilot starts again at their next booking: for
+     * test bookings made before the pilot. Audited.
+     */
+    public static function restart(Consultant $consultant)
+    {
+        if ($consultant->first_booking_at === null) {
+            return false;
+        }
+        $consultant->first_booking_at = null;
+
+        return $consultant->save(false, ['first_booking_at', 'updated_at', 'updated_by']);
+    }
+
     public static function phaseLabels()
     {
         return [
