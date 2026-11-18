@@ -60,8 +60,26 @@ class ConsultantManagementCest
         $I->assertTrue($user->validatePassword('Secret-pass-1'));
         $consultant = Consultant::findOne(['user_id' => $user->id]);
         $I->assertSame('Dr. Jane Mwangi', $consultant->names);
-        $I->assertSame(ConsultantWorkingHours::DEFAULT_WEEK, $consultant->getWeek());
+        // Their practice is not listed: it waits as a facility request, and the default week
+        // comes once it is created
+        $I->assertSame([], $consultant->getWeek());
+        $I->assertSame('Mwangi Family Clinic', \frontend\models\FacilityRequest::pendingFromProfile($consultant->id)->name);
         $I->seeInCurrentUrl('consultant/update');
+    }
+
+    public function adminAddsAConsultantWithoutAPracticeWhoGetsTheDefaultWeek(FunctionalTester $I)
+    {
+        $I->amLoggedInAs($this->admin);
+        $I->amOnRoute('manage-consultants/create');
+        $I->submitForm('#new-consultant-form', [
+            'NewConsultantForm[full_name]' => 'Dr. Jane Mwangi',
+            'NewConsultantForm[email]' => 'jane.mwangi@example.com',
+            'NewConsultantForm[phone]' => '0722000111',
+            'NewConsultantForm[password]' => 'Secret-pass-1',
+        ]);
+
+        $consultant = Consultant::findOne(['user_id' => User::findOne(['email' => 'jane.mwangi@example.com'])->id]);
+        $I->assertSame(ConsultantWorkingHours::DEFAULT_WEEK, $consultant->getWeek());
     }
 
     public function adminManagesAnotherConsultantsAvailability(FunctionalTester $I)

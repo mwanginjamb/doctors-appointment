@@ -184,15 +184,39 @@ class ConsultantFacility extends ActiveRecord
     }
 
     /**
-     * The engagement a new consultant starts with: at the facility named on their profile (else
-     * their practice name, else Facility::FALLBACK_NAME), with their session length.
+     * Where a new consultant starts. The facility named on their profile (else their practice name)
+     * when it is listed; when it is not, it is not created: it waits as a FacilityRequest for a
+     * platform admin, and the consultant starts nowhere (null) until it is listed. A profile naming
+     * no facility starts at Facility::FALLBACK_NAME.
+     *
+     * @return static|null the engagement, or null while the facility waits for approval
+     */
+    public static function startFor(Consultant $consultant)
+    {
+        $name = self::profileFacilityName($consultant);
+        if ($name !== '' && Facility::findByName($name) === null) {
+            FacilityRequest::fromProfile($consultant, $name);
+            return null;
+        }
+
+        return self::createDefault($consultant);
+    }
+
+    /** The facility a profile names: its facility, else its practice name; '' for none. */
+    private static function profileFacilityName(Consultant $consultant)
+    {
+        return trim((string) $consultant->facility) ?: trim((string) $consultant->practice_name);
+    }
+
+    /**
+     * Engages the consultant at the listed facility their profile names, else at
+     * Facility::FALLBACK_NAME, with their session length. Never lists a facility under another name.
      */
     public static function createDefault(Consultant $consultant)
     {
-        $facility = Facility::findOrCreateByName(
-            trim((string) $consultant->facility) ?: trim((string) $consultant->practice_name),
-            $consultant->physical_address
-        );
+        $name = self::profileFacilityName($consultant);
+        $facility = ($name !== '' ? Facility::findByName($name) : null)
+            ?? Facility::findOrCreateByName(Facility::FALLBACK_NAME, $consultant->physical_address);
         $engagement = new static([
             'consultant_id' => $consultant->id,
             'facility_id' => $facility->id,

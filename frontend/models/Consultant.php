@@ -281,9 +281,9 @@ class Consultant extends \yii\db\ActiveRecord
             $this->syncSubSpecialities($this->sub_specialities);
         }
         // A new consultant starts engaged at the facility on their profile, with the default week
-        // there; they change both on the Availability page
-        if ($insert) {
-            ConsultantFacility::createDefault($this);
+        // there; they change both on the Availability page. A facility not listed yet waits as a
+        // facility request, and they get the default week there once it is created.
+        if ($insert && ConsultantFacility::startFor($this) !== null) {
             ConsultantWorkingHours::replaceWeek($this->id, ConsultantWorkingHours::DEFAULT_WEEK);
         }
     }
