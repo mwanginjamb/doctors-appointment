@@ -153,6 +153,12 @@ class ConsultantController extends Controller
 
         if ($this->request->isPost) {
             if ($model->load($this->request->post()) && $model->save()) {
+                // A facility that is not listed yet waits for the administrator
+                if ($waiting = \frontend\models\FacilityRequest::pendingFromProfile($model->id)) {
+                    Yii::$app->session->setFlash('info', Yii::t('app', '{name} is not listed yet, so it has been sent to the administrator. You will be told by email and WhatsApp when it is added, with your default week there. Meanwhile you can add a listed facility on your Availability page.', [
+                        'name' => \yii\helpers\Html::encode($waiting->name),
+                    ]));
+                }
                 return $this->redirect(['view', 'id' => $model->id]);
             }
         } else {

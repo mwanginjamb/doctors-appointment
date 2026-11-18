@@ -42,6 +42,9 @@ class FacilityRequest extends ActiveRecord
     /** A consultant may have this many requests waiting at once. */
     const MAX_PENDING = 5;
 
+    /** @var bool approve() gave the consultant the default week at the new facility */
+    private $defaultWeekGiven = false;
+
     public static function tableName()
     {
         return '{{%facility_request}}';
@@ -135,6 +138,40 @@ class FacilityRequest extends ActiveRecord
     }
 
     /**
+     * A new consultant's profile names a facility that is not listed: it waits here for a platform
+     * admin instead of being created. Nothing is sent; the consultant is told when it is answered.
+     *
+     * @return static the request (an existing waiting one for the same name is reused)
+     */
+    public static function fromProfile(Consultant $consultant, $name)
+    {
+        $name = mb_substr(preg_replace('/\s+/', ' ', trim((string) $name)), 0, 150);
+        $existing = static::findOne(['consultant_id' => $consultant->id, 'name' => $name, 'status' => self::STATUS_PENDING]);
+        if ($existing !== null) {
+            return $existing;
+        }
+        $request = new static();
+        $request->setAttributes([
+            'consultant_id' => $consultant->id,
+            'name' => $name,
+            'address' => $consultant->physical_address ? mb_substr(trim((string) $consultant->physical_address), 0, 1000) : null,
+            'note' => 'Named on their new profile; they start working there once it is listed.',
+            'status' => self::STATUS_PENDING,
+            'created_at' => time(),
+        ], false);
+        $request->save(false);
+
+        return $request;
+    }
+
+    /** The consultant's waiting request made from their profile, if any. */
+    public static function pendingFromProfile($consultantId)
+    {
+        return static::find()->where(['consultant_id' => $consultantId, 'status' => self::STATUS_PENDING])
+            ->orderBy(['id' => SORT_ASC])->one();
+    }
+
+    /**
      * A facility form filled in from the request, for the admin to check before creating it.
      */
     public function toFacility()
@@ -174,6 +211,17 @@ class FacilityRequest extends ActiveRecord
                     'session_minutes' => $consultant->getSessionMinutes(),
                     'booking_open' => true,
                 ]))->save(false);
+            }
+            // A consultant who asked from their new profile has no hours yet: the default week here
+            if (!ConsultantWorkingHours::find()->where(['consultant_id' => $consultant->id])->exists()) {
+                $week = [];
+                foreach (ConsultantWorkingHours::DEFAULT_WEEK as $day => $ranges) {
+                    foreach ($ranges as $range) {
+                        $week[$day][] = [$range[0], $range[1], (int) $facility->id];
+                    }
+                }
+                ConsultantWorkingHours::replaceWeek($consultant->id, $week);
+                $this->defaultWeekGiven = true;
             }
             $this->close(self::STATUS_CREATED, null, $facility->id);
             $transaction->commit();
@@ -239,7 +287,9 @@ class FacilityRequest extends ActiveRecord
             $name = $this->facility->name ?? $this->name;
             $subject = "{$name} has been added";
             $text = "Hello {$doctor},\n\n{$name} is now listed, as you asked, and has been added to your facilities "
-                . 'with your usual session length. Add your hours there, and its fee, on your Availability page'
+                . ($this->defaultWeekGiven
+                    ? 'with your usual session length and the default week (Mon–Sat 08:00–13:00, 14:00–17:00). Change your hours there, and add its fee, on your Availability page'
+                    : 'with your usual session length. Add your hours there, and its fee, on your Availability page')
                 . ($url ? ": {$url}" : '.');
         } else {
             $subject = "Your request for {$this->name}";

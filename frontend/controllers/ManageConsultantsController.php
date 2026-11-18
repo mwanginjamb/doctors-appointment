@@ -48,7 +48,11 @@ class ManageConsultantsController extends Controller
         $form = new NewConsultantForm();
         if ($form->load($this->request->post()) && $form->save()) {
             // The next page uses the main layout, whose alerts do not escape: escape the names here
-            Yii::$app->session->setFlash('success', Html::encode($form->full_name) . ' added with the default week (Mon–Sat 08:00–13:00, 14:00–17:00). Complete their profile now; they sign in with ' . Html::encode($form->email) . '.');
+            $waiting = \frontend\models\FacilityRequest::pendingFromProfile($form->consultant->id);
+            Yii::$app->session->setFlash('success', Html::encode($form->full_name) . ($waiting
+                ? ' added. ' . Html::encode($waiting->name) . ' is not listed yet: it waits under Facility Requests, and they get the default week there once you create it.'
+                : ' added with the default week (Mon–Sat 08:00–13:00, 14:00–17:00).')
+                . ' Complete their profile now; they sign in with ' . Html::encode($form->email) . '.');
             return $this->redirect(['consultant/update', 'id' => $form->consultant->id]);
         }
 
