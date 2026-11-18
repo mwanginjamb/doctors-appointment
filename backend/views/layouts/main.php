@@ -37,8 +37,12 @@ AppAsset::register($this);
     // Platform admins only (backend\components\PlatformAdminOnly)
     $menuItems = Yii::$app->user->isGuest ? [] : [
         ['label' => 'Home', 'url' => ['/site/index']],
+        ['label' => 'Pilots', 'url' => ['/pilot/index'], 'active' => Yii::$app->controller->id === 'pilot'],
+        ['label' => 'Payments', 'url' => ['/payment/index'], 'active' => Yii::$app->controller->id === 'payment'],
         ['label' => 'Refunds', 'url' => ['/refund/index']],
-        ['label' => 'Weekly payouts', 'url' => ['/payout/index']],
+        ['label' => 'Weekly payouts', 'url' => ['/payout/index'], 'active' => Yii::$app->controller->id === 'payout'],
+        // Consultants, facilities, staff, RBAC and the audit log stay on the main site
+        ['label' => 'Main site admin ↗', 'url' => \common\helpers\AdminLinks::mainSite('site/settings')],
     ];
     echo Nav::widget([
         'options' => ['class' => 'navbar-nav me-auto mb-2 mb-md-0'],

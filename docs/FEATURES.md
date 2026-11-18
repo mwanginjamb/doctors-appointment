@@ -95,6 +95,7 @@ Doing **Next up** below should bring the app to about 9.5 functionally.
 | F23 Fee after booking | When the clinic cancels (anything the patient did not ask for, a facility closure included), a paid fee becomes a **refundable credit** and an absorbed one is not billed. When the patient cancels more than 24 hours ahead, a paid fee becomes a credit (not refundable); later, or a no-show, forfeits it (a no-show corrected to attended restores it). A moved booking keeps its fee; a patient cannot move a paid booking themselves in its last 24 hours. A credit (`patient_credit`) pays the fee of the next booking with any consultant within 90 days, confirming it at once; `fee/release` expires old ones. The patient is emailed (and WhatsApped with consent) a link to the credit's page (`/credit/<id>/<signature>`), where a refundable one can be asked back to an M-Pesa number. A payment that arrives after its time was taken also becomes a refundable credit. `FeeLifecycle` approves refunds (sent by B2C when `MPESA_B2C_PAYOUTS_ENABLED=1`), records ones paid by hand with their M-Pesa reference, and declines them (the credit stays usable). | `feature/fee-after-booking` |
 | F24 Front-desk incentive | Ksh 50 (`FRONTDESK_INCENTIVE`) for each booking a front-desk user made ahead (a staff booking, not a same-day walk-in) whose commitment fee was paid or absorbed: **pending** from then, **earned** when the patient attends, **cancelled** on a no-show or any cancellation (a no-show corrected to attended earns it again). When the same front desk cancelled an appointment of the same patient in the 24 hours before rebooking, the new incentive is cancelled at once and **flagged**. Every Monday, `php yii incentive/payouts` groups each front-desk user's earned incentives up to Sunday into one payout to the phone on their account (**held** without a Kenyan number until the account is fixed). A platform admin sends it by B2C (`MPESA_B2C_PAYOUTS_ENABLED=1`) or pays by hand and records the M-Pesa reference; the incentives are then paid, and no longer cancelled by later changes. | `feature/frontdesk-incentive` |
 | Admin area, first screens (F28 started) | The backend app, at `/admin`, is the platform admins' area. It shares the `user` table and passwords with the frontend but has its own session, and signs in **only platform admins** (others get "Incorrect username or password", and a staff member already signed in is signed out and refused). Home shows what waits: refund requests and payouts to send. **Refunds** (F23): approve (sent by B2C when `MPESA_B2C_PAYOUTS_ENABLED=1`), record one paid by hand with its M-Pesa reference, or decline with a reason. **Weekly payouts** (F24): each front-desk user's week with its bookings; send by B2C, record a manual payment, check a held one's phone again, or build last week's now. | `feature/admin-backend` |
+| Admin area: pilots, plans and payments (F28) | **Pilots** in `/admin`: every facility with its current agreement, consultants, pilot day and standard-terms status, approving confirmed terms from the list. A facility's page records a signed agreement (a new one replaces the current one and keeps the history; the facility confirms standard terms again for it, and notices already sent are not sent again), records that the facility left, confirms standard terms on the facility's word, approves them, and lists its consultants. **Consultants and plans**: each consultant's first booking, pilot day and phase; change Plan A/B and whether insured patients pay, or restart a pilot started by test bookings (all audited). **Payments**: commitment fees with their M-Pesa receipts (phones masked), filtered by state, facility, consultant and dates, with totals per state; patients' credits. Home also shows standard terms waiting for approval and facilities taking bookings with no agreement. The two admin areas link to each other (the main site keeps consultants, facilities, staff, RBAC and the audit log). On the main site, a facility admin's **Consultants** page invites a consultant who works elsewhere (they accept on Availability) or adds a new consultant account that starts at their facility with the default week (permission `manageFacilityConsultants`, rule `facilityAdmin`; consultancy admins use it with `?facility=<id>`). The console's `pilot/plan` and `pilot/restart` use the same code. | `feature/admin-pilots` |
 
 ### Scheduling depth
 
@@ -692,6 +693,18 @@ baseline. Nothing is charged yet.
    `php yii pilot/confirm-standard <facility id>` (for the facility) and
    `php yii pilot/approve-standard <facility id>`.
 
+### Admin area: pilots, plans and payments (F28)
+
+1. **Permissions:** `php yii rbac/init` adds `manageFacilityConsultants` (consultancy admins) and
+   `manageOwnFacilityConsultants` (facility admins, rule `facilityAdmin`). Without it, facility admins
+   don't see **Consultants** in the sidebar.
+2. **No migration.** Restart the workers so they load the new code:
+   `sudo systemctl restart doctors-appointment.target`.
+3. **Agreements:** record each facility's signed agreement under **Pilots** in `/admin` (instead of
+   `php yii pilot/agreement`). Home lists the facilities taking bookings that have none.
+4. **Check:** `/admin` shows Pilots and Payments in the menu, and the main site's sidebar shows
+   **Admin Area** for platform admins.
+
 ### Admin area at /admin
 
 1. **nginx:** the site config now has an `/admin` section serving `backend/web`
@@ -834,7 +847,7 @@ pilot facility. Amounts and M-Pesa credentials come from `.env`.
 | F25 | Consultant invoices: monthly statements of absorbed fees from day 31; from day 91, the plan charge per active consultant (one with an appointment that month) and Ksh 100 per cancellation by the consultant or their front desk (not at the patient's request or for a closure), emailed each time. Paid by STK push; reminders, then online booking paused 14 days after the due date. | P1 | |
 | F26 | The 90-day pilot report: each consultant's month 1 against months 2 and 3 (no-shows, late cancellations, advance bookings against walk-ins, fees collected, absorbed, credited and refunded, incentives), added up per facility. Needed by **day 90**. | P2 | |
 | F27 | A facility leaving: unused patient credits refunded, earned incentives paid, pending ones paid only if completed before the exit date. Needed by **day 91**. | P3 | |
-| F28 | **Started**: the backend at `/admin` with platform-admin sign-in, refunds and weekly payouts (see Done). Still to come: the RBAC menu shared with the frontend as one module, and screens for agreements and pilots, consultants' plans, payments, invoices and the pilot report, by day 91. | P1 | |
+| F28 | **Mostly done**: the backend at `/admin` with platform-admin sign-in, refunds and weekly payouts, pilots and agreements, consultants' plans and payments; facility admins invite and add consultants at their facility (see Done). Still to come: invoices with F25 and the pilot report with F26. Moving the main site's admin pages (consultants, facilities, staff, RBAC, audit log) into `/admin` as one module is deferred; the two link to each other. | P1 | |
 
 #### Scheduling depth
 

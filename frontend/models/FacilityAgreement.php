@@ -83,6 +83,26 @@ class FacilityAgreement extends ActiveRecord
             ->orderBy(['signed_on' => SORT_DESC, 'id' => SORT_DESC])->one();
     }
 
+    /**
+     * A newly signed agreement replaces the current one. The facility confirms standard terms again
+     * for it, but the day 81, 91 and 121 notices already sent are not sent again.
+     */
+    public function beforeSave($insert)
+    {
+        if (!parent::beforeSave($insert)) {
+            return false;
+        }
+        if ($insert && ($previous = static::currentFor($this->facility_id)) !== null) {
+            foreach (['notice_upcoming_sent_at', 'notice_grace_sent_at', 'notice_overdue_sent_at'] as $attribute) {
+                if ($this->$attribute === null) {
+                    $this->$attribute = $previous->$attribute;
+                }
+            }
+        }
+
+        return true;
+    }
+
     /** Whether this version includes the Ksh 100 cancellation charge (from v1.2). */
     public function hasCancellationCharge()
     {
@@ -100,6 +120,16 @@ class FacilityAgreement extends ActiveRecord
             'walk_in_exempt' => Yii::t('app', 'Same-day walk-ins pay no commitment fee'),
             'standard_terms_confirmed_at' => Yii::t('app', 'Standard terms confirmed'),
             'ended_on' => Yii::t('app', 'Left on'),
+            'notes' => Yii::t('app', 'Notes'),
+        ];
+    }
+
+    /** @return string[] version => label */
+    public static function versionLabels()
+    {
+        return [
+            '1.1.0' => 'v1.1.0',
+            '1.2' => 'v1.2 (with the Ksh 100 cancellation charge on standard terms)',
         ];
     }
 }

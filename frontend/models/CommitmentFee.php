@@ -86,6 +86,28 @@ class CommitmentFee extends ActiveRecord
         return $this->hasOne(Appointments::class, ['id' => 'appointment_id']);
     }
 
+    public function getPatient()
+    {
+        return $this->hasOne(\common\models\User::class, ['id' => 'patient_id']);
+    }
+
+    /** The consultant's profile (consultant_id is their user id). */
+    public function getConsultant()
+    {
+        return $this->hasOne(Consultant::class, ['user_id' => 'consultant_id']);
+    }
+
+    public function getFacility()
+    {
+        return $this->hasOne(Facility::class, ['id' => 'facility_id']);
+    }
+
+    /** The M-Pesa payment, with its receipt. */
+    public function getTransaction()
+    {
+        return $this->hasOne(\common\models\MpesaTransaction::class, ['id' => 'mpesa_transaction_id']);
+    }
+
     public static function forAppointment($appointmentId)
     {
         return static::findOne(['appointment_id' => $appointmentId]);

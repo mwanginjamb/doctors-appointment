@@ -48,6 +48,15 @@ $menuItems = [
             || ($ownFacilityId && $user->can(RbacHelper::PERM_MANAGE_FRONT_DESK, ['facilityId' => $ownFacilityId])),
     ],
     [
+        // F28: a facility admin invites consultants to their facility and adds new ones
+        'label' => 'Consultants',
+        'url' => ['/facility-consultants/index'],
+        'icon' => 'stethoscope',
+        'match' => ['facility-consultants'],
+        'visible' => $ownFacilityId && !$user->can(RbacHelper::ROLE_ADMIN)
+            && $user->can(RbacHelper::PERM_MANAGE_FACILITY_CONSULTANTS, ['facilityId' => $ownFacilityId]),
+    ],
+    [
         'label' => 'Facility Admins',
         'url' => ['/facility-admin/index'],
         'icon' => 'domain',
@@ -111,6 +120,14 @@ $menuItems = [
         'match' => ['audit'],
         'visible' => $user->can(RbacHelper::PERM_VIEW_AUDIT_LOG)
             || ($ownFacilityId && $user->can(RbacHelper::PERM_VIEW_FACILITY_AUDIT_LOG, ['facilityId' => $ownFacilityId])),
+    ],
+    [
+        // Pilots, payments, refunds and payouts live in the admin area at /admin
+        'label' => 'Admin Area ↗',
+        'url' => \common\helpers\AdminLinks::adminArea(),
+        'icon' => 'payments',
+        'match' => [],
+        'visible' => $user->can(RbacHelper::ROLE_ADMIN),
     ],
     [
         'label' => 'Back to Site',
