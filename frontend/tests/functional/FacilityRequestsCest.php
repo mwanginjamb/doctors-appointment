@@ -2,7 +2,9 @@
 
 namespace frontend\tests\functional;
 
+use frontend\models\Consultant;
 use frontend\models\ConsultantFacility;
+use frontend\models\ConsultantWorkingHours;
 use frontend\models\Facility;
 use frontend\models\FacilityRequest;
 use frontend\tests\BookingDataTrait;
@@ -191,5 +193,62 @@ class FacilityRequestsCest
         $I->see('That request has already been answered.');
         $I->assertFalse(Facility::find()->where(['name' => 'Riverside Medical Centre'])->exists());
         $I->assertSame(1, $this->queued('SendWhatsappTextJob', ['Riverside Medical Centre']), 'told once');
+    }
+
+    // ---- A new profile names a facility that is not listed --------------------------------
+
+    public function aNewProfileNamingAnUnlistedFacilityWaitsForTheAdmin(FunctionalTester $I)
+    {
+        $doctor = $this->createUser('new.doctor', 'consultant');
+        $consultant = new Consultant(['user_id' => $doctor->id, 'names' => 'Dr. Newcomer', 'facility' => 'Hilltop Family Clinic',
+            'physical_address' => 'Hilltop Road', 'consultant_email' => 'newcomer@example.com', 'consultant_phone_number' => '0712000055']);
+        $consultant->save(false);
+
+        // Not created, not engaged, no hours: it waits for a platform admin
+        $I->assertNull(Facility::findByName('Hilltop Family Clinic'));
+        $I->assertFalse(ConsultantFacility::find()->where(['consultant_id' => $consultant->id])->exists());
+        $I->assertFalse(ConsultantWorkingHours::find()->where(['consultant_id' => $consultant->id])->exists());
+        $request = FacilityRequest::pendingFromProfile($consultant->id);
+        $I->assertSame('Hilltop Family Clinic', $request->name);
+        $I->assertSame('Hilltop Road', $request->address);
+
+        // Creating it engages them there with the default week
+        $I->amLoggedInAs($this->admin);
+        $I->amOnRoute('facility/create-from-request', ['id' => $request->id]);
+        $I->submitForm('#facility-form', []);
+        $I->see('Hilltop Family Clinic added, and Dr. Newcomer now works there.');
+        $facility = Facility::findByName('Hilltop Family Clinic');
+        $hours = ConsultantWorkingHours::find()->where(['consultant_id' => $consultant->id])->select('facility_id')->distinct()->column();
+        $I->assertSame([(int) $facility->id], array_map('intval', $hours));
+        $I->assertSame(1, $this->queued('SendEmailMessageJob', ['Hilltop Family Clinic is now listed', 'the default week']));
+    }
+
+    public function aNewProfileNamingAListedFacilityStartsThere(FunctionalTester $I)
+    {
+        $listed = new Facility(['name' => 'Hilltop Family Clinic', 'active' => true]);
+        $listed->save(false);
+        $doctor = $this->createUser('new.doctor', 'consultant');
+        $consultant = new Consultant(['user_id' => $doctor->id, 'names' => 'Dr. Newcomer', 'facility' => 'hilltop family clinic',
+            'consultant_email' => 'newcomer@example.com', 'consultant_phone_number' => '0712000055']);
+        $consultant->save(false);
+
+        $I->assertSame([(int) $listed->id], array_map('intval', ConsultantFacility::find()->where(['consultant_id' => $consultant->id])->select('facility_id')->column()));
+        $I->assertTrue(ConsultantWorkingHours::find()->where(['consultant_id' => $consultant->id])->exists());
+        $I->assertNull(FacilityRequest::pendingFromProfile($consultant->id));
+    }
+
+    public function anAdminAddingAConsultantWithAnUnlistedPracticeIsToldItWaits(FunctionalTester $I)
+    {
+        $I->amLoggedInAs($this->admin);
+        $I->amOnRoute('manage-consultants/create');
+        $I->submitForm('#new-consultant-form', [
+            'NewConsultantForm[full_name]' => 'Dr. Practice',
+            'NewConsultantForm[email]' => 'practice@example.com',
+            'NewConsultantForm[phone]' => '0712000066',
+            'NewConsultantForm[practice_name]' => 'Lakeview Specialists',
+            'NewConsultantForm[password]' => 'password_new1',
+        ]);
+        $I->see('Lakeview Specialists is not listed yet: it waits under Facility Requests');
+        $I->assertNull(Facility::findByName('Lakeview Specialists'));
     }
 }
