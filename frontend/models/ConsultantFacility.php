@@ -132,9 +132,19 @@ class ConsultantFacility extends ActiveRecord
             && !FacilityClosure::isClosed($this->facility_id, $date);
     }
 
+    /**
+     * Patients can book it themselves (online): it is set so, and the consultant's online booking
+     * is not paused for an overdue invoice (F25). Staff and booking links always can.
+     */
     public function isBookingOpen()
     {
-        return (bool) $this->booking_open;
+        return (bool) $this->booking_open && !$this->isPaused();
+    }
+
+    /** F25: open for online booking, but the consultant's online booking is paused for now. */
+    public function isPaused()
+    {
+        return $this->consultant !== null && $this->consultant->isOnlineBookingPaused();
     }
 
     /** "KES 3,500", or null when no fee is set. */

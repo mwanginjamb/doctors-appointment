@@ -129,6 +129,7 @@ return [
                 'POST credit/<id:\d+>/<sig:[a-f0-9]{32}>/refund' => 'credit/refund',
                 // F25: a consultant's monthly invoice: /invoice/<id>/<signature>
                 'invoice/<id:\d+>/<sig:[a-f0-9]{32}>' => 'invoice/view',
+                'invoice/<id:\d+>/<sig:[a-f0-9]{32}>/<action:pay|status>' => 'invoice/<action>',
             ],
         ],
 

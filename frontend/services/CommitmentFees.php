@@ -163,6 +163,10 @@ class CommitmentFees
             Incentives::onPayoutSettled($transaction);
             return;
         }
+        if ($transaction->link_type === Invoices::LINK_TYPE) {
+            Invoices::onPaymentSettled($transaction);
+            return;
+        }
         if ($transaction->link_type !== self::LINK_TYPE) {
             return;
         }

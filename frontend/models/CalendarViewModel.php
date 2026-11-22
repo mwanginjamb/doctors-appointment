@@ -34,6 +34,9 @@ class CalendarViewModel extends BaseObject
     /** @var bool the consultant no longer takes bookings */
     public $deactivated = false;
 
+    /** @var bool F25: a patient looking while the consultant's online booking is paused; never told why */
+    public $paused = false;
+
     /** @var int|null front desk: the facility they book at; their hours elsewhere are not offered */
     public $facilityId;
 
@@ -63,7 +66,10 @@ class CalendarViewModel extends BaseObject
             && FrontDesk::canBookFor($this->consultant->user_id);
         // Patients book for themselves; staff who may not book here (admins) only look
         $this->deactivated = $this->consultant !== null && !$this->consultant->isTakingBookings();
-        $this->readOnly = (!$viewer->isPatientAccount() && !$this->booksForPatients) || $this->deactivated;
+        // F25: a patient sees no times while the consultant's online booking is paused, only whom to call
+        $this->paused = !$this->deactivated && $viewer->isPatientAccount() && $this->consultant !== null
+            && $this->consultant->isOnlineBookingPaused();
+        $this->readOnly = (!$viewer->isPatientAccount() && !$this->booksForPatients) || $this->deactivated || $this->paused;
 
         if ($this->readOnly) {
             $this->title = 'Schedule for ' . ($this->consultant->names ?? 'consultant');

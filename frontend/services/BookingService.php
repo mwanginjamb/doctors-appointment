@@ -246,6 +246,14 @@ class BookingService extends BaseObject
             return null;
         }
         $facility = $engagement->facility;
+        // F25: paused for an overdue invoice; the patient is never told why
+        if ($engagement->isPaused()) {
+            return Yii::t('app', "Online booking with {doctor} isn't available right now. Call {facility} on {phone} to book.", [
+                'doctor' => $consultant->names ?? Yii::t('app', 'the doctor'),
+                'facility' => $facility->name ?? Yii::t('app', 'the clinic'),
+                'phone' => $facility && $facility->phone ? $facility->phone : Yii::t('app', 'its usual number'),
+            ]);
+        }
 
         return Yii::t('app', "{doctor} doesn't take online bookings at {facility}. Please call {phone} to book.", [
             'doctor' => $consultant->names ?? Yii::t('app', 'The doctor'),

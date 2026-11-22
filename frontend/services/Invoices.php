@@ -2,8 +2,10 @@
 
 namespace frontend\services;
 
+use common\components\MpesaException;
 use common\jobs\SendEmailMessageJob;
 use common\jobs\SendWhatsappTextJob;
+use common\models\MpesaTransaction;
 use common\models\User;
 use frontend\models\Appointments;
 use frontend\models\CommitmentFee;
@@ -32,9 +34,16 @@ use Yii;
  *
  * The consultant is emailed and WhatsApped the invoice; each facility admin gets the lines from
  * their facility. Off until INVOICES_ENABLED=1.
+ *
+ * Part 2: the consultant pays from the invoice page by M-Pesa prompt (Mpesa::EVENT_SETTLED, see
+ * onPaymentSettled()); `php yii invoice/remind` reminds them on the due date and a week later, and
+ * pauses patients' online booking with them once an invoice carrying standard-terms charges is 14
+ * days overdue (a pilot statement gets reminders only). Paying, waiving or voiding lifts the pause.
  */
 class Invoices
 {
+    const LINK_TYPE = 'consultant_invoice';
+
     /** @var int|null overrides time() in tests */
     public static $now;
 
@@ -56,6 +65,16 @@ class Invoices
     public static function dueDays()
     {
         return (int) (Yii::$app->params['invoices']['dueDays'] ?? 14);
+    }
+
+    public static function reminderGapDays()
+    {
+        return (int) (Yii::$app->params['invoices']['reminderGapDays'] ?? 7);
+    }
+
+    public static function pauseAfterDays()
+    {
+        return (int) (Yii::$app->params['invoices']['pauseAfterDays'] ?? 14);
     }
 
     private static function now()
@@ -311,7 +330,7 @@ class Invoices
      * Sends the invoice to the consultant (email with its link, and WhatsApp), and to each facility
      * admin the lines from their facility.
      */
-    public static function send(ConsultantInvoice $invoice)
+    public static function send(ConsultantInvoice $invoice, $resend = false)
     {
         $consultant = $invoice->consultant;
         if ($consultant === null) {
@@ -320,15 +339,66 @@ class Invoices
         $kind = $invoice->isStatement() ? 'statement of absorbed fees' : 'invoice';
         $text = "Your {$kind} {$invoice->number} for {$invoice->getPeriodLabel()} is Ksh " . number_format($invoice->amount)
             . ', due on ' . date('j M Y', strtotime($invoice->due_on)) . '.';
-        self::email($consultant, ucfirst($kind) . " {$invoice->number}: Ksh " . number_format($invoice->amount),
-            $text . "\n\nOpen it to see each charge.", $invoice->url(true), 'See the invoice');
-        if ($consultant->consultant_phone_number) {
-            Yii::$app->queue->push(new SendWhatsappTextJob([
-                'phone' => $consultant->consultant_phone_number,
-                'text' => 'Hello ' . ($consultant->names ?: 'Doctor') . ",\n\n{$text} " . $invoice->url(true),
+        self::emailWithPayLink($invoice, ucfirst($kind) . " {$invoice->number}: Ksh " . number_format($invoice->amount), $text);
+        self::whatsappWithPayLink($invoice, $text);
+        if ($invoice->isOpen() && $invoice->amount > 0) {
+            self::remindFrontDesk($invoice, 'was emailed to ' . ($consultant->names ?: 'them') . ' and is due on '
+                . date('j M Y', strtotime($invoice->due_on)) . '.');
+        }
+        if (!$resend) {
+            self::sendFacilityCopies($invoice);
+        }
+    }
+
+    /** Whether the invoice can be paid by M-Pesa prompt now: open, something due, and M-Pesa set up. */
+    public static function canPayByPrompt(ConsultantInvoice $invoice)
+    {
+        return $invoice->isOpen() && $invoice->amount > 0 && Yii::$app->mpesa->isConfigured();
+    }
+
+    /**
+     * The consultant's email: "Pay via M-Pesa" (the one-tap prompt page) as its button when the
+     * invoice can be paid that way, and the invoice's own link for its charges.
+     */
+    private static function emailWithPayLink(ConsultantInvoice $invoice, $subject, $text)
+    {
+        if (self::canPayByPrompt($invoice)) {
+            self::email($invoice->consultant, $subject, $text . "\n\nTap Pay via M-Pesa below: the M-Pesa prompt comes to your phone and you enter your PIN."
+                . "\n\nSee each charge: " . $invoice->url(true), $invoice->payUrl(true), 'Pay via M-Pesa');
+        } else {
+            self::email($invoice->consultant, $subject, $text . "\n\nOpen it to see each charge.", $invoice->url(true), 'See the invoice');
+        }
+    }
+
+    private static function whatsappWithPayLink(ConsultantInvoice $invoice, $text)
+    {
+        self::whatsapp($invoice->consultant, $text . (self::canPayByPrompt($invoice)
+            ? ' Pay via M-Pesa: ' . $invoice->payUrl(true)
+            : ' ' . $invoice->url(true)));
+    }
+
+    /**
+     * FYI to the front-desk users assigned to the consultant: remind them to open the invoice
+     * email and pay. No charges and no pay link: only the consultant pays.
+     */
+    private static function remindFrontDesk(ConsultantInvoice $invoice, $what)
+    {
+        $consultant = $invoice->consultant;
+        $users = User::find()
+            ->innerJoin('{{%front_desk_assignment}} fda', 'fda.user_id = {{%user}}.id')
+            ->where(['fda.consultant_id' => $consultant->id, '{{%user}}.status' => User::STATUS_ACTIVE])
+            ->andWhere(['not', ['{{%user}}.email' => null]])->andWhere(['<>', '{{%user}}.email', ''])->all();
+        $doctor = $consultant->names ?: 'the doctor';
+        foreach ($users as $user) {
+            Yii::$app->queue->push(new SendEmailMessageJob([
+                'to' => $user->email,
+                'toName' => $user->full_name ?: null,
+                'subject' => "Please remind {$doctor}: invoice {$invoice->number}",
+                'text' => 'Dear ' . ($user->full_name ?: $user->username) . ",\n\nFor your information: {$doctor}'s invoice {$invoice->number} "
+                    . "for {$invoice->getPeriodLabel()}, Ksh " . number_format($invoice->amount) . ", {$what}\n\n"
+                    . "Please remind {$doctor} to open the invoice email and pay it via M-Pesa. Only {$doctor} can pay it; nothing is due from you.",
             ]));
         }
-        self::sendFacilityCopies($invoice);
     }
 
     /** Each facility admin gets, read only, the lines from their facility (not the plan charge). */
@@ -387,9 +457,13 @@ class Invoices
             return false;
         }
         $invoice->setAttributes(['status' => ConsultantInvoice::STATUS_PAID, 'reference' => $reference,
-            'paid_at' => self::now(), 'paid_by' => $userId], false);
+            'paid_at' => self::now(), 'paid_by' => $userId, 'pay_note' => null], false);
+        $invoice->save(false);
+        if ($invoice->consultant !== null) {
+            self::reviewPause($invoice->consultant);
+        }
 
-        return $invoice->save(false);
+        return true;
     }
 
     /** Takes a line off an unpaid invoice, with the reason. */
@@ -404,6 +478,9 @@ class Invoices
         $line->save(false);
         if ($invoice !== null) {
             self::recalculate($invoice);
+            if ($invoice->consultant !== null) {
+                self::reviewPause($invoice->consultant);
+            }
         }
 
         return true;
@@ -419,7 +496,242 @@ class Invoices
         ConsultantInvoiceLine::updateAll(['waived' => 1, 'waive_reason' => mb_substr('Invoice void: ' . $reason, 0, 255)], ['invoice_id' => $invoice->id, 'waived' => 0]);
         $invoice->setAttributes(['status' => ConsultantInvoice::STATUS_VOID, 'void_reason' => mb_substr($reason, 0, 255),
             'voided_at' => self::now(), 'voided_by' => $userId], false);
+        $invoice->save(false);
+        if ($invoice->consultant !== null) {
+            self::reviewPause($invoice->consultant);
+        }
 
-        return $invoice->save(false);
+        return true;
+    }
+
+    // ---- Paying by M-Pesa prompt (part 2) --------------------------------------------------
+
+    /**
+     * Sends an M-Pesa prompt for the amount due to $phone (the consultant's number by default).
+     *
+     * @return string|null why it was not sent, or null when the phone is being asked
+     */
+    public static function sendPrompt(ConsultantInvoice $invoice, $phone = null)
+    {
+        if (!$invoice->isOpen() || $invoice->amount <= 0) {
+            return Yii::t('app', 'Nothing is due on this invoice.');
+        }
+        $last = $invoice->mpesa_transaction_id ? MpesaTransaction::findOne($invoice->mpesa_transaction_id) : null;
+        if ($last !== null && $last->isPending() && $last->created_at > self::now() - 60) {
+            return Yii::t('app', 'A prompt was sent less than a minute ago. Check the phone, or wait a minute to send another.');
+        }
+        $phone = trim((string) ($phone ?: ($invoice->consultant->consultant_phone_number ?? '')));
+        try {
+            $normalised = \common\components\Mpesa::normalisePhone($phone);
+        } catch (\InvalidArgumentException $e) {
+            return Yii::t('app', 'Enter a Safaricom number, such as 0712 345 678.');
+        }
+        try {
+            $transaction = Yii::$app->mpesa->stkPush($normalised, $invoice->amount, $invoice->mpesaReference(),
+                'Invoice ' . $invoice->number, ['type' => self::LINK_TYPE, 'id' => $invoice->id]);
+        } catch (MpesaException $e) {
+            Yii::warning("Invoice {$invoice->number}: the M-Pesa prompt was not sent: " . $e->getMessage(), __METHOD__);
+            $note = Yii::t('app', 'The M-Pesa prompt could not be sent. Please try again.');
+            $invoice->updateAttributes(['pay_note' => $note]);
+            return $note;
+        }
+        $invoice->refresh();
+        if (!$invoice->isOpen()) {
+            return null; // settled at once, and paid
+        }
+        $invoice->updateAttributes([
+            'mpesa_transaction_id' => $transaction->id,
+            'pay_phone' => $normalised,
+            'pay_note' => $transaction->isSettled() ? (mb_substr((string) $transaction->result_desc, 0, 255) ?: null) : null,
+        ]);
+
+        return $transaction->isSettled() ? ($invoice->pay_note ?: Yii::t('app', 'M-Pesa refused the prompt.')) : null;
+    }
+
+    /** Mpesa::EVENT_SETTLED for an invoice's prompt (dispatched by CommitmentFees::onSettled). */
+    public static function onPaymentSettled(MpesaTransaction $transaction)
+    {
+        $invoice = ConsultantInvoice::findOne((int) $transaction->link_id);
+        if ($invoice === null) {
+            return;
+        }
+        if ($transaction->status !== MpesaTransaction::STATUS_SUCCEEDED) {
+            if ($invoice->isOpen()) {
+                $invoice->updateAttributes(['mpesa_transaction_id' => $transaction->id,
+                    'pay_note' => mb_substr((string) $transaction->result_desc, 0, 255) ?: Yii::t('app', 'The payment did not go through.')]);
+            }
+            return;
+        }
+        if (!$invoice->isOpen()) {
+            // Paid twice, or after it was voided: left for a platform admin to refund
+            Yii::warning("Invoice {$invoice->number} is {$invoice->status}, but M-Pesa payment {$transaction->receipt} of Ksh {$transaction->amount} came in for it.", __METHOD__);
+            return;
+        }
+        $invoice->mpesa_transaction_id = $transaction->id;
+        self::markPaid($invoice, $transaction->receipt ?: ('MPESA-' . $transaction->id));
+        $consultant = $invoice->consultant;
+        if ($consultant !== null) {
+            self::email($consultant, "Paid: {$invoice->number}, Ksh " . number_format($transaction->amount),
+                'Thank you: your M-Pesa payment of Ksh ' . number_format($transaction->amount) . " for {$invoice->number} ({$invoice->getPeriodLabel()}) "
+                . "was received, receipt {$invoice->reference}.", $invoice->url(true), 'See the invoice');
+        }
+    }
+
+    /** JSON for the invoice page to follow a prompt. */
+    public static function statusOf(ConsultantInvoice $invoice)
+    {
+        $transaction = $invoice->mpesa_transaction_id ? MpesaTransaction::findOne($invoice->mpesa_transaction_id) : null;
+
+        return [
+            'status' => $invoice->status,
+            'promptPending' => $transaction !== null && $transaction->isPending(),
+            'note' => $invoice->pay_note,
+            'reference' => $invoice->reference,
+        ];
+    }
+
+    // ---- Reminders and the pause (part 2) --------------------------------------------------
+
+    /**
+     * The daily run (`php yii invoice/remind`): reminds consultants of invoices due today and a week
+     * overdue, pauses online booking for those with a standard-terms invoice long overdue, and lifts
+     * pauses no longer owed.
+     *
+     * @return string[] what was done, one line each
+     */
+    public static function remindAndPause()
+    {
+        if (!self::enabled()) {
+            return ['Invoices are off (INVOICES_ENABLED=0).'];
+        }
+        $today = date('Y-m-d', self::now());
+        $secondBy = date('Y-m-d', strtotime($today . ' -' . self::reminderGapDays() . ' days'));
+        $done = [];
+        $due = ConsultantInvoice::find()->with('consultant')
+            ->where(['status' => ConsultantInvoice::STATUS_ISSUED])->andWhere(['>', 'amount', 0])
+            ->andWhere(['<=', 'due_on', $today])->andWhere(['<', 'reminders_sent', 2])
+            ->orderBy(['id' => SORT_ASC])->all();
+        foreach ($due as $invoice) {
+            $second = $invoice->due_on <= $secondBy;
+            if (!$second && $invoice->reminders_sent >= 1) {
+                continue;
+            }
+            self::remind($invoice, $second);
+            $invoice->updateAttributes(['reminders_sent' => $second ? 2 : 1, 'reminded_at' => self::now()]);
+            $done[] = "{$invoice->number}: " . ($second ? 'second' : 'first') . ' reminder';
+        }
+
+        $paused = Consultant::find()->where(['not', ['online_booking_paused_at' => null]])->indexBy('id')->all();
+        foreach (self::pausingQuery()->select('consultant_id')->distinct()->column() as $consultantId) {
+            if (isset($paused[$consultantId])) {
+                unset($paused[$consultantId]);
+                continue;
+            }
+            $consultant = Consultant::findOne($consultantId);
+            if ($consultant !== null) {
+                self::pause($consultant);
+                $done[] = "Paused online booking: {$consultant->names}";
+            }
+        }
+        // Still paused, but nothing long overdue any more
+        foreach ($paused as $consultant) {
+            if (self::reviewPause($consultant)) {
+                $done[] = "Lifted the pause: {$consultant->names}";
+            }
+        }
+
+        return $done;
+    }
+
+    /** Open invoices with standard-terms charges, pauseAfterDays or more past their due date. */
+    private static function pausingQuery($consultantId = null)
+    {
+        $lastDue = date('Y-m-d', strtotime(date('Y-m-d', self::now()) . ' -' . self::pauseAfterDays() . ' days'));
+
+        return ConsultantInvoice::find()
+            ->where(['status' => ConsultantInvoice::STATUS_ISSUED, 'pausable' => 1])->andWhere(['>', 'amount', 0])
+            ->andWhere(['<=', 'due_on', $lastDue])
+            ->andFilterWhere(['consultant_id' => $consultantId]);
+    }
+
+    /** The invoices keeping the consultant's online booking paused, oldest first. */
+    public static function pausingInvoices(Consultant $consultant)
+    {
+        return self::pausingQuery($consultant->id)->orderBy(['due_on' => SORT_ASC])->all();
+    }
+
+    /** The date an unpaid invoice pauses online booking (Y-m-d), or null for a pilot statement. */
+    public static function pausesOn(ConsultantInvoice $invoice)
+    {
+        return $invoice->pausable ? date('Y-m-d', strtotime($invoice->due_on . ' +' . self::pauseAfterDays() . ' days')) : null;
+    }
+
+    private static function remind(ConsultantInvoice $invoice, $second)
+    {
+        $consultant = $invoice->consultant;
+        if ($consultant === null) {
+            return;
+        }
+        $amount = 'Ksh ' . number_format($invoice->amount);
+        $due = date('j M Y', strtotime($invoice->due_on));
+        $text = $second
+            ? "Your invoice {$invoice->number} for {$invoice->getPeriodLabel()}, {$amount}, was due on {$due} and is still unpaid."
+            : "Your invoice {$invoice->number} for {$invoice->getPeriodLabel()}, {$amount}, is due today.";
+        if (($pausesOn = self::pausesOn($invoice)) !== null) {
+            $text .= ' If it is still unpaid on ' . date('j M Y', strtotime($pausesOn)) . ', patients will not be able to book you online'
+                . ' until it is paid; your front desk and booking links keep working.';
+        }
+        self::emailWithPayLink($invoice, ($second ? 'Overdue: ' : 'Due today: ') . "{$invoice->number}, {$amount}", $text);
+        self::whatsappWithPayLink($invoice, $text);
+        $what = $second ? "was due on {$due} and is still unpaid." : 'is due today.';
+        if ($pausesOn !== null) {
+            $what .= ' If it is still unpaid on ' . date('j M Y', strtotime($pausesOn)) . ', patients will not be able to book '
+                . ($consultant->names ?: 'the doctor') . ' online until it is paid; you can still book for them.';
+        }
+        self::remindFrontDesk($invoice, $what);
+    }
+
+    /** Patients can no longer book the consultant online; the consultant is told what still works. */
+    private static function pause(Consultant $consultant)
+    {
+        $consultant->updateAttributes(['online_booking_paused_at' => self::now()]);
+        $invoices = self::pausingInvoices($consultant);
+        $first = $invoices[0] ?? null;
+        $list = implode(', ', array_map(function (ConsultantInvoice $i) {
+            return "{$i->number} (Ksh " . number_format($i->amount) . ')';
+        }, $invoices));
+        $text = "Patients can no longer book you online, because {$list} " . (count($invoices) > 1 ? 'are' : 'is') . ' more than '
+            . self::pauseAfterDays() . ' days overdue. Online booking comes back as soon as it is paid.';
+        $more = 'Your profile stays visible; patients are asked to call the clinic to book, and are not told why. '
+            . 'Your front desk can still book for them, your booking links still work, and existing appointments are not affected.';
+        self::email($consultant, 'Online booking paused: invoice overdue', $text . "\n\n" . $more,
+            $first ? (self::canPayByPrompt($first) ? $first->payUrl(true) : $first->url(true)) : null,
+            $first ? (self::canPayByPrompt($first) ? 'Pay via M-Pesa' : 'See the invoice') : null);
+        self::whatsapp($consultant, $text . ' ' . $more . ($first ? ' ' . $first->url(true) : ''));
+    }
+
+    /** Lifts the consultant's pause when nothing long overdue is left, and tells them. */
+    public static function reviewPause(Consultant $consultant)
+    {
+        if (!$consultant->isOnlineBookingPaused() || self::pausingQuery($consultant->id)->exists()) {
+            return false;
+        }
+        $consultant->updateAttributes(['online_booking_paused_at' => null]);
+        $text = 'Thank you. Patients can book you online again.';
+        self::email($consultant, 'Online booking is back on', $text);
+        self::whatsapp($consultant, $text);
+
+        return true;
+    }
+
+    private static function whatsapp(Consultant $consultant, $text)
+    {
+        if ($consultant->consultant_phone_number) {
+            Yii::$app->queue->push(new SendWhatsappTextJob([
+                'phone' => $consultant->consultant_phone_number,
+                'text' => 'Hello ' . ($consultant->names ?: 'Doctor') . ",\n\n" . $text,
+            ]));
+        }
     }
 }
+

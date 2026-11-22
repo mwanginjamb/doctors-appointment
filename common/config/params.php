@@ -213,6 +213,11 @@ return [
         'cancellationCharge' => (int) env('CANCELLATION_PENALTY', 100),
         // An invoice is due this many days after it is issued
         'dueDays' => (int) env('INVOICE_DUE_DAYS', 14),
+        // Part 2: reminders on the due date and this many days later
+        'reminderGapDays' => (int) env('INVOICE_REMINDER_GAP_DAYS', 7),
+        // Part 2: this many days past due, patients cannot book the consultant online until it is
+        // paid (staff bookings and booking links go on); never for a pilot statement
+        'pauseAfterDays' => (int) env('INVOICE_PAUSE_DAYS', 14),
     ],
     // Firebase Configurations
     'firebase' => [

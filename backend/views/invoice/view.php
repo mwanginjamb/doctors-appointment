@@ -33,6 +33,15 @@ $f = Yii::$app->formatter;
         <?php elseif ($invoice->isOverdue()): ?>
             <span class="text-danger">· overdue</span>
         <?php endif; ?>
+        <?php if ($invoice->isOpen()): ?>
+            · reminders sent: <?= (int) $invoice->reminders_sent ?>
+            <?php if (($pausesOn = \frontend\services\Invoices::pausesOn($invoice)) !== null): ?>
+                · <?= $pausesOn <= date('Y-m-d') ? 'pauses online booking' : 'pauses online booking from ' . Html::encode(date('j M Y', strtotime($pausesOn))) ?>
+            <?php endif; ?>
+        <?php endif; ?>
+        <?php if ($invoice->consultant && $invoice->consultant->isOnlineBookingPaused()): ?>
+            <span class="badge text-bg-warning" id="consultant-paused">online booking paused since <?= $f->asDate($invoice->consultant->online_booking_paused_at, 'php:j M Y') ?></span>
+        <?php endif; ?>
         · <?= Html::a('The consultant\'s page ↗', \common\helpers\AdminLinks::mainSite(ltrim($invoice->url(), '/')), ['class' => 'small']) ?>
     </p>
 
@@ -64,6 +73,18 @@ $f = Yii::$app->formatter;
 
     <?php if ($invoice->isOpen()): ?>
         <div class="row g-3">
+            <div class="col-md-6">
+                <div class="card"><div class="card-body">
+                    <h2 class="h6">Resend the invoice email</h2>
+                    <?php if ($invoice->pay_note): ?>
+                        <p class="small text-danger mb-2" id="pay-note">Last M-Pesa prompt: <?= Html::encode($invoice->pay_note) ?></p>
+                    <?php endif; ?>
+                    <?= Html::beginForm(['resend', 'id' => $invoice->id], 'post', ['id' => 'resend-form'])
+                        . Html::submitButton('Resend the invoice email', ['class' => 'btn btn-sm btn-success'])
+                        . Html::endForm() ?>
+                    <p class="small text-muted mt-2 mb-0">The consultant gets the email again with its Pay via M-Pesa button, and their front desk a reminder to have them pay. Once they enter their PIN, the invoice marks itself paid with the receipt.</p>
+                </div></div>
+            </div>
             <div class="col-md-6">
                 <div class="card"><div class="card-body">
                     <h2 class="h6">Record a payment</h2>

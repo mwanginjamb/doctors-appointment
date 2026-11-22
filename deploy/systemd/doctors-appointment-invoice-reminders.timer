@@ -1,0 +1,17 @@
+# Fires doctors-appointment-invoice-reminders.service every morning.
+#
+#   systemctl list-timers doctors-appointment-invoice-reminders.timer   # last / next run
+
+[Unit]
+Description=Remind consultants of due invoices and pause online booking when long overdue, daily
+PartOf=doctors-appointment.target
+
+[Timer]
+OnCalendar=*-*-* 08:00:00
+RandomizedDelaySec=10min
+# A morning missed while the server was off runs at boot; each reminder is sent once
+Persistent=true
+Unit=doctors-appointment-invoice-reminders.service
+
+[Install]
+WantedBy=doctors-appointment.target
