@@ -99,14 +99,9 @@ $this->params['breadcrumbs'][] = $this->title;
                     'outcome' => function ($url, $model, $key) {
                             return $this->render('_outcome_buttons', ['model' => $model]);
                         },
+                    // F13: asks how the patient confirmed
                     'confirm' => function ($url, $model, $key) {
-                            return Html::a('<span class="btn btn-sm btn-outline-success">Confirm</span>', ['appointments/confirm', 'id' => $model->id], [
-                                'title' => Yii::t('app', 'Confirm Appointment'),
-                                'data' => [
-                                    'confirm' => 'Are you sure you want to confirm this appointment?',
-                                    'method' => 'post',
-                                ],
-                            ]);
+                            return $this->render('_confirm_button', ['model' => $model]);
                         },
                     'update' => function ($url, $model, $key) {
                             return Html::a('<span class="btn btn-sm btn-outline-primary my-2">Update</span>', ['appointments/update', 'id' => $model->id], [
@@ -145,7 +140,7 @@ $this->params['breadcrumbs'][] = $this->title;
                             return $model->canBeCancelled();
                         },
                     'confirm' => function ($model) {
-                            return $model->status === Appointments::STATUS_SCHEDULED && Yii::$app->user->can(\common\components\RbacHelper::PERM_CONFIRM_APPOINTMENT, ['appointment' => $model]);
+                            return $model->canBeConfirmed() && \frontend\components\FrontDesk::canConfirm($model);
                         },
 
                 ],

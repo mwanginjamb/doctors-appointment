@@ -99,6 +99,7 @@ Doing **Next up** below should bring the app to about 9.5 functionally.
 | F25 Consultant invoices, part 1 | One invoice a month per consultant, across all their facilities (`consultant_invoice`, `consultant_invoice_line`), issued on the 1st for the month before by `php yii invoice/issue` (`doctors-appointment-invoices.timer`) and due 14 days later (`INVOICE_DUE_DAYS`). Lines: **absorbed fees** (each fee the consultant absorbed for an insured patient that is still owed: absorbed, or forfeited by a no-show or late cancellation; not one cancelled under F23); the **plan charge** (`PLAN_A_MONTHLY`, `PLAN_B_MONTHLY`) for an active consultant (an appointment that month) on standard terms, prorated by the days of the month on standard terms, the line naming the plan and the proration; and **cancellation charges** (`CANCELLATION_PENALTY`) for each booking the consultant or their front desk cancelled, not at the patient's request nor for a closure, on standard terms at a facility that signed v1.2, added when it happens with an email to the consultant. During the pilot the invoice is a **statement** of absorbed fees. Each line keeps the amount in force when it was made; a fee or cancellation is billed once. The consultant is emailed and WhatsApped a signed link (`/invoice/<id>/<signature>`, no sign-in) and lists theirs under **My invoices**; each facility admin is emailed, read only, the lines from their facility. In `/admin` → **Invoices**: filter by status (overdue too) and month, see the lines, record a payment with its reference, waive a line with a reason, void an invoice made in error, or issue last month's now; home counts overdue invoices. Off until `INVOICES_ENABLED=1`. | `feature/consultant-invoices` |
 | F25 Consultant invoices, part 2 | **Pay via M-Pesa from the invoice email:** the invoice email, the reminders and WhatsApp carry a **Pay via M-Pesa** button (`/invoice/<id>/<signature>/pay`, no sign-in). Opening it only shows the page, since email scanners open links too; one tap sends the M-Pesa prompt to the consultant's number on file (another Safaricom number can be given), and the page follows the payment. The invoice page links to it. The payment settles through `Mpesa::EVENT_SETTLED` (link type `consultant_invoice`), its receipt becoming the reference, and the consultant is thanked by email. **Front desk FYI:** with the invoice and each reminder, the front-desk users assigned to the consultant are emailed to remind them to open the invoice email and pay (no charges, no pay link). In `/admin` an admin **resends the invoice email** (and the front-desk FYI). **Reminders** by email and WhatsApp on the due date and a week later (`INVOICE_REMINDER_GAP_DAYS`), from the daily `php yii invoice/remind` (`doctors-appointment-invoice-reminders.timer`). **The pause:** an unpaid invoice with standard-terms charges (plan or cancellation) 14 days past due (`INVOICE_PAUSE_DAYS`) pauses patients' online booking with the consultant (`consultant.online_booking_paused_at`); a pilot statement is reminded, never paused. While paused, patients see the profile and calendar with no times and "Online booking with Dr X isn't available right now", with each facility's phone, address and map, never the reason; online booking, joining the waiting list and waiting-list offers of new times stop; staff bookings, booking links and patients moving a booking they have go on. The consultant is told by email and WhatsApp, and sees it on their invoices; paying, waiving down to nothing chargeable or voiding lifts it at once (the daily run double-checks). Admin home counts paused consultants; Invoices filters them; each invoice shows its reminders and when it pauses. | `feature/invoice-payments` |
 | F29 Consultant business card | **My business card** (consultants; **Business cards** for their assigned front desk) at `/business-card`: both sides at real size, 85 × 55 mm. Side A: the name with "Dr.", speciality and sub-specialities, KMPDC registration number, practice name, and up to three of their facilities with phone and address (the consultant ticks which; by default the first three). No personal phone or email. Side B: a QR code for the **public profile** at `/dr/<id>-<name>` (no sign-in: who they are, every facility with phone, address and map, and **Book an appointment**, which asks for sign-in or registration only then; an old name part redirects, and a deactivated consultant's profile says they are not taking appointments). **Print or save as PDF** (one side per 85 × 55 mm page), the QR code alone as SVG (print) or PNG (posters, messages), and **Share the profile link**. QR codes are made on the server by `chillerlan/php-qrcode`. Platform admins open each consultant's card in `/admin` → Pilots → Consultants (**Card**) and can choose its facilities. | `feature/business-card` |
+| F13 Front desk confirms appointments | **Confirm** on the board, the appointment page and the appointments list asks how the patient confirmed: by phone, in person, by WhatsApp or SMS, or other. It is stored on the appointment with who and when (`confirmed_via`, `confirmed_by`, `confirmed_at`), shown on the appointment ("Confirmed: By phone, by Mary Wanjiru, 3 Dec 2026 10:15") and on hover over the board's status; a patient confirming from their reminder link is recorded as "From their reminder link". Who may confirm: the consultant; their assigned front desk, at the front desk's facility (`confirmAtAssignedFacility`, under `confirmAssignedAppointment`); facility admins at theirs (`confirmFacilityAppointment`); consultancy admins. Only scheduled appointments still to come; the patient is sent the usual confirmation. | `feature/front-desk-confirm` |
 
 ### Scheduling depth
 
@@ -745,6 +746,17 @@ baseline. Nothing is charged yet.
    the QR code with a phone and see the public profile open without signing in; print to PDF and
    check one side per page at 85 × 55 mm with the colours ("Background graphics" on).
 
+### F13 Front desk confirms appointments
+
+1. **Database:** `php yii migrate` runs `m261216_090000_appointment_confirmed_via` (`appointments.confirmed_via`,
+   `confirmed_by`, `confirmed_at`). Appointments confirmed before have none; they show as confirmed as before.
+2. **Permissions:** `php yii rbac/init` adds `confirmAssignedAppointment` and `confirmAtAssignedFacility`
+   (front desk), `confirmFacilityAppointment` (facility admins) and gives consultancy admins
+   `confirmAppointment`. Until it runs, only consultants can confirm, as before.
+3. **Check by hand:** sign in as a front desk, open the board on a day with a scheduled appointment, choose
+   Confirm → By phone, and see it confirmed, the patient's confirmation email queued, and "By phone, by …"
+   on the appointment.
+
 ### Admin area: pilots, plans and payments (F28)
 
 1. **Permissions:** `php yii rbac/init` adds `manageFacilityConsultants` (consultancy admins) and
@@ -870,7 +882,7 @@ Priority: **P1** do next, **P2** soon, **P3** when there is time. Impact is the 
 
 | # | Item | Priority | Impact |
 |---|---|---|---|
-| F13 | Front desk can confirm appointments for their consultants, for example after a patient confirms by phone. Today only the consultant can. (from G2) | P1 | |
+| ~~F13~~ | ~~Front desk can confirm appointments for their consultants, for example after a patient confirms by phone. Today only the consultant can. (from G2)~~ **Done** (see Done): staff record how the patient confirmed. | P1 | |
 | F15 | Check-in on the day: "arrived" and "in consultation" states and a waiting-room queue for the front desk. (from G1) | P2 | +0.5 |
 | F18 | Capture the patient's insurer and member number at booking, check them against the covers the consultant accepts, and let the front desk record pre-authorisation (pending, approved, declined). Cash or insurance itself is asked from day 31 under F22. Needed by **day 61** of the pilot ([business case](business-case.md)). (from G5) | P1 | |
 | F19 | A structured intake form (reason, history, medication, allergies) in place of the free-text symptoms brief. (from G4) | P3 | |
@@ -1084,8 +1096,7 @@ Built as planned below, with these choices made on 12 Nov 2026:
 
 ## Next up
 
-1. **F13** Front desk confirms appointments (a small permission change).
-2. **F14** Patients are told when a closure or time off clashes with their booking, and staff move the clashing bookings in bulk.
-3. **F26** The 90-day pilot report, needed by day 90.
-4. **F18** Insurer and member number at booking, and pre-authorisation.
-5. **F12** Patients export and delete their data (completes the closure requests from F11).
+1. **F14** Patients are told when a closure or time off clashes with their booking, and staff move the clashing bookings in bulk.
+2. **F26** The 90-day pilot report, needed by day 90.
+3. **F18** Insurer and member number at booking, and pre-authorisation.
+4. **F12** Patients export and delete their data (completes the closure requests from F11).

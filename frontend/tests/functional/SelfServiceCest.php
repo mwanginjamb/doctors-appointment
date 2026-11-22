@@ -145,6 +145,8 @@ class SelfServiceCest
         $I->dontSeeElement('#self-confirm-form');
         $I->seeElement('#self-cancel-form', [], 'they can still change it outside the cut-off');
         $I->assertSame(Appointments::STATUS_CONFIRMED, Appointments::findOne($this->appointment->id)->status);
+        // F13: recorded as confirmed by the patient, from their link
+        $I->assertSame(Appointments::CONFIRMED_LINK, Appointments::findOne($this->appointment->id)->confirmed_via);
 
         $entry = \common\models\AuditLog::find()->where(['entity_type' => 'appointment', 'entity_id' => (string) $this->appointment->id])
             ->andWhere(['like', 'changes', 'confirmed'])->one();
