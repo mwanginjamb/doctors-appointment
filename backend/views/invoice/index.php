@@ -9,7 +9,7 @@ use yii\grid\GridView;
  *
  * @var yii\web\View $this
  * @var yii\data\ActiveDataProvider $dataProvider
- * @var string $status issued, paid, void, overdue or ''
+ * @var string $status issued, paid, void, overdue, paused (unpaid, consultant paused) or ''
  * @var string $month Y-m or ''
  * @var bool $enabled INVOICES_ENABLED
  */
@@ -31,7 +31,7 @@ $this->title = 'Invoices';
 
     <div class="d-flex flex-wrap gap-3 align-items-center mb-3">
         <ul class="nav nav-pills">
-            <?php foreach (['' => 'All', ConsultantInvoice::STATUS_ISSUED => 'Unpaid', 'overdue' => 'Overdue', ConsultantInvoice::STATUS_PAID => 'Paid', ConsultantInvoice::STATUS_VOID => 'Void'] as $value => $label): ?>
+            <?php foreach (['' => 'All', ConsultantInvoice::STATUS_ISSUED => 'Unpaid', 'overdue' => 'Overdue', 'paused' => 'Booking paused', ConsultantInvoice::STATUS_PAID => 'Paid', ConsultantInvoice::STATUS_VOID => 'Void'] as $value => $label): ?>
                 <li class="nav-item"><?= Html::a($label, ['index', 'status' => $value, 'month' => $month], ['class' => 'nav-link py-1' . ((string) $status === (string) $value ? ' active' : '')]) ?></li>
             <?php endforeach; ?>
         </ul>

@@ -14,7 +14,7 @@ use yii\web\NotFoundHttpException;
 /**
  * F25: consultants' monthly invoices. Issued on the 1st by `php yii invoice/issue`; here a platform
  * admin reads them, records a payment with its reference, waives a line made in error, voids an
- * invoice, or issues last month's now.
+ * invoice, issues last month's now, or (part 2) resends the invoice email with its "Pay via M-Pesa" button.
  */
 class InvoiceController extends Controller
 {
@@ -23,7 +23,7 @@ class InvoiceController extends Controller
         return [
             'verbs' => [
                 'class' => VerbFilter::class,
-                'actions' => ['issue' => ['POST'], 'record' => ['POST'], 'waive' => ['POST'], 'void' => ['POST']],
+                'actions' => ['issue' => ['POST'], 'record' => ['POST'], 'waive' => ['POST'], 'void' => ['POST'], 'resend' => ['POST']],
             ],
         ];
     }
@@ -31,7 +31,10 @@ class InvoiceController extends Controller
     public function actionIndex($status = '', $month = '')
     {
         $query = ConsultantInvoice::find()->with('consultant')->orderBy(['period_start' => SORT_DESC, 'id' => SORT_DESC]);
-        if ($status === 'overdue') {
+        if ($status === 'paused') {
+            $query->andWhere(['consultant_id' => \frontend\models\Consultant::find()->select('id')->where(['not', ['online_booking_paused_at' => null]])])
+                ->andWhere(['status' => ConsultantInvoice::STATUS_ISSUED]);
+        } elseif ($status === 'overdue') {
             $query->andWhere(['status' => ConsultantInvoice::STATUS_ISSUED])->andWhere(['<', 'due_on', date('Y-m-d')]);
         } elseif ($status !== '') {
             $query->andWhere(['status' => $status]);
@@ -73,6 +76,27 @@ class InvoiceController extends Controller
             Yii::$app->session->setFlash('success', "{$invoice->number} recorded as paid ({$invoice->reference}).");
         } else {
             Yii::$app->session->setFlash('error', 'Enter the M-Pesa or bank reference (letters and numbers), on an unpaid invoice.');
+        }
+
+        return $this->redirect(['view', 'id' => $invoice->id]);
+    }
+
+    /**
+     * Part 2: sends the consultant the invoice email again, with its "Pay via M-Pesa" button, and
+     * their front desk the reminder to have them pay it. Facility copies are not sent again.
+     */
+    public function actionResend($id)
+    {
+        $invoice = $this->findInvoice($id);
+        if (!$invoice->isOpen() || $invoice->amount <= 0) {
+            Yii::$app->session->setFlash('error', 'Nothing is due on this invoice.');
+        } else {
+            Invoices::send($invoice, true);
+            $consultant = $invoice->consultant;
+            $to = ($consultant->consultant_email ?? '') ?: ($consultant->user->email ?? 'the consultant');
+            $desk = \frontend\models\FrontDeskAssignment::find()->where(['consultant_id' => $invoice->consultant_id])->exists();
+            Yii::$app->session->setFlash('success', "The invoice email was sent again to {$to}"
+                . ($desk ? ', with a reminder to their front desk.' : '. They have no front desk to remind.'));
         }
 
         return $this->redirect(['view', 'id' => $invoice->id]);

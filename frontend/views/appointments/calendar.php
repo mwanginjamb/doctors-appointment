@@ -24,12 +24,40 @@ $this->title = $calendar->title;
         <p class="lead text-muted">
             <?php if ($calendar->deactivated): ?>
                 <?= Html::encode($consultant->names) ?> is no longer taking appointments.
+            <?php elseif ($calendar->paused): ?>
+                <?= Html::encode(Yii::t('app', "Online booking with {doctor} isn't available right now.", ['doctor' => $consultant->names])) ?>
             <?php elseif ($readOnly): ?>
                 View only. Click an appointment to open it; cancel it from there or from the appointments board.
             <?php else: ?>
                 Please click on any available time slot to enter your appointment.
             <?php endif; ?>
         </p>
+        <?php if ($calendar->paused): ?>
+            <!-- F25: online booking is paused; the patient is told whom to call, never why -->
+            <div id="booking-paused" class="mx-auto text-start" style="max-width: 36rem">
+                <?php foreach ($consultant->engagements as $engagement): ?>
+                    <?php $facility = $engagement->facility; ?>
+                    <?php if ($facility === null || !$facility->isActive()) { continue; } ?>
+                    <div class="card border-0 shadow-sm mb-2">
+                        <div class="card-body py-2">
+                            <div class="fw-semibold"><?= Html::encode($facility->name) ?></div>
+                            <?php if ($facility->phone): ?>
+                                <div><?= Html::encode(Yii::t('app', 'Call {phone} to book', ['phone' => $facility->phone])) ?>
+                                    · <?= Html::a(Yii::t('app', 'Call'), 'tel:' . preg_replace('/[^\d+]/', '', $facility->phone)) ?></div>
+                            <?php else: ?>
+                                <div class="text-muted"><?= Yii::t('app', 'Call the clinic to book') ?></div>
+                            <?php endif; ?>
+                            <?php if ($facility->address): ?>
+                                <div class="small text-muted"><?= Html::encode(preg_replace('/\s*\R\s*/', ', ', $facility->address)) ?></div>
+                            <?php endif; ?>
+                            <?php if ($facility->map_url): ?>
+                                <?= Html::a(Yii::t('app', 'Map'), $facility->map_url, ['class' => 'small', 'target' => '_blank', 'rel' => 'noopener']) ?>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
         <?php if ($booksForPatients && !$readOnly && !empty($consultant)): ?>
             <?= Html::a('Send a booking link', ['/booking-link/create', 'cid' => $consultant->id], [
                 'class' => 'btn btn-outline-primary',

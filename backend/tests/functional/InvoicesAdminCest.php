@@ -66,6 +66,7 @@ class InvoicesAdminCest
         $I->amLoggedInAs($this->admin);
         $I->amOnRoute('/site/index');
         $I->see('1', '#count-overdue');
+        $I->see('0 with online booking paused', '#count-paused');
 
         $I->amOnRoute('/invoice/index', ['status' => 'overdue']);
         $I->see($this->invoice->number);
@@ -89,6 +90,22 @@ class InvoicesAdminCest
         $I->assertSame(ConsultantInvoice::STATUS_PAID, $this->invoice->status);
         $I->assertSame($this->admin->id, (int) $this->invoice->paid_by);
         $I->dontSeeElement('#void-form');
+    }
+
+    public function anAdminSeesThePauseAndCanResendTheInvoiceEmail(FunctionalTester $I)
+    {
+        Consultant::updateAll(['online_booking_paused_at' => time()], ['id' => $this->invoice->consultant_id]);
+        $I->amLoggedInAs($this->admin);
+        $I->amOnRoute('/site/index');
+        $I->see('1 with online booking paused', '#count-paused');
+        $I->amOnRoute('/invoice/index', ['status' => 'paused']);
+        $I->see($this->invoice->number);
+        $I->amOnRoute('/invoice/view', ['id' => $this->invoice->id]);
+        $I->seeElement('#consultant-paused');
+        $I->dontSeeElement('#prompt-form');
+        $I->submitForm('#resend-form', []);
+        $I->see('The invoice email was sent again to', '.alert');
+        $I->see('They have no front desk to remind.');
     }
 
     public function anAdminVoidsAnInvoice(FunctionalTester $I)

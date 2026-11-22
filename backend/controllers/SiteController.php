@@ -87,6 +87,7 @@ class SiteController extends Controller
             'payoutsHeld' => (int) IncentivePayout::find()->where(['status' => IncentivePayout::STATUS_HELD])->count(),
             'overdueInvoices' => (int) \frontend\models\ConsultantInvoice::find()
                 ->where(['status' => \frontend\models\ConsultantInvoice::STATUS_ISSUED])->andWhere(['<', 'due_on', date('Y-m-d')])->count(),
+            'pausedConsultants' => (int) \frontend\models\Consultant::find()->where(['not', ['online_booking_paused_at' => null]])->count(),
             'toApprove' => $toApprove,
             'unsigned' => $unsigned,
         ]);

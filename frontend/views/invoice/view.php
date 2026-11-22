@@ -10,6 +10,9 @@ use yii\bootstrap5\Html;
  * @var yii\web\View $this
  * @var ConsultantInvoice $invoice
  * @var ConsultantInvoiceLine[] $lines waived ones included
+ * @var array $state Invoices::statusOf()
+ * @var bool $canPay part 2: open, something due, and M-Pesa set up
+ * @var bool $paused part 2: the consultant's online booking is paused for an overdue invoice
  */
 
 $kind = $invoice->isStatement() ? Yii::t('app', 'Statement') : Yii::t('app', 'Invoice');
@@ -22,6 +25,11 @@ $f = Yii::$app->formatter;
         <?= Html::encode($invoice->consultant->names ?? '') ?> · <?= Html::encode($invoice->getPeriodLabel()) ?>
         · <?= Yii::t('app', 'issued {date}', ['date' => $f->asDate($invoice->issued_at, 'php:j M Y')]) ?>
     </p>
+    <?php if ($paused && $invoice->isOpen()): ?>
+        <div class="alert alert-warning" id="booking-paused">
+            <?= Yii::t('app', 'Patients cannot book you online until your overdue invoice is paid. Your front desk and booking links keep working; online booking comes back as soon as it is paid.') ?>
+        </div>
+    <?php endif; ?>
     <?php if ($invoice->isStatement()): ?>
         <p class="small"><?= Yii::t('app', 'During your pilot this is a statement of the commitment fees you chose to absorb for insured patients. No plan charge applies yet.') ?></p>
     <?php endif; ?>
@@ -55,7 +63,19 @@ $f = Yii::$app->formatter;
                 <strong><?= Yii::t('app', 'Cancelled') ?></strong>: <?= Html::encode($invoice->void_reason) ?>. <?= Yii::t('app', 'Nothing is due.') ?>
             <?php else: ?>
                 <strong><?= Html::encode(Yii::t('app', 'Ksh {amount} due by {date}', ['amount' => number_format($invoice->amount), 'date' => $f->asDate($invoice->due_on, 'php:j M Y')])) ?></strong>
-                <p class="small text-muted mb-0 mt-1"><?= Yii::t('app', 'Pay by M-Pesa as arranged with the platform, quoting {number}; your payment is recorded here once received.', ['number' => Html::encode($invoice->number)]) ?></p>
+                <?php if ($canPay): ?>
+                    <?php if ($state['promptPending']): ?>
+                        <p class="small text-info-emphasis mt-2 mb-0"><?= Yii::t('app', 'An M-Pesa prompt was sent: enter your PIN on the phone to pay.') ?></p>
+                    <?php endif; ?>
+                    <p id="pay-note" class="small text-danger mt-2 mb-0 <?= !empty($state['note']) ? '' : 'd-none' ?>"><?= Html::encode($state['note'] ?? '') ?></p>
+                    <div class="mt-2">
+                        <?= Html::a(Html::encode(Yii::t('app', 'Pay Ksh {amount} via M-Pesa', ['amount' => number_format($invoice->amount)])), $invoice->payUrl(),
+                            ['class' => 'btn btn-success', 'id' => 'pay-link']) ?>
+                    </div>
+                    <p class="small text-muted mb-0 mt-2"><?= Yii::t('app', 'Or pay by M-Pesa as arranged with the platform, quoting {number}; your payment is recorded here once received.', ['number' => Html::encode($invoice->number)]) ?></p>
+                <?php else: ?>
+                    <p class="small text-muted mb-0 mt-1"><?= Yii::t('app', 'Pay by M-Pesa as arranged with the platform, quoting {number}; your payment is recorded here once received.', ['number' => Html::encode($invoice->number)]) ?></p>
+                <?php endif; ?>
             <?php endif; ?>
         </div>
     </div>

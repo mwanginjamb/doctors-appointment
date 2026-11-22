@@ -35,4 +35,24 @@ class InvoiceController extends Controller
 
         return ExitCode::OK;
     }
+
+    /**
+     * The daily run: reminds consultants of invoices due today and a week overdue, pauses patients'
+     * online booking with those whose invoice with standard-terms charges is 14 days overdue, and
+     * lifts pauses no longer owed. Run daily by doctors-appointment-invoice-reminders.timer.
+     *
+     * Usage: php yii invoice/remind
+     */
+    public function actionRemind()
+    {
+        $done = Invoices::remindAndPause();
+        foreach ($done as $line) {
+            $this->stdout($line . "\n");
+        }
+        if (Invoices::enabled() && !$done) {
+            $this->stdout("Nothing to remind or pause.\n");
+        }
+
+        return ExitCode::OK;
+    }
 }

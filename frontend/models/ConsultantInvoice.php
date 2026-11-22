@@ -31,6 +31,9 @@ use yii\db\ActiveRecord;
  * @property int|null $voided_at
  * @property int|null $voided_by
  * @property int|null $reminded_at
+ * @property int $reminders_sent part 2: 0, 1 (the due date) or 2 (a week later)
+ * @property string|null $pay_phone part 2: where the last M-Pesa prompt went
+ * @property string|null $pay_note part 2: why the last prompt did not go through
  * @property int|null $created_at
  * @property int|null $updated_at
  *
@@ -101,6 +104,24 @@ class ConsultantInvoice extends ActiveRecord
         $path = '/invoice/' . $this->id . '/' . $this->signature();
 
         return $absolute ? rtrim((string) (Yii::$app->params['app.publicUrl'] ?? ''), '/') . $path : $path;
+    }
+
+    /** The account reference on the M-Pesa prompt (12 characters at most), e.g. "INV42". */
+    public function mpesaReference()
+    {
+        return 'INV' . $this->id;
+    }
+
+    /** Where its M-Pesa prompt page asks how the payment is going. */
+    public function statusUrl()
+    {
+        return '/invoice/' . $this->id . '/' . $this->signature() . '/status';
+    }
+
+    /** The one-tap "Pay via M-Pesa" page (the button in its emails): no sign-in needed. */
+    public function payUrl($absolute = false)
+    {
+        return $this->url($absolute) . '/pay';
     }
 
     public static function statusLabels()
