@@ -244,7 +244,9 @@ $today = date('Y-m-d');
                 'format' => 'raw',
                 'value' => function (Appointments $model) use ($statusBadges) {
                     $status = $model->status ?: Appointments::STATUS_SCHEDULED;
-                    return Html::tag('span', Html::encode(Appointments::getStatusList()[$status] ?? $status), ['class' => 'badge ' . ($statusBadges[$status] ?? 'text-bg-light')]);
+                    // F13: how it was confirmed, on hover
+                    $how = $model->getConfirmationLabel();
+                    return Html::tag('span', Html::encode(Appointments::getStatusList()[$status] ?? $status), array_filter(['class' => 'badge ' . ($statusBadges[$status] ?? 'text-bg-light'), 'title' => $how]));
                 },
             ],
             [
@@ -289,6 +291,8 @@ $today = date('Y-m-d');
                             ],
                         ]);
                     }
+                    // F13: scheduled and still to come: confirm, saying how the patient confirmed
+                    $buttons .= ' ' . $this->render('@frontend/views/appointments/_confirm_button', ['model' => $model]);
                     // Started appointments: record or correct attended / no-show
                     if ($model->canRecordOutcome() && \frontend\components\FrontDesk::canRecordOutcome($model)) {
                         $buttons .= ' ' . $this->render('@frontend/views/appointments/_outcome_buttons', ['model' => $model]);

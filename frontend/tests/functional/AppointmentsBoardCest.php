@@ -109,15 +109,21 @@ class AppointmentsBoardCest
         $I->assertSame(0, (int) $cancelled->cancelled_at_patient_request);
     }
 
-    public function adminCannotEditOrConfirmOthersAppointments(FunctionalTester $I)
+    public function adminCannotEditOthersAppointmentsButConfirmsThem(FunctionalTester $I)
     {
         $I->amLoggedInAs($this->admin);
         $I->amOnRoute('appointments/update', ['id' => $this->withDrTest->id]);
         $I->seeResponseCodeIs(404);
 
-        $I->sendCsrfPost(['/appointments/confirm', 'id' => $this->withDrTest->id]);
-        $I->seeResponseCodeIs(404);
-        $I->assertSame(Appointments::STATUS_SCHEDULED, Appointments::findOne($this->withDrTest->id)->status);
+        // F13: consultancy admins confirm from the board, saying how the patient confirmed
+        $I->amOnRoute('/board/index', ['from' => $this->date, 'to' => $this->date]);
+        $I->seeElement('#confirm-' . $this->withDrTest->id);
+        $url = \yii\helpers\Url::to(['/appointments/confirm', 'id' => $this->withDrTest->id]);
+        $csrf = [$I->grabAttributeFrom('meta[name=csrf-param]', 'content') => $I->grabAttributeFrom('meta[name=csrf-token]', 'content')];
+        $I->sendAjaxPostRequest($url, $csrf);
+        $I->assertSame(Appointments::STATUS_SCHEDULED, Appointments::findOne($this->withDrTest->id)->status, 'not without saying how');
+        $I->sendAjaxPostRequest($url, $csrf + ['via' => Appointments::CONFIRMED_PHONE]);
+        $I->assertSame(Appointments::STATUS_CONFIRMED, Appointments::findOne($this->withDrTest->id)->status);
     }
 
     public function adminSeesAConsultantsCalendarReadOnly(FunctionalTester $I)

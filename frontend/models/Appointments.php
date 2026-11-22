@@ -49,6 +49,9 @@ use yii\behaviors\TimestampBehavior;
  * @property int|null $cancelled_at
  * @property string|null $payment_mode F22: cash or insurance, asked at booking
  * @property int|null $hold_expires_at F22: awaiting payment, the slot is released after this
+ * @property string|null $confirmed_via F13: how the patient confirmed: phone, in_person, message, other (staff), link (the patient)
+ * @property int|null $confirmed_by F13: user.id of whoever confirmed it
+ * @property int|null $confirmed_at F13
  */
 class Appointments extends \yii\db\ActiveRecord
 {
@@ -327,6 +330,73 @@ class Appointments extends \yii\db\ActiveRecord
      * Only upcoming appointments that are still on (scheduled or confirmed) can be cancelled.
      * Past ones are left for completed / no-show.
      */
+    // F13: how the patient confirmed. Staff pick one of the first four; the patient's link records the last
+    const CONFIRMED_PHONE = 'phone';
+    const CONFIRMED_IN_PERSON = 'in_person';
+    const CONFIRMED_MESSAGE = 'message';
+    const CONFIRMED_OTHER = 'other';
+    const CONFIRMED_LINK = 'link';
+
+    /** F13: what staff choose from when confirming, value => label. */
+    public static function confirmedViaChoices()
+    {
+        return [
+            self::CONFIRMED_PHONE => 'By phone',
+            self::CONFIRMED_IN_PERSON => 'In person',
+            self::CONFIRMED_MESSAGE => 'By WhatsApp or SMS',
+            self::CONFIRMED_OTHER => 'Other',
+        ];
+    }
+
+    public static function confirmedViaLabels()
+    {
+        return self::confirmedViaChoices() + [self::CONFIRMED_LINK => 'From their reminder link'];
+    }
+
+    /** F13: a scheduled appointment still to come can be confirmed. */
+    public function canBeConfirmed()
+    {
+        return ($this->status === null || $this->status === self::STATUS_SCHEDULED) && $this->isFuture();
+    }
+
+    /**
+     * F13: confirms it, recording how and by whom. afterSave() sends the patient the confirmation.
+     *
+     * @param string $via a CONFIRMED_* value
+     * @param int|null $userId who confirmed it
+     */
+    public function confirm($via, $userId)
+    {
+        if (!$this->canBeConfirmed() || !array_key_exists($via, self::confirmedViaLabels())) {
+            return false;
+        }
+        $this->status = self::STATUS_CONFIRMED;
+        $this->confirmed_via = $via;
+        $this->confirmed_by = $userId;
+        $this->confirmed_at = time();
+
+        return $this->save(false);
+    }
+
+    /** F13: e.g. "Confirmed by phone, by Mary Wanjiru, 3 Dec 2026 10:15", or null before F13. */
+    public function getConfirmationLabel()
+    {
+        if ($this->status !== self::STATUS_CONFIRMED || !$this->confirmed_via) {
+            return null;
+        }
+        $label = self::confirmedViaLabels()[$this->confirmed_via] ?? $this->confirmed_via;
+        $who = $this->confirmed_by ? \common\models\User::findOne($this->confirmed_by) : null;
+        $parts = [$label];
+        if ($who !== null && $this->confirmed_via !== self::CONFIRMED_LINK) {
+            $parts[] = 'by ' . ($who->full_name ?: $who->username);
+        }
+        if ($this->confirmed_at) {
+            $parts[] = date('j M Y H:i', $this->confirmed_at);
+        }
+
+        return implode(', ', $parts);
+    }
+
     public function canBeCancelled()
     {
         $active = $this->status === null || in_array($this->status, [self::STATUS_SCHEDULED, self::STATUS_CONFIRMED, self::STATUS_AWAITING_PAYMENT], true);

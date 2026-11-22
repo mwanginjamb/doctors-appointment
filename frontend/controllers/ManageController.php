@@ -70,7 +70,11 @@ class ManageController extends Controller
             Yii::$app->session->setFlash('error', Yii::t('app', 'This appointment can no longer be confirmed.'));
         } else {
             $appointment->status = Appointments::STATUS_CONFIRMED;
-            $appointment->save(false, ['status', 'updated_at', 'updated_by']);
+            // F13: confirmed by the patient, from their link
+            $appointment->confirmed_via = Appointments::CONFIRMED_LINK;
+            $appointment->confirmed_by = $appointment->patient_id;
+            $appointment->confirmed_at = time();
+            $appointment->save(false, ['status', 'confirmed_via', 'confirmed_by', 'confirmed_at', 'updated_at', 'updated_by']);
             Yii::$app->session->setFlash('success', Yii::t('app', 'Thank you: your appointment is confirmed. See you then.'));
         }
 

@@ -36,7 +36,14 @@ $this->params['breadcrumbs'][] = $this->title;
                 <?= Html::a(Yii::t('app', 'Wants an earlier time: add to the waiting list'), ['/waitlist/add', 'appointment' => $model->id], ['class' => 'btn btn-outline-secondary', 'id' => 'waitlist-earlier-link']) ?>
             <?php endif; ?>
         <?php endif; ?>
+        <?= $this->render('_confirm_button', ['model' => $model, 'size' => '']) ?>
     </p>
+    <?php if ($confirmation = $model->getConfirmationLabel()): ?>
+        <!-- F13: how, by whom and when it was confirmed -->
+        <div class="alert alert-light border small" role="status" id="appointment-confirmation">
+            <strong><?= Yii::t('app', 'Confirmed') ?></strong>: <?= Html::encode($confirmation) ?>
+        </div>
+    <?php endif; ?>
     <?= $model->canBeCancelled() ? $this->render('_cancel_modal', [
         'action' => Url::to(['cancel', 'id' => $model->id]),
         'facilityClosed' => $model->facility_id && \frontend\models\FacilityClosure::isClosed($model->facility_id, $model->date),

@@ -176,6 +176,15 @@ class FrontDesk
         return Yii::$app->user->can(RbacHelper::PERM_RECORD_OUTCOME, ['appointment' => $appointment]);
     }
 
+    /**
+     * F13: may confirm this appointment: its consultant, their front desk at its facility, the
+     * facility's admins, consultancy admins. Never the patient (they confirm from their link).
+     */
+    public static function canConfirm(Appointments $appointment)
+    {
+        return Yii::$app->user->can(RbacHelper::PERM_CONFIRM_APPOINTMENT, ['appointment' => $appointment]);
+    }
+
     /** Forgets cached assignments (after they change, and between tests). */
     public static function reset()
     {

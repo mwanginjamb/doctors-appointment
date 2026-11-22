@@ -262,24 +262,30 @@ class AppointmentsController extends Controller
         return $this->render('my-calendar');
     }
 
-    // confirm appointment
+    /**
+     * Confirms a scheduled appointment still to come, recording how the patient confirmed (F13):
+     * the consultant, their front desk (at its facility), facility admins (at theirs) and
+     * consultancy admins. The patient gets the usual confirmation. Back to the page it came from.
+     */
     public function actionConfirm($id)
     {
-        $model = $this->findModel($id);
-        if (!Yii::$app->user->can(\common\components\RbacHelper::PERM_CONFIRM_APPOINTMENT, ['appointment' => $model])) {
-            throw new ForbiddenHttpException(Yii::t('app', 'Only the consultant can confirm this appointment.'));
+        $model = $this->findModel($id, true);
+        if (!FrontDesk::canConfirm($model)) {
+            throw new ForbiddenHttpException(Yii::t('app', 'You cannot confirm this appointment.'));
         }
-        if ($model->status === Appointments::STATUS_SCHEDULED) {
-            $model->status = Appointments::STATUS_CONFIRMED;
-            if ($model->save(false)) {
-                Yii::$app->session->setFlash('success', 'Appointment confirmed successfully.');
-            } else {
-                Yii::$app->session->setFlash('error', 'Error confirming appointment. Please try again.');
-            }
+        $via = (string) $this->request->post('via', '');
+        if (!$model->canBeConfirmed()) {
+            Yii::$app->session->setFlash('error', Yii::t('app', 'Only scheduled appointments still to come can be confirmed.'));
+        } elseif (!array_key_exists($via, Appointments::confirmedViaChoices())) {
+            Yii::$app->session->setFlash('error', Yii::t('app', 'Choose how the patient confirmed.'));
+        } elseif ($model->confirm($via, Yii::$app->user->id)) {
+            Yii::$app->session->setFlash('success', Yii::t('app', 'Appointment confirmed ({how}). The patient has been sent the confirmation.',
+                ['how' => mb_strtolower(Appointments::confirmedViaChoices()[$via])]));
         } else {
-            Yii::$app->session->setFlash('error', 'Only scheduled appointments can be confirmed.');
+            Yii::$app->session->setFlash('error', Yii::t('app', 'Error confirming appointment. Please try again.'));
         }
-        return $this->redirect(['index']);
+
+        return $this->redirect(Yii::$app->request->referrer ?: ['view', 'id' => $model->id]);
     }
 
     /**
