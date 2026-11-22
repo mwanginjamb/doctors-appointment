@@ -165,6 +165,12 @@ $username = Yii::$app->user->identity->username ?? 'User';
                             ['/invoice/index'],
                             ['class' => 'dropdown-item']
                         )) : '') .
+                        // F29: the consultant's business card (front desk: their consultants' cards)
+                        (Yii::$app->user->identity->isConsultantAccount() || Yii::$app->user->identity->isFrontDeskAccount() ? Html::tag('li', Html::a(
+                            Html::tag('i', '', ['class' => 'bi bi-person-vcard me-2']) . (Yii::$app->user->identity->isConsultantAccount() ? 'My business card' : 'Business cards'),
+                            ['/business-card/index'],
+                            ['class' => 'dropdown-item', 'id' => 'menu-business-card']
+                        )) : '') .
                         (Yii::$app->user->identity->isPatientAccount() && \common\models\Consent::isEnabled() ? Html::tag('li', Html::a(
                             Html::tag('i', '', ['class' => 'bi bi-shield-lock me-2']) . 'Privacy &amp; messages',
                             ['/consent/settings'],

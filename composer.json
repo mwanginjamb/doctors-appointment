@@ -23,7 +23,8 @@
         "yiisoft/yii2-queue": "^2.3",
         "yiisoft/yii2-jui": "^2.0",
         "sentry/sentry": "^4.10",
-        "firebase/php-jwt": "^6.10"
+        "firebase/php-jwt": "^6.10",
+        "chillerlan/php-qrcode": "^5.0"
     },
     "require-dev": {
         "yiisoft/yii2-debug": "~2.1.0",
