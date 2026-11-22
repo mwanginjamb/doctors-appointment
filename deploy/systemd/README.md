@@ -14,6 +14,8 @@ waiting-list sweep every 15 minutes and a daily clean-up of the audit log:
 | `doctors-appointment-pilot.timer` → `doctors-appointment-pilot.service` | Daily at 08:00, runs `php yii pilot/notify`: emails a facility's admin and front desk 10 days before standard terms start and on the day they start, and platform admins when a facility has not confirmed them after the 30-day grace period. |
 | `doctors-appointment-fees.timer` → `doctors-appointment-fees.service` | Every minute, runs `php yii fee/release`: releases bookings whose 10-minute commitment-fee hold ran out unpaid (asking M-Pesa first), and tells the patient. |
 | `doctors-appointment-incentives.timer` → `doctors-appointment-incentives.service` | Mondays at 06:00, runs `php yii incentive/payouts`: groups last week's earned front-desk incentives into one payout per front-desk user, for a platform admin to send or record in the backend. |
+| `doctors-appointment-invoices.timer` → `doctors-appointment-invoices.service` | The 1st of each month at 07:00, runs `php yii invoice/issue`: last month's invoice for each consultant with something to bill, sent to them, with each facility admin told of the lines from their facility. Does nothing while `INVOICES_ENABLED=0`. |
+| `doctors-appointment-invoice-reminders.timer` → `doctors-appointment-invoice-reminders.service` | Daily at 08:00, runs `php yii invoice/remind`: reminds consultants of an invoice due today or a week overdue, pauses patients' online booking with a consultant whose invoice with standard-terms charges is 14 days overdue, and lifts pauses no longer owed. Does nothing while `INVOICES_ENABLED=0`. |
 | `doctors-appointment.target` | Groups them so they start, stop and restart together. |
 
 ## How the pieces fit
@@ -38,6 +40,10 @@ multi-user.target                                (normal boot)
             └─ doctors-appointment-fees.service        one run: releases unpaid bookings
        └─ doctors-appointment-incentives.timer   fires Mondays at 06:00
             └─ doctors-appointment-incentives.service  one run: weekly front-desk payouts
+       └─ doctors-appointment-invoices.timer     fires on the 1st at 07:00
+            └─ doctors-appointment-invoices.service    one run: monthly consultant invoices
+       └─ doctors-appointment-invoice-reminders.timer   fires daily at 08:00
+            └─ doctors-appointment-invoice-reminders.service   one run: reminders and the pause
 ```
 
 A reminder goes through two steps:
@@ -150,7 +156,7 @@ The units assume the app lives at `/var/www/html/doctors-appointment`, PHP CLI i
 sudo cp deploy/systemd/doctors-appointment* /etc/systemd/system/
 sudo systemd-analyze verify /etc/systemd/system/doctors-appointment*.{service,timer,target}
 sudo systemctl daemon-reload
-sudo systemctl enable doctors-appointment-queue.service doctors-appointment-scheduler.timer doctors-appointment-audit-purge.timer doctors-appointment-health.timer doctors-appointment-waitlist.timer doctors-appointment-mpesa.timer doctors-appointment-pilot.timer doctors-appointment-fees.timer doctors-appointment-incentives.timer
+sudo systemctl enable doctors-appointment-queue.service doctors-appointment-scheduler.timer doctors-appointment-audit-purge.timer doctors-appointment-health.timer doctors-appointment-waitlist.timer doctors-appointment-mpesa.timer doctors-appointment-pilot.timer doctors-appointment-fees.timer doctors-appointment-incentives.timer doctors-appointment-invoices.timer doctors-appointment-invoice-reminders.timer
 sudo systemctl enable --now doctors-appointment.target
 ```
 
@@ -164,7 +170,7 @@ sudo systemctl restart doctors-appointment.target        # after every deploy (l
 sudo systemctl stop doctors-appointment.target           # pause all notifications
 
 systemctl status doctors-appointment.target doctors-appointment-queue
-systemctl list-timers doctors-appointment-scheduler.timer doctors-appointment-audit-purge.timer doctors-appointment-health.timer doctors-appointment-waitlist.timer doctors-appointment-mpesa.timer doctors-appointment-pilot.timer doctors-appointment-fees.timer doctors-appointment-incentives.timer
+systemctl list-timers doctors-appointment-scheduler.timer doctors-appointment-audit-purge.timer doctors-appointment-health.timer doctors-appointment-waitlist.timer doctors-appointment-mpesa.timer doctors-appointment-pilot.timer doctors-appointment-fees.timer doctors-appointment-incentives.timer doctors-appointment-invoices.timer doctors-appointment-invoice-reminders.timer
 journalctl -u doctors-appointment-queue -f               # worker output
 journalctl -u doctors-appointment-scheduler --since -1h  # scheduler runs
 journalctl -u doctors-appointment-health --since -1h     # health checks

@@ -79,7 +79,8 @@ class SlotFinder extends BaseObject
                 continue;
             }
             foreach ($consultant->getRangesFor($date, $this->facilityId) as [$open, $close, $facilityId]) {
-                if ($this->onlineOnly && !$consultant->getEngagement($facilityId)->isBookingOpen()) {
+                // Patients moving their own booking: not stopped by an F25 pause, which is for new bookings
+                if ($this->onlineOnly && !$consultant->getEngagement($facilityId)->booking_open) {
                     continue;
                 }
                 $length = $consultant->getSessionMinutes($facilityId) * 60;

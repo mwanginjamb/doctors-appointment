@@ -1,0 +1,17 @@
+# Fires doctors-appointment-invoices.service on the 1st of each month.
+#
+#   systemctl list-timers doctors-appointment-invoices.timer   # last / next run
+
+[Unit]
+Description=Issue the monthly consultant invoices on the 1st
+PartOf=doctors-appointment.target
+
+[Timer]
+OnCalendar=*-*-01 07:00:00
+RandomizedDelaySec=10min
+# A 1st missed while the server was off runs at boot; a consultant's month is issued once
+Persistent=true
+Unit=doctors-appointment-invoices.service
+
+[Install]
+WantedBy=doctors-appointment.target

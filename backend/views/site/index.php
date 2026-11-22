@@ -9,6 +9,8 @@ use yii\bootstrap5\Html;
  * @var int $refunds refund requests to decide
  * @var int $payoutsReady weekly payouts to send
  * @var int $payoutsHeld payouts held for a missing phone number
+ * @var int $overdueInvoices consultant invoices unpaid past their due date
+ * @var int $pausedConsultants consultants patients cannot book online for an overdue invoice
  * @var frontend\models\Facility[] $toApprove facilities whose standard terms wait for approval
  * @var frontend\models\Facility[] $unsigned facilities taking bookings with no agreement recorded
  */
@@ -40,6 +42,19 @@ $this->title = 'Admin';
                     <?php endforeach; ?>
                     <?php if ($unsigned): ?>
                         <p class="small text-muted mt-1 mb-0">Taking bookings with consultants there; record the signed agreement.</p>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h2 class="h6 text-muted">Overdue consultant invoices</h2>
+                    <p class="display-6 mb-2" id="count-overdue"><?= $overdueInvoices ?></p>
+                    <p class="small mb-2" id="count-paused"><?= $pausedConsultants ?> with online booking paused</p>
+                    <?= Html::a('Invoices', ['/invoice/index', 'status' => 'overdue'], ['class' => 'btn btn-outline-primary btn-sm']) ?>
+                    <?php if ($pausedConsultants): ?>
+                        <?= Html::a('Paused', ['/invoice/index', 'status' => 'paused'], ['class' => 'btn btn-outline-warning btn-sm']) ?>
                     <?php endif; ?>
                 </div>
             </div>

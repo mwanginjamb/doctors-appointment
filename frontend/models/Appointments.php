@@ -389,6 +389,8 @@ class Appointments extends \yii\db\ActiveRecord
             \frontend\services\FeeLifecycle::onCancelled($this);
             // F24: so is the front desk's incentive
             \frontend\services\Incentives::onCancelled($this);
+            // F25: the Ksh 100 charge when the consultant or their front desk cancelled
+            \frontend\services\Invoices::onCancelled($this);
         }
 
         return true;

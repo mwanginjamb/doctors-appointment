@@ -223,6 +223,11 @@ class WaitlistEntry extends ActiveRecord
         if ($this->consultant === null || $from > $to) {
             return [];
         }
+        // F25: no new bookings offered while the consultant's online booking is paused; a patient
+        // waiting to move a booking they have is still offered earlier times
+        if ($before === null && $this->consultant->isOnlineBookingPaused()) {
+            return [];
+        }
 
         $slots = (new SlotFinder([
             'consultant' => $this->consultant,

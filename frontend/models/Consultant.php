@@ -48,6 +48,7 @@ use yii\helpers\ArrayHelper;
  * @property int|null $first_booking_at F20: start of their pilot, the first booking with them; set once
  * @property string $plan F22: A (commitment fee) or B (flat); set by platform admins
  * @property int $insured_pay F22, Plan A: insured patients pay the fee; when 0 the consultant absorbs it
+ * @property int|null $online_booking_paused_at F25: patients cannot book online while an invoice is long overdue
  *
  * @property ConsultantSession[] $sessions one-off sessions
  * @property ConsultantExternalBlock[] $externalBlocks weekly hours at places that do not use the app
@@ -230,6 +231,15 @@ class Consultant extends \yii\db\ActiveRecord
     /**
      * False once an admin deactivates the consultant's account: they can no longer be booked.
      */
+    /**
+     * F25: patients cannot book them online for now (an invoice is long overdue). Staff bookings
+     * and booking links go on; patients are told to call the clinic, never why.
+     */
+    public function isOnlineBookingPaused()
+    {
+        return !empty($this->online_booking_paused_at);
+    }
+
     public function isTakingBookings()
     {
         return $this->user !== null && (int) $this->user->status === User::STATUS_ACTIVE;
@@ -294,6 +304,7 @@ class Consultant extends \yii\db\ActiveRecord
     public function getEngagements()
     {
         return $this->hasMany(ConsultantFacility::class, ['consultant_id' => 'id'])
+            ->inverseOf('consultant')
             ->joinWith('facility f', false)
             ->with('facility')
             ->orderBy(['f.name' => SORT_ASC]);

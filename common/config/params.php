@@ -203,6 +203,22 @@ return [
     // F23/F24: send refunds and front-desk payouts by M-Pesa B2C. Off: platform admins pay by hand
     // and record the M-Pesa reference. Turn on once live B2C credentials are in .env.
     'payouts.b2cEnabled' => filter_var(env('MPESA_B2C_PAYOUTS_ENABLED', '0'), FILTER_VALIDATE_BOOLEAN),
+    // F25 consultants' monthly invoices (agreement v1.2 §3–§5). Off: no charge is recorded and no
+    // invoice is issued.
+    'invoices' => [
+        'enabled' => filter_var(env('INVOICES_ENABLED', '0'), FILTER_VALIDATE_BOOLEAN),
+        // Monthly charge per active consultant on standard terms, by plan
+        'planMonthly' => ['A' => (int) env('PLAN_A_MONTHLY', 1000), 'B' => (int) env('PLAN_B_MONTHLY', 1500)],
+        // Per booking the consultant or their front desk cancels, from day 91, where the facility signed v1.2
+        'cancellationCharge' => (int) env('CANCELLATION_PENALTY', 100),
+        // An invoice is due this many days after it is issued
+        'dueDays' => (int) env('INVOICE_DUE_DAYS', 14),
+        // Part 2: reminders on the due date and this many days later
+        'reminderGapDays' => (int) env('INVOICE_REMINDER_GAP_DAYS', 7),
+        // Part 2: this many days past due, patients cannot book the consultant online until it is
+        // paid (staff bookings and booking links go on); never for a pilot statement
+        'pauseAfterDays' => (int) env('INVOICE_PAUSE_DAYS', 14),
+    ],
     // Firebase Configurations
     'firebase' => [
         'public' => [
