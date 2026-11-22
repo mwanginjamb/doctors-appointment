@@ -130,6 +130,14 @@ return [
                 // F25: a consultant's monthly invoice: /invoice/<id>/<signature>
                 'invoice/<id:\d+>/<sig:[a-f0-9]{32}>' => 'invoice/view',
                 'invoice/<id:\d+>/<sig:[a-f0-9]{32}>/<action:pay|status>' => 'invoice/<action>',
+                // F29: a consultant's public profile (the business card's QR code): /dr/<id>-<name>
+                'dr/<id:\d+>-<slug:[a-z0-9-]+>' => 'doctor/view',
+                'dr/<id:\d+>' => 'doctor/view',
+                // F29: the business card and its QR code
+                'business-card' => 'business-card/index',
+                'business-card/<cid:\d+>' => 'business-card/index',
+                'business-card/<cid:\d+>/qr.<format:svg|png>' => 'business-card/qr',
+                'business-card/<cid:\d+>/print' => 'business-card/print',
             ],
         ],
 

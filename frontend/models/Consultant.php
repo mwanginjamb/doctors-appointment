@@ -49,6 +49,7 @@ use yii\helpers\ArrayHelper;
  * @property string $plan F22: A (commitment fee) or B (flat); set by platform admins
  * @property int $insured_pay F22, Plan A: insured patients pay the fee; when 0 the consultant absorbs it
  * @property int|null $online_booking_paused_at F25: patients cannot book online while an invoice is long overdue
+ * @property string|null $card_facility_ids F29: facility ids on the business card, comma-separated, in order; null: the first three
  *
  * @property ConsultantSession[] $sessions one-off sessions
  * @property ConsultantExternalBlock[] $externalBlocks weekly hours at places that do not use the app
@@ -243,6 +244,40 @@ class Consultant extends \yii\db\ActiveRecord
     public function isTakingBookings()
     {
         return $this->user !== null && (int) $this->user->status === User::STATUS_ACTIVE;
+    }
+
+    /** F29: the name with "Dr." in front, unless it already has it. */
+    public function displayName()
+    {
+        $names = trim((string) $this->names);
+
+        return preg_match('/^(dr|prof|doctor)\b\.?/i', $names) ? $names : 'Dr. ' . $names;
+    }
+
+    /** F29: the name part of the public profile address, e.g. "jane-wanjiru". */
+    public function profileSlug()
+    {
+        $slug = \yii\helpers\Inflector::slug(preg_replace('/^(dr|prof|doctor)\b\.?\s*/i', '', trim((string) $this->names)));
+
+        return substr($slug, 0, 60) ?: 'doctor';
+    }
+
+    /**
+     * F29: the public profile, open without signing in (the business card's QR code):
+     * /dr/<id>-<name>. Only the id counts, so the link keeps working if the name changes.
+     */
+    public function profileUrl($absolute = false)
+    {
+        $path = '/dr/' . $this->id . '-' . $this->profileSlug();
+        if (!$absolute) {
+            return $path;
+        }
+        $base = rtrim((string) (Yii::$app->params['app.publicUrl'] ?? ''), '/');
+        if ($base === '' && Yii::$app->request instanceof \yii\web\Request) {
+            $base = Yii::$app->request->hostInfo;
+        }
+
+        return $base . $path;
     }
 
     // Get Gender
