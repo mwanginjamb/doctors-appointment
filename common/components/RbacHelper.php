@@ -62,6 +62,10 @@ class RbacHelper
     const PERM_RECORD_OWN_OUTCOME = 'recordOwnOutcome';
     const PERM_RECORD_ASSIGNED_OUTCOME = 'recordAssignedOutcome';
     const PERM_CONFIRM_OWN_APPOINTMENT = 'confirmOwnAppointment';
+    // F13: front desk confirms their consultants' appointments (at their facility); facility admins at theirs
+    const PERM_CONFIRM_ASSIGNED_APPOINTMENT = 'confirmAssignedAppointment';
+    const PERM_CONFIRM_AT_ASSIGNED_FACILITY = 'confirmAtAssignedFacility';
+    const PERM_CONFIRM_FACILITY_APPOINTMENT = 'confirmFacilityAppointment';
     const PERM_MANAGE_OWN_AVAILABILITY = 'manageOwnAvailability';
     const PERM_UPDATE_OWN_CONSULTANT_PROFILE = 'updateOwnConsultantProfile';
 
@@ -151,15 +155,18 @@ class RbacHelper
                 self::PERM_RECORD_OWN_OUTCOME => ['Record outcomes of own appointments', 'isTheConsultant', self::PERM_RECORD_OUTCOME],
                 self::PERM_RECORD_ASSIGNED_OUTCOME => ["Record outcomes of assigned consultants' appointments", 'assignedConsultant', self::PERM_RECORD_OUTCOME],
                 self::PERM_CONFIRM_OWN_APPOINTMENT => ['Confirm own appointments', 'isTheConsultant', self::PERM_CONFIRM_APPOINTMENT],
+                self::PERM_CONFIRM_ASSIGNED_APPOINTMENT => ["Confirm assigned consultants' appointments", 'assignedConsultant', self::PERM_CONFIRM_APPOINTMENT],
                 self::PERM_MANAGE_OWN_AVAILABILITY => ['Edit own availability', 'isTheConsultant', self::PERM_MANAGE_AVAILABILITY],
                 self::PERM_UPDATE_OWN_CONSULTANT_PROFILE => ['Edit own consultant profile', 'isTheConsultant', self::PERM_UPDATE_CONSULTANT_PROFILE],
                 // Both rules on the way: the assigned consultant, at the front desk's own facility
                 self::PERM_BOOK_AT_ASSIGNED_FACILITY => ["Book for assigned consultants at own facility", 'assignedFacility', self::PERM_BOOK_FOR_ASSIGNED_CONSULTANT],
                 self::PERM_HANDLE_AT_ASSIGNED_FACILITY => ["Open and cancel assigned consultants' appointments at own facility", 'assignedFacility', self::PERM_HANDLE_ASSIGNED_APPOINTMENT],
                 self::PERM_RECORD_AT_ASSIGNED_FACILITY => ["Record outcomes of assigned consultants' appointments at own facility", 'assignedFacility', self::PERM_RECORD_ASSIGNED_OUTCOME],
+                self::PERM_CONFIRM_AT_ASSIGNED_FACILITY => ["Confirm assigned consultants' appointments at own facility", 'assignedFacility', self::PERM_CONFIRM_ASSIGNED_APPOINTMENT],
                 // Facility admins: the same, for the facility they run
                 self::PERM_HANDLE_FACILITY_APPOINTMENT => ["Open and cancel appointments at own facility", 'facilityAdmin', self::PERM_HANDLE_APPOINTMENT],
                 self::PERM_RECORD_FACILITY_OUTCOME => ["Record outcomes at own facility", 'facilityAdmin', self::PERM_RECORD_OUTCOME],
+                self::PERM_CONFIRM_FACILITY_APPOINTMENT => ['Confirm appointments at own facility', 'facilityAdmin', self::PERM_CONFIRM_APPOINTMENT],
                 self::PERM_MANAGE_OWN_FACILITY_FRONT_DESK => ["Manage own facility's front-desk staff", 'facilityAdmin', self::PERM_MANAGE_FRONT_DESK],
                 self::PERM_MANAGE_OWN_FACILITY_CLOSURES => ['Close own facility for a day', 'facilityAdmin', self::PERM_MANAGE_FACILITY_CLOSURES],
                 self::PERM_EDIT_OWN_FACILITY_CONTACT => ["Edit own facility's contact details", 'facilityAdmin', self::PERM_EDIT_FACILITY_CONTACT],
@@ -177,7 +184,7 @@ class RbacHelper
                     [
                         self::PERM_MANAGE_RBAC, self::PERM_MANAGE_USERS, self::PERM_MANAGE_REFERENCE_DATA,
                         self::PERM_VIEW_CLINIC_BOARD, self::PERM_VIEW_ALL_APPOINTMENTS, self::PERM_HANDLE_APPOINTMENT,
-                        self::PERM_RECORD_OUTCOME, self::PERM_MANAGE_AVAILABILITY, self::PERM_UPDATE_CONSULTANT_PROFILE,
+                        self::PERM_RECORD_OUTCOME, self::PERM_CONFIRM_APPOINTMENT, self::PERM_MANAGE_AVAILABILITY, self::PERM_UPDATE_CONSULTANT_PROFILE,
                         self::PERM_MANAGE_CONSULTANTS, self::PERM_VIEW_AUDIT_LOG,
                         self::PERM_MANAGE_FRONT_DESK, self::PERM_MANAGE_FACILITY_CLOSURES,
                         self::PERM_EDIT_FACILITY_CONTACT, self::PERM_VIEW_FACILITY_AUDIT_LOG,
@@ -188,7 +195,7 @@ class RbacHelper
                     'Facility administrator',
                     [
                         self::PERM_VIEW_CLINIC_BOARD,
-                        self::PERM_HANDLE_FACILITY_APPOINTMENT, self::PERM_RECORD_FACILITY_OUTCOME,
+                        self::PERM_HANDLE_FACILITY_APPOINTMENT, self::PERM_RECORD_FACILITY_OUTCOME, self::PERM_CONFIRM_FACILITY_APPOINTMENT,
                         self::PERM_MANAGE_OWN_FACILITY_FRONT_DESK, self::PERM_MANAGE_OWN_FACILITY_CLOSURES,
                         self::PERM_EDIT_OWN_FACILITY_CONTACT, self::PERM_VIEW_OWN_FACILITY_AUDIT_LOG,
                         self::PERM_MANAGE_FACILITY_SESSIONS, self::PERM_MANAGE_OWN_FACILITY_CONSULTANTS,
@@ -212,7 +219,8 @@ class RbacHelper
                     [
                         self::PERM_MANAGE_CLINIC_BOOKINGS, self::PERM_VIEW_CLINIC_BOARD,
                         self::PERM_BOOK_AT_ASSIGNED_FACILITY, self::PERM_HANDLE_AT_ASSIGNED_FACILITY,
-                        self::PERM_RECORD_AT_ASSIGNED_FACILITY, self::PERM_LOOK_UP_PATIENTS, self::PERM_SEND_BOOKING_LINKS,
+                        self::PERM_RECORD_AT_ASSIGNED_FACILITY, self::PERM_CONFIRM_AT_ASSIGNED_FACILITY,
+                        self::PERM_LOOK_UP_PATIENTS, self::PERM_SEND_BOOKING_LINKS,
                         self::PERM_MANAGE_ASSIGNED_SESSIONS_AT_FACILITY,
                     ],
                 ],

@@ -65,7 +65,13 @@ class PermissionsTest extends \Codeception\Test\Unit
 
         $this->assertTrue($this->can($this->consultantUser, R::PERM_CONFIRM_APPOINTMENT, $params));
         $this->assertFalse($this->can($this->otherDoctor, R::PERM_CONFIRM_APPOINTMENT, $params));
-        $this->assertFalse($this->can($this->frontDesk, R::PERM_CONFIRM_APPOINTMENT, $params));
+        // F13: their front desk and consultancy admins confirm too; never the patient
+        $this->assertTrue($this->can($this->frontDesk, R::PERM_CONFIRM_APPOINTMENT, $params), 'assigned front desk');
+        $this->assertTrue($this->can($this->admin, R::PERM_CONFIRM_APPOINTMENT, $params));
+        $this->assertFalse($this->can($this->client, R::PERM_CONFIRM_APPOINTMENT, $params));
+        FrontDeskAssignment::replaceFor($this->frontDesk->id, []);
+        AssignedConsultantRule::reset();
+        $this->assertFalse($this->can($this->frontDesk, R::PERM_CONFIRM_APPOINTMENT, $params), 'no longer assigned');
     }
 
     public function testAvailabilityAndProfiles()
