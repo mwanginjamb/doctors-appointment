@@ -1,11 +1,12 @@
 <?php
 
 use frontend\models\Consultant;
-use yii\web\View;
 use yii\bootstrap5\Html;
-use yii\bootstrap5\ActiveForm;
 
 /**
+ * A read-only calendar of the signed-in user's appointments; clicking one opens it. Consultants
+ * book on appointments/calendar, and block time on Availability (time off, weekly hours elsewhere).
+ *
  * @var yii\web\View $this
  */
 $me = Yii::$app->user->identity;
@@ -25,7 +26,12 @@ $this->title = $title;
 <div class="container mt-4">
     <div class="calendar-header text-center py-3">
         <h1 class="fw-bold display-5 text-primary"><?= Html::encode(ucwords($title)) ?> </h1>
-        <p class="lead text-muted">Please click on any available time slot to enter your appointment.</p>
+        <p class="lead text-muted">
+            <?= Yii::t('app', 'View only. Click an appointment to open it.') ?>
+            <?php if ($me->isConsultantAccount()): ?>
+                <?= Html::a(Yii::t('app', 'Book on your calendar'), ['appointments/calendar'], ['id' => 'my-calendar-book-link']) ?>
+            <?php endif; ?>
+        </p>
     </div>
 </div>
 <div class="container">
@@ -40,8 +46,6 @@ $this->title = $title;
 $script = <<<JS
 
     var calendarEl = document.getElementById('calendar');
-    var lastClickTime = 0;
-    var doubleClickThreshold = 300; // milliseconds    
     var calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'timeGridWeek', // Day view - Default View
         headerToolbar: {
@@ -50,7 +54,6 @@ $script = <<<JS
             right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek' // Toggle buttons
         },
         events: fetchCalendarEvents, // Load existing appointments
-        //selectable: true,
         editable: false,
         eventDurationEditable: false, // appointments keep the length they were booked with
         height: 800,
@@ -66,65 +69,6 @@ $script = <<<JS
         }
     });
     calendar.render();
-
-    // Update event helper function
-
-   function updateEvent(event) {
-        var eventData = {
-            id: event.id,
-            date: event.start.toISOString().split('T')[0], // YYYY-MM-DD
-            time: event.start.toTimeString().split(' ')[0] // HH:MM:SS
-        };
-
-        $.ajax({
-            url: '/api/update-visit',
-            type: 'POST',
-            data: JSON.stringify(eventData),
-            contentType: 'application/json',
-            success: function(response) {
-                alert(response.message);
-                if (response.status !== 'success') {
-                    location.reload(); // put the event back where it was
-                }
-            },
-            error: function(xhr) {
-                console.log(xhr);
-                alert('Error updating appointment: ' + xhr.responseText);
-                location.reload(); // Reload calendar if update fails
-            }
-        });
-    }
-
-    // Handle form submission
-    $('#appointmentForm').on('submit', function(e) {
-        e.preventDefault();
-        let appointmentData = {
-            date: $('#appointments-date').val(),
-            time: $('#appointments-time').val(),
-            brief: $('#appointments-symptoms_brief').val(),
-            patient_name: $('#appointments-patient_id').val(),
-            consultant: $('#appointments-consultant_id').val(),
-        };
-
-        $.ajax({
-            url: '/api/visit',
-            type: 'POST',
-            data: JSON.stringify(appointmentData),
-            contentType: 'application/json',
-            success: function(response) {
-                if(response.status === 'success'){
-                    alert('Appointment booked successfully!');
-                    $('#appointmentModal').modal('hide');
-                    calendar.refetchEvents(); // Reload events from API
-                } else {
-                    alert(response.message || 'Error saving appointment.');
-                }
-            },
-            error: function() {
-                alert('Error saving appointment.');
-            }
-        });
-    });
 
 JS;
 $this->registerJs($script);
