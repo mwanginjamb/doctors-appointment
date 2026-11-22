@@ -105,6 +105,10 @@ class TimeOffAndHolidaysCest
 
         $I->amOnRoute('appointments/my-calendar');
         $I->seeInSource('if (!info.event.id)');
+        // Read only: no booking form behind it, and it does not ask to click a slot
+        $I->see('View only. Click an appointment to open it.');
+        $I->dontSee('click on any available time slot');
+        $I->dontSeeInSource('#appointmentForm');
     }
 
     public function adminAddsAHolidayAndIsWarnedAboutBookings(FunctionalTester $I)
