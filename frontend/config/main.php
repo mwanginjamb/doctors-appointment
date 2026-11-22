@@ -127,6 +127,8 @@ return [
                 // F23: a patient's rebooking credit: /credit/<id>/<signature>[/refund]
                 'credit/<id:\d+>/<sig:[a-f0-9]{32}>' => 'credit/view',
                 'POST credit/<id:\d+>/<sig:[a-f0-9]{32}>/refund' => 'credit/refund',
+                // F25: a consultant's monthly invoice: /invoice/<id>/<signature>
+                'invoice/<id:\d+>/<sig:[a-f0-9]{32}>' => 'invoice/view',
             ],
         ],
 

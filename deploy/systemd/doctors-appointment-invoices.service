@@ -1,0 +1,31 @@
+# One run of the monthly consultant invoices (php yii invoice/issue, F25): last month's invoice for
+# each consultant with something to bill (absorbed fees, the plan charge, cancellation charges),
+# emailed and WhatsApped to them, with each facility admin told of the lines from their facility.
+# Does nothing while INVOICES_ENABLED=0. Started on the 1st of each month by
+# doctors-appointment-invoices.timer.
+#
+# Run it by hand:   sudo systemctl start doctors-appointment-invoices
+# Logs:             journalctl -u doctors-appointment-invoices
+#
+# Same path / PHP / user assumptions as doctors-appointment-queue.service.
+
+[Unit]
+Description=Doctor appointments monthly consultant invoices (one run)
+After=network-online.target mysql.service mariadb.service
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/html/doctors-appointment
+ExecStart=/usr/bin/php /var/www/html/doctors-appointment/yii invoice/issue --color=0
+TimeoutStartSec=10min
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=doctors-invoices
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
