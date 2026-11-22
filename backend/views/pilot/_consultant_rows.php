@@ -49,7 +49,8 @@ $return = Url::current();
                     . Html::submitButton('Save', ['class' => 'btn btn-sm btn-outline-primary'])
                     . Html::endForm() ?>
             </td>
-            <td class="text-end">
+            <td class="text-end text-nowrap">
+                <?= Html::a('Card', ['/business-card/view', 'id' => $consultant->id], ['class' => 'btn btn-sm btn-link', 'title' => 'Business card (F29)']) ?>
                 <?php if ($consultant->first_booking_at): ?>
                     <?= Html::beginForm(['restart', 'id' => $consultant->id], 'post', ['class' => 'd-inline'])
                         . Html::hiddenInput('return', $return)
