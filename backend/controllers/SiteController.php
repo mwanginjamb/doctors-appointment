@@ -85,6 +85,8 @@ class SiteController extends Controller
             'refunds' => (int) PatientCredit::find()->where(['status' => PatientCredit::STATUS_REFUND_REQUESTED])->count(),
             'payoutsReady' => (int) IncentivePayout::find()->where(['status' => IncentivePayout::STATUS_READY])->count(),
             'payoutsHeld' => (int) IncentivePayout::find()->where(['status' => IncentivePayout::STATUS_HELD])->count(),
+            'overdueInvoices' => (int) \frontend\models\ConsultantInvoice::find()
+                ->where(['status' => \frontend\models\ConsultantInvoice::STATUS_ISSUED])->andWhere(['<', 'due_on', date('Y-m-d')])->count(),
             'toApprove' => $toApprove,
             'unsigned' => $unsigned,
         ]);

@@ -9,6 +9,7 @@ use yii\bootstrap5\Html;
  * @var int $refunds refund requests to decide
  * @var int $payoutsReady weekly payouts to send
  * @var int $payoutsHeld payouts held for a missing phone number
+ * @var int $overdueInvoices consultant invoices unpaid past their due date
  * @var frontend\models\Facility[] $toApprove facilities whose standard terms wait for approval
  * @var frontend\models\Facility[] $unsigned facilities taking bookings with no agreement recorded
  */
@@ -41,6 +42,15 @@ $this->title = 'Admin';
                     <?php if ($unsigned): ?>
                         <p class="small text-muted mt-1 mb-0">Taking bookings with consultants there; record the signed agreement.</p>
                     <?php endif; ?>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h2 class="h6 text-muted">Overdue consultant invoices</h2>
+                    <p class="display-6 mb-2" id="count-overdue"><?= $overdueInvoices ?></p>
+                    <?= Html::a('Invoices', ['/invoice/index', 'status' => 'overdue'], ['class' => 'btn btn-outline-primary btn-sm']) ?>
                 </div>
             </div>
         </div>

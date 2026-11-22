@@ -159,6 +159,12 @@ $username = Yii::$app->user->identity->username ?? 'User';
                                 : ['/account/index'],
                             ['class' => 'dropdown-item']
                         )) .
+                        // F25: a consultant's monthly invoices
+                        (Yii::$app->user->identity->isConsultantAccount() ? Html::tag('li', Html::a(
+                            Html::tag('i', '', ['class' => 'bi bi-receipt me-2']) . 'My invoices',
+                            ['/invoice/index'],
+                            ['class' => 'dropdown-item']
+                        )) : '') .
                         (Yii::$app->user->identity->isPatientAccount() && \common\models\Consent::isEnabled() ? Html::tag('li', Html::a(
                             Html::tag('i', '', ['class' => 'bi bi-shield-lock me-2']) . 'Privacy &amp; messages',
                             ['/consent/settings'],
