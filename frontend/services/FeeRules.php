@@ -99,9 +99,10 @@ class FeeRules
     }
 
     /**
-     * The fee answers of a booking form (see the _fee_fields view) onto the appointment.
+     * The fee answers of a booking form (see the _payment_fields and _fee_fields views) onto the
+     * appointment.
      *
-     * @param array $data with payment_mode, pay_phone and fee_terms
+     * @param array $data with payment_mode (and for insurance insurer_id, member_number), pay_phone and fee_terms
      */
     public static function load(Appointments $appointment, array $data)
     {
@@ -109,6 +110,10 @@ class FeeRules
         $appointment->payment_mode = in_array($mode, [self::PAYMENT_CASH, self::PAYMENT_INSURANCE], true) ? $mode : self::PAYMENT_CASH;
         $appointment->payPhone = trim((string) ($data['pay_phone'] ?? ''));
         $appointment->feeTermsAccepted = filter_var($data['fee_terms'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        // F18: an insured booking's insurer and member number (asked on every booking)
+        if (array_key_exists('payment_mode', $data)) {
+            Insurance::load($appointment, $data);
+        }
     }
 
     /** Whether the facility exempts same-day walk-ins: as its agreement says; yes without one. */

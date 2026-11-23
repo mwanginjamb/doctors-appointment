@@ -44,6 +44,7 @@ $this->params['breadcrumbs'][] = $this->title;
             <strong><?= Yii::t('app', 'Confirmed') ?></strong>: <?= Html::encode($confirmation) ?>
         </div>
     <?php endif; ?>
+    <?= $this->render('_insurance', ['model' => $model]) ?>
     <?= $model->canBeCancelled() ? $this->render('_cancel_modal', [
         'action' => Url::to(['cancel', 'id' => $model->id]),
         'facilityClosed' => $model->facility_id && \frontend\models\FacilityClosure::isClosed($model->facility_id, $model->date),

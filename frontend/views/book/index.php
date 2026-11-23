@@ -75,6 +75,9 @@ $this->title = 'Book with ' . $consultant->names;
                     <?= $f->field($form, 'consent_reminders')->radioList(\frontend\models\ConsentForm::reminderChoices())
                         ->hint('Emails are sent either way.') ?>
                 <?php endif; ?>
+                <!-- F18: cash or insurance on every booking -->
+                <?= $this->render('@frontend/views/fee/_payment_fields', ['idPrefix' => 'book', 'consultant' => $link->consultant,
+                    'insurerId' => null, 'memberNumber' => null]) ?>
                 <?php if (\frontend\services\FeeRules::mayCharge($link->consultant)): ?>
                     <?= $this->render('@frontend/views/fee/_fee_fields', ['idPrefix' => 'book-fee', 'phone' => $form->phone]) ?>
                 <?php endif; ?>

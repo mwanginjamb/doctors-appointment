@@ -41,7 +41,7 @@ $statusBadges = [
 /** Same filters with a different date range. */
 $rangeLink = function ($label, $from, $to) use ($search) {
     $active = $search->from === $from && $search->to === $to;
-    return Html::a($label, ['index', 'from' => $from, 'to' => $to, 'consultant' => $search->consultant, 'facility' => $search->facility, 'status' => $search->status, 'q' => $search->q], [
+    return Html::a($label, ['index', 'from' => $from, 'to' => $to, 'consultant' => $search->consultant, 'facility' => $search->facility, 'status' => $search->status, 'preauth' => $search->preauth, 'q' => $search->q], [
         'class' => 'btn btn-sm ' . ($active ? 'btn-primary' : 'btn-outline-primary'),
     ]);
 };
@@ -139,6 +139,8 @@ $today = date('Y-m-d');
         <div class="col-md-2">
             <label class="form-label small" for="board-status">Status</label>
             <?= Html::dropDownList('status', $search->status, AppointmentBoardSearch::statusOptions(), ['class' => 'form-select form-select-sm', 'id' => 'board-status', 'prompt' => 'Any status']) ?>
+            <!-- F18: insured bookings by pre-authorisation -->
+            <?= Html::dropDownList('preauth', $search->preauth, \frontend\services\Insurance::preauthLabels(), ['class' => 'form-select form-select-sm mt-1', 'id' => 'board-preauth', 'prompt' => 'Any pre-auth', 'aria-label' => 'Pre-authorisation']) ?>
         </div>
         <div class="col-md-2">
             <label class="form-label small" for="board-q">Patient</label>
@@ -250,7 +252,10 @@ $today = date('Y-m-d');
                     $how = $model->getConfirmationLabel();
                     return Html::tag('span', Html::encode(Appointments::getStatusList()[$status] ?? $status), array_filter(['class' => 'badge ' . ($statusBadges[$status] ?? 'text-bg-light'), 'title' => $how]))
                         // F14: the patient was told it clashes and has not moved yet
-                        . (isset($needsNewTime[(int) $model->id]) ? ' <span class="badge text-bg-warning needs-new-time" title="The patient was told this booking cannot go ahead">Needs a new time</span>' : '');
+                        . (isset($needsNewTime[(int) $model->id]) ? ' <span class="badge text-bg-warning needs-new-time" title="The patient was told this booking cannot go ahead">Needs a new time</span>' : '')
+                        // F18: an insured booking's pre-authorisation
+                        . ($model->preauth_status ? ' <span class="badge preauth-badge ' . (['pending' => 'text-bg-warning', 'approved' => 'text-bg-success', 'declined' => 'text-bg-danger'][$model->preauth_status] ?? 'text-bg-light')
+                            . '" title="' . Html::encode(\frontend\services\Insurance::summary($model) ?? '') . '">' . Html::encode(\frontend\services\Insurance::preauthLabels()[$model->preauth_status] ?? '') . '</span>' : '');
                 },
             ],
             [

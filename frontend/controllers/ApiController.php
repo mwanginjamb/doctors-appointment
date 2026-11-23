@@ -342,6 +342,9 @@ class ApiController extends Controller
             // F11: staff ask for verbal consent when none is on record
             'consent' => !Consent::isEnabled() || Consent::hasDataConsent($p->id),
             'consentStatus' => Consent::statusLabels()[Consent::status($p->id)],
+            // F18: filled in on the booking form when the patient is chosen
+            'insurerId' => \frontend\services\Insurance::lastFor($p->id)[0],
+            'memberNumber' => \frontend\services\Insurance::lastFor($p->id)[1],
         ];
     }
 

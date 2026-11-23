@@ -54,7 +54,10 @@ class IncentivesTest extends \Codeception\Test\Unit
     {
         Yii::$app->user->login($user ?? $this->frontDesk);
         $appointment = $this->newBooking($time, $patient, $date);
-        FeeRules::load($appointment, ['payment_mode' => 'insurance']);
+        // F18: an insured booking names the insurer and member number
+        $insurer = \frontend\models\Provider::findOne(['provider' => 'Jubilee']) ?? new \frontend\models\Provider(['provider' => 'Jubilee']);
+        $insurer->save(false);
+        FeeRules::load($appointment, ['payment_mode' => 'insurance', 'insurer_id' => $insurer->id, 'member_number' => 'JUB-1']);
         $this->assertTrue(Yii::createObject(BookingService::class)->book($appointment), json_encode($appointment->errors));
 
         return Appointments::findOne($appointment->id);
