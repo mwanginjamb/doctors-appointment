@@ -427,6 +427,8 @@ $rangeRow = function ($day, $i, $start = '', $end = '', $facility = null, $weeks
                             <div class="alert alert-warning small mt-3 mb-0">
                                 <div class="fw-semibold mb-1">
                                     <?= Yii::t('app', '{n} appointment(s) booked during this time. Open each one to cancel it with a note, or drag it to a new time on your calendar.', ['n' => count($clashes)]) ?>
+                                    <!-- F14: the clash list, to tell the patients -->
+                                    <?= Html::a(Yii::t('app', 'Tell the patients'), \frontend\services\Clashes::url($period), ['class' => 'ms-1 clash-link']) ?>
                                 </div>
                                 <ul class="mb-0">
                                     <?php foreach ($clashes as $appointment): ?>

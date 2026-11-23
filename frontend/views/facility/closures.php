@@ -52,7 +52,7 @@ $this->params['breadcrumbs'][] = $this->title;
                         <td><?= Html::encode($row->reason) ?></td>
                         <td>
                             <?php if (!empty($booked[$row->date])): ?>
-                                <?= Html::a((int) $booked[$row->date] . ' to move', ['board/index', 'facility' => $facility->id, 'from' => $row->date, 'to' => $row->date], ['class' => 'text-warning']) ?>
+                                <?= Html::a((int) $booked[$row->date] . ' to move', \frontend\services\Clashes::url($row), ['class' => 'text-warning clash-link']) ?>
                             <?php else: ?>
                                 <span class="text-muted">none</span>
                             <?php endif; ?>

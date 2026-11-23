@@ -10,13 +10,14 @@
 #   * doctors-appointment-incentives.timer   — weekly front-desk payouts, Mondays
 #   * doctors-appointment-invoices.timer     — monthly consultant invoices, the 1st
 #   * doctors-appointment-invoice-reminders.timer — invoice reminders and the online booking pause, daily
+#   * doctors-appointment-clash-reminders.timer — staff reminded of patients still to move after a clash, daily
 #
 #   sudo systemctl restart doctors-appointment.target   # after every deploy
 #   sudo systemctl stop doctors-appointment.target      # pause all notifications
 
 [Unit]
 Description=Doctor appointments background services
-Wants=doctors-appointment-queue.service doctors-appointment-scheduler.timer doctors-appointment-audit-purge.timer doctors-appointment-health.timer doctors-appointment-waitlist.timer doctors-appointment-mpesa.timer doctors-appointment-pilot.timer doctors-appointment-fees.timer doctors-appointment-incentives.timer doctors-appointment-invoices.timer doctors-appointment-invoice-reminders.timer
+Wants=doctors-appointment-queue.service doctors-appointment-scheduler.timer doctors-appointment-audit-purge.timer doctors-appointment-health.timer doctors-appointment-waitlist.timer doctors-appointment-mpesa.timer doctors-appointment-pilot.timer doctors-appointment-fees.timer doctors-appointment-incentives.timer doctors-appointment-invoices.timer doctors-appointment-invoice-reminders.timer doctors-appointment-clash-reminders.timer
 
 [Install]
 WantedBy=multi-user.target

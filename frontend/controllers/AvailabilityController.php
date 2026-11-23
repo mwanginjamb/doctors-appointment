@@ -150,7 +150,11 @@ class AvailabilityController extends Controller
             $session->setFlash('success', Yii::t('app', 'Time off added: {period}.', ['period' => $timeOff->timeOff->getLabel()]));
             $clashes = count($timeOff->timeOff->findClashingAppointments());
             if ($clashes > 0) {
-                $session->addFlash('warning', Yii::t('app', '{n} appointment(s) are already booked during this time. They are listed under Time off; reschedule or cancel each one.', ['n' => $clashes]));
+                $session->addFlash('warning', Yii::t('app', '{n} appointment(s) are already booked during this time. They are kept: {link}.', [
+                    'n' => $clashes,
+                    // F14: the clash list, to move some and tell the patients
+                    'link' => \yii\helpers\Html::a(Yii::t('app', 'see them and tell the patients'), \frontend\services\Clashes::url($timeOff->timeOff)),
+                ]));
             }
             return $this->redirect($this->route('index', ['#' => 'time-off']));
         }

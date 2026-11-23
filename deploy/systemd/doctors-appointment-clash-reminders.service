@@ -1,0 +1,31 @@
+# One run of the clash reminders (php yii clash/remind, F14): for bookings tomorrow (or later
+# today) whose patient was told they clash with a facility closure, time off or a public holiday
+# and has not chosen a new time, emails the consultant, their front desk at that facility and the
+# facility's admins, once. Nothing is cancelled. Started daily by
+# doctors-appointment-clash-reminders.timer.
+#
+# Run it by hand:   sudo systemctl start doctors-appointment-clash-reminders
+# Logs:             journalctl -u doctors-appointment-clash-reminders
+#
+# Same path / PHP / user assumptions as doctors-appointment-queue.service.
+
+[Unit]
+Description=Doctor appointments clash reminders to staff (one run)
+After=network-online.target mysql.service mariadb.service
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/html/doctors-appointment
+ExecStart=/usr/bin/php /var/www/html/doctors-appointment/yii clash/remind --color=0
+TimeoutStartSec=10min
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=doctors-clash-reminders
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true

@@ -241,9 +241,10 @@ class FacilityController extends Controller
             ]));
             $booked = $this->upcomingAppointments($facility)->andWhere(['date' => $closure->date])->count();
             if ($booked > 0) {
-                $session->addFlash('warning', Yii::t('app', '{n} appointment(s) are already booked there that day. They are kept: {link} to move or cancel them.', [
+                $session->addFlash('warning', Yii::t('app', '{n} appointment(s) are already booked there that day. They are kept: {link}.', [
                     'n' => $booked,
-                    'link' => Html::a(Yii::t('app', 'open them on the board'), ['board/index', 'facility' => $facility->id, 'from' => $closure->date, 'to' => $closure->date]),
+                    // F14: the clash list, to move some and tell the patients
+                    'link' => Html::a(Yii::t('app', 'see them and tell the patients'), \frontend\services\Clashes::url($closure)),
                 ]));
             }
             return $this->redirect(['closures', 'id' => $facility->id]);

@@ -100,6 +100,7 @@ Doing **Next up** below should bring the app to about 9.5 functionally.
 | F25 Consultant invoices, part 2 | **Pay via M-Pesa from the invoice email:** the invoice email, the reminders and WhatsApp carry a **Pay via M-Pesa** button (`/invoice/<id>/<signature>/pay`, no sign-in). Opening it only shows the page, since email scanners open links too; one tap sends the M-Pesa prompt to the consultant's number on file (another Safaricom number can be given), and the page follows the payment. The invoice page links to it. The payment settles through `Mpesa::EVENT_SETTLED` (link type `consultant_invoice`), its receipt becoming the reference, and the consultant is thanked by email. **Front desk FYI:** with the invoice and each reminder, the front-desk users assigned to the consultant are emailed to remind them to open the invoice email and pay (no charges, no pay link). In `/admin` an admin **resends the invoice email** (and the front-desk FYI). **Reminders** by email and WhatsApp on the due date and a week later (`INVOICE_REMINDER_GAP_DAYS`), from the daily `php yii invoice/remind` (`doctors-appointment-invoice-reminders.timer`). **The pause:** an unpaid invoice with standard-terms charges (plan or cancellation) 14 days past due (`INVOICE_PAUSE_DAYS`) pauses patients' online booking with the consultant (`consultant.online_booking_paused_at`); a pilot statement is reminded, never paused. While paused, patients see the profile and calendar with no times and "Online booking with Dr X isn't available right now", with each facility's phone, address and map, never the reason; online booking, joining the waiting list and waiting-list offers of new times stop; staff bookings, booking links and patients moving a booking they have go on. The consultant is told by email and WhatsApp, and sees it on their invoices; paying, waiving down to nothing chargeable or voiding lifts it at once (the daily run double-checks). Admin home counts paused consultants; Invoices filters them; each invoice shows its reminders and when it pauses. | `feature/invoice-payments` |
 | F29 Consultant business card | **My business card** (consultants; **Business cards** for their assigned front desk) at `/business-card`: both sides at real size, 85 × 55 mm. Side A: the name with "Dr.", speciality and sub-specialities, KMPDC registration number, practice name, and up to three of their facilities with phone and address (the consultant ticks which; by default the first three). No personal phone or email. Side B: a QR code for the **public profile** at `/dr/<id>-<name>` (no sign-in: who they are, every facility with phone, address and map, and **Book an appointment**, which asks for sign-in or registration only then; an old name part redirects, and a deactivated consultant's profile says they are not taking appointments). **Print or save as PDF** (one side per 85 × 55 mm page), the QR code alone as SVG (print) or PNG (posters, messages), and **Share the profile link**. QR codes are made on the server by `chillerlan/php-qrcode`. Platform admins open each consultant's card in `/admin` → Pilots → Consultants (**Card**) and can choose its facilities. | `feature/business-card` |
 | F13 Front desk confirms appointments | **Confirm** on the board, the appointment page and the appointments list asks how the patient confirmed: by phone, in person, by WhatsApp or SMS, or other. It is stored on the appointment with who and when (`confirmed_via`, `confirmed_by`, `confirmed_at`), shown on the appointment ("Confirmed: By phone, by Mary Wanjiru, 3 Dec 2026 10:15") and on hover over the board's status; a patient confirming from their reminder link is recorded as "From their reminder link". Who may confirm: the consultant; their assigned front desk, at the front desk's facility (`confirmAtAssignedFacility`, under `confirmAssignedAppointment`); facility admins at theirs (`confirmFacilityAppointment`); consultancy admins. Only scheduled appointments still to come; the patient is sent the usual confirmation. | `feature/front-desk-confirm` |
+| F14 Clashes, part 1: telling patients | Bookings made before a **facility closure**, a consultant's **time off** or a **public holiday** are kept, and listed at `/clash/<closure|time_off|holiday>/<id>` (linked from the closures page, the time off card on Availability and the save messages): each with its patient and whether they were told. Staff move any they agree themselves, then **Tell N patients** (an optional message is added): each patient gets an email (and WhatsApp with consent) that the appointment cannot go ahead, why (the closure's reason or the holiday's name; for time off only that the doctor is not available), and their link to **choose a new time**, which then works **inside the 24-hour cut-off** too (moving only; cancelling inside the cut-off still means calling the clinic). Told once (`appointment_clash`). The board marks them **Needs a new time** until moved. The day before, `php yii clash/remind` (`doctors-appointment-clash-reminders.timer`, 07:30) emails the consultant, their front desk at that facility and the facility's admins the patients who have not moved, once; nothing is cancelled. Who sees and tells: whoever handles the booking (the consultant, their front desk at its facility, the facility's admins, consultancy admins). | `feature/clash-notices` |
 
 ### Scheduling depth
 
@@ -757,6 +758,22 @@ baseline. Nothing is charged yet.
    Confirm → By phone, and see it confirmed, the patient's confirmation email queued, and "By phone, by …"
    on the appointment.
 
+### F14 Clashes, part 1: telling patients
+
+1. **Database:** `php yii migrate` runs `m261217_090000_appointment_clash` (table `appointment_clash`).
+2. **Timer** for the staff reminders the day before, at 07:30:
+   ```bash
+   sudo cp deploy/systemd/doctors-appointment-clash-reminders.* deploy/systemd/doctors-appointment.target /etc/systemd/system/
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now doctors-appointment-clash-reminders.timer
+   sudo systemctl restart doctors-appointment.target
+   ```
+3. **`.env`:** `APP_PUBLIC_URL` must be set: the patients' links and the appointment links in the staff
+   reminder are built from it (the reminder runs from the console).
+4. **Check by hand:** close a facility for a day with a test booking on it, follow "see them and tell the
+   patients", tell the patient, open their link from the email and see "This appointment cannot go ahead"
+   with the free times; `php yii clash/remind` the day before lists them.
+
 ### Admin area: pilots, plans and payments (F28)
 
 1. **Permissions:** `php yii rbac/init` adds `manageFacilityConsultants` (consultancy admins) and
@@ -876,7 +893,7 @@ Priority: **P1** do next, **P2** soon, **P3** when there is time. Impact is the 
 | # | Item | Priority | Impact |
 |---|---|---|---|
 | F2 | WhatsApp booking confirmations for every booking, not only booking links. | P2 | |
-| F14 | Tell affected patients when a facility closes a day or a consultant adds time off, with a link to pick a new time, and let staff move the clashing bookings in bulk instead of one by one. (from G7) | P1 | +0.5 |
+| F14 | Tell affected patients when a facility closes a day or a consultant adds time off, with a link to pick a new time, and let staff move the clashing bookings in bulk instead of one by one. (from G7) **Part 1 done** (see Done): the clash list, telling patients, their link inside the cut-off, staff reminders. **Part 2:** bulk move to a day (first free slots in order, with a preview) and bulk cancel. | P1 | +0.5 |
 
 #### Front desk and the day of the visit
 
@@ -1096,7 +1113,7 @@ Built as planned below, with these choices made on 12 Nov 2026:
 
 ## Next up
 
-1. **F14** Patients are told when a closure or time off clashes with their booking, and staff move the clashing bookings in bulk.
+1. **F14 part 2** Move clashing bookings in bulk to another day (first free slots, in order, with a preview), and cancel them in bulk.
 2. **F26** The 90-day pilot report, needed by day 90.
 3. **F18** Insurer and member number at booking, and pre-authorisation.
 4. **F12** Patients export and delete their data (completes the closure requests from F11).

@@ -16,6 +16,7 @@ waiting-list sweep every 15 minutes and a daily clean-up of the audit log:
 | `doctors-appointment-incentives.timer` → `doctors-appointment-incentives.service` | Mondays at 06:00, runs `php yii incentive/payouts`: groups last week's earned front-desk incentives into one payout per front-desk user, for a platform admin to send or record in the backend. |
 | `doctors-appointment-invoices.timer` → `doctors-appointment-invoices.service` | The 1st of each month at 07:00, runs `php yii invoice/issue`: last month's invoice for each consultant with something to bill, sent to them, with each facility admin told of the lines from their facility. Does nothing while `INVOICES_ENABLED=0`. |
 | `doctors-appointment-invoice-reminders.timer` → `doctors-appointment-invoice-reminders.service` | Daily at 08:00, runs `php yii invoice/remind`: reminds consultants of an invoice due today or a week overdue, pauses patients' online booking with a consultant whose invoice with standard-terms charges is 14 days overdue, and lifts pauses no longer owed. Does nothing while `INVOICES_ENABLED=0`. |
+| `doctors-appointment-clash-reminders.timer` → `doctors-appointment-clash-reminders.service` | Daily at 07:30, runs `php yii clash/remind` (F14): for bookings tomorrow whose patient was told they clash with a closure, time off or holiday and has not chosen a new time, emails the consultant, their front desk and the facility's admins, once. Nothing is cancelled. |
 | `doctors-appointment.target` | Groups them so they start, stop and restart together. |
 
 ## How the pieces fit
@@ -44,6 +45,8 @@ multi-user.target                                (normal boot)
             └─ doctors-appointment-invoices.service    one run: monthly consultant invoices
        └─ doctors-appointment-invoice-reminders.timer   fires daily at 08:00
             └─ doctors-appointment-invoice-reminders.service   one run: reminders and the pause
+       └─ doctors-appointment-clash-reminders.timer   fires daily at 07:30
+            └─ doctors-appointment-clash-reminders.service   one run: staff reminded of patients still to move
 ```
 
 A reminder goes through two steps:
@@ -156,7 +159,7 @@ The units assume the app lives at `/var/www/html/doctors-appointment`, PHP CLI i
 sudo cp deploy/systemd/doctors-appointment* /etc/systemd/system/
 sudo systemd-analyze verify /etc/systemd/system/doctors-appointment*.{service,timer,target}
 sudo systemctl daemon-reload
-sudo systemctl enable doctors-appointment-queue.service doctors-appointment-scheduler.timer doctors-appointment-audit-purge.timer doctors-appointment-health.timer doctors-appointment-waitlist.timer doctors-appointment-mpesa.timer doctors-appointment-pilot.timer doctors-appointment-fees.timer doctors-appointment-incentives.timer doctors-appointment-invoices.timer doctors-appointment-invoice-reminders.timer
+sudo systemctl enable doctors-appointment-queue.service doctors-appointment-scheduler.timer doctors-appointment-audit-purge.timer doctors-appointment-health.timer doctors-appointment-waitlist.timer doctors-appointment-mpesa.timer doctors-appointment-pilot.timer doctors-appointment-fees.timer doctors-appointment-incentives.timer doctors-appointment-invoices.timer doctors-appointment-invoice-reminders.timer doctors-appointment-clash-reminders.timer
 sudo systemctl enable --now doctors-appointment.target
 ```
 
@@ -170,7 +173,7 @@ sudo systemctl restart doctors-appointment.target        # after every deploy (l
 sudo systemctl stop doctors-appointment.target           # pause all notifications
 
 systemctl status doctors-appointment.target doctors-appointment-queue
-systemctl list-timers doctors-appointment-scheduler.timer doctors-appointment-audit-purge.timer doctors-appointment-health.timer doctors-appointment-waitlist.timer doctors-appointment-mpesa.timer doctors-appointment-pilot.timer doctors-appointment-fees.timer doctors-appointment-incentives.timer doctors-appointment-invoices.timer doctors-appointment-invoice-reminders.timer
+systemctl list-timers doctors-appointment-scheduler.timer doctors-appointment-audit-purge.timer doctors-appointment-health.timer doctors-appointment-waitlist.timer doctors-appointment-mpesa.timer doctors-appointment-pilot.timer doctors-appointment-fees.timer doctors-appointment-incentives.timer doctors-appointment-invoices.timer doctors-appointment-invoice-reminders.timer doctors-appointment-clash-reminders.timer
 journalctl -u doctors-appointment-queue -f               # worker output
 journalctl -u doctors-appointment-scheduler --since -1h  # scheduler runs
 journalctl -u doctors-appointment-health --since -1h     # health checks
