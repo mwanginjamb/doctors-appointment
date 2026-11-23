@@ -40,6 +40,7 @@ use yii\behaviors\TimestampBehavior;
  * @property string|null $cancellation_note why it was cancelled; set only by cancel()
  * @property int|null $outcome_at when attended / no-show was recorded; set only by recordOutcome()
  * @property int|null $outcome_by who recorded it
+ * @property int|null $rating_requested_at F30: when the patient was sent the link to rate the consultant
  * @property int|null $booking_link_id the booking link a remote walk-in booked through
  * @property int|null $patient_age
  * @property string|null $booking_channel F20: online, link, staff or walk_in; set by BookingService::book()
@@ -581,6 +582,8 @@ class Appointments extends \yii\db\ActiveRecord
         // F23: a no-show forfeits the commitment fee; F24: attending earns the front desk's incentive
         \frontend\services\FeeLifecycle::onOutcome($this);
         \frontend\services\Incentives::onOutcome($this);
+        // F30: an attended visit sends the patient a link to rate the consultant
+        \frontend\services\Ratings::onOutcome($this);
 
         return true;
     }

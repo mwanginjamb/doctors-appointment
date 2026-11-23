@@ -35,6 +35,14 @@ $this->registerLinkTag(['rel' => 'canonical', 'href' => $consultant->profileUrl(
         <?php if ($consultant->kmpdc_registration_number): ?>
             <p class="small text-muted mb-0"><?= Html::encode(Yii::t('app', 'KMPDC Reg. No. {number}', ['number' => $consultant->kmpdc_registration_number])) ?></p>
         <?php endif; ?>
+        <?php if ($rated = \frontend\services\Ratings::publicSummary($consultant)): ?>
+            <!-- F30: patients' ratings, once there are enough -->
+            <p class="mt-2 mb-0" id="doctor-rating">
+                <span class="text-warning" aria-hidden="true"><?= str_repeat('★', (int) round($rated['average'])) . str_repeat('☆', 5 - (int) round($rated['average'])) ?></span>
+                <strong><?= number_format($rated['average'], 1) ?></strong>
+                <span class="text-muted small"><?= Html::encode(Yii::t('app', 'from {n} patient ratings', ['n' => $rated['count']])) ?></span>
+            </p>
+        <?php endif; ?>
     </div>
 
     <?php if ($taking): ?>

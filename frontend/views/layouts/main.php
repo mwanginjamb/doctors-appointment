@@ -165,6 +165,12 @@ $username = Yii::$app->user->identity->username ?? 'User';
                             ['/invoice/index'],
                             ['class' => 'dropdown-item']
                         )) : '') .
+                        // F30: a consultant's ratings from patients
+                        (Yii::$app->user->identity->isConsultantAccount() ? Html::tag('li', Html::a(
+                            Html::tag('i', '', ['class' => 'bi bi-star me-2']) . 'My ratings',
+                            ['/ratings/index'],
+                            ['class' => 'dropdown-item', 'id' => 'menu-ratings']
+                        )) : '') .
                         // F26: the pilot report (a facility admin's facility; a consultant's own figures)
                         (Yii::$app->user->identity->isConsultantAccount() || Yii::$app->user->identity->isFacilityAdminAccount() ? Html::tag('li', Html::a(
                             Html::tag('i', '', ['class' => 'bi bi-graph-down-arrow me-2']) . 'Pilot report',
