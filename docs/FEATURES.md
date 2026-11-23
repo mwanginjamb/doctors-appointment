@@ -104,6 +104,7 @@ Doing **Next up** below should bring the app to about 9.5 functionally.
 | F14 Clashes, part 2: moving and cancelling in bulk | On the clash list, staff tick bookings (or all) and **move them to another day**: each takes the first free slot with its own consultant that day, in the original order, keeping its length and never landing on another, at the facility it was booked or another the consultant works at (a front desk: only theirs); any that do not fit go to the next free days (up to 7 on). A **preview** shows every new time first; saving moves exactly those, and a time taken in between leaves that one booking as it was and says so. Each patient gets the usual "moved" notice with their link, plus an optional message. Or **cancel** the ticked ones: cancelled by the clinic (facility for a closure or holiday, consultant for time off), so a paid fee becomes a credit (F23); each patient is told, with the optional message and a link to book again (the consultant's public profile, F29), which every clinic cancellation notice now carries. Moved and cancelled bookings show under Done on the list. | `feature/clash-bulk` |
 | F26 The 90-day pilot report | Each consultant's **month 1** (days 1–30, no fees: the no-show baseline) against **months 2 and 3**, counted from their own first booking and by each appointment's date, then added up per facility (`PilotReport`). Per month: bookings; attended and no-shows, with the **no-show rate** of appointments whose outcome was recorded (unrecorded ones counted apart); **late cancellations** (the patient asked, under 24 hours before), also per 100 bookings; **booked ahead** (online, link, staff) against walk-ins; commitment fees **collected, absorbed, forfeited, credited** and credits **refunded**; front-desk **incentives** earned. A month under way says "so far (day N)". An **ROI estimate**, shown with how it is worked out: visits kept = (month-1 no-show rate − months 2–3 rate) × months 2–3 visits with an outcome, × the average consultation fee on attended visits, plus fees forfeited by no-shows and late cancellations. Platform admins: `/admin` → Pilots → **Pilot report**, a facility at a time. Facility admins (their facility) and consultants (their own figures only) read it on the main site, **Pilot report** in the account menu. Each has a **CSV** download (a row per consultant and month, then the totals) and a print layout for "Save as PDF". | `feature/pilot-report` |
 | F18 Insurer details and pre-authorisation | **Cash or insurance is asked on every booking** (calendar, appointment form, booking link, waiting-list offer), whatever the commitment fee; the fee rules still use the answer only where a fee may apply. For insurance: the **insurer** (the admins' insurers list) and **member number**, both required, filled in from the patient's last insured booking (for staff, when they choose the patient). An insurer the consultant does not list is **warned about** on the form ("Dr X does not list AAR; you may need to pay yourself") and **flagged** on the booking, not refused. Each insured booking's **pre-authorisation** starts **pending**; on the appointment page the consultant, their front desk at its facility, the facility's admins and consultancy admins record it **approved** (with the insurer's reference) or **declined** (with a note), or back to pending, with who and when. A decline is sent to the patient (email, WhatsApp with consent) with their link to change or cancel. The board shows a pre-auth badge on insured bookings and filters by pre-auth status. | `feature/insurer-preauth` |
+| F30 Patients rate the consultant | When an appointment is recorded **attended**, the patient is sent (about **3 hours** later, email and WhatsApp with consent) a signed link, `/rate/<id>/<signature>` (no sign-in), to rate the consultant **1 to 5 stars** for that visit, with an optional **private comment**. One rating per visit, changeable for **30 days**. Sent once per visit; no-shows get nothing, and a visit corrected to a no-show **withdraws** its rating and closes the link. The consultant reads theirs **anonymously** in **My ratings** (average, how many of each star, comments and dates); platform admins see every rating **with the patient** in `/admin` → Ratings. The average and count show on the consultant's **public profile from 5 ratings**; comments are never published. | `feature/consultant-ratings` |
 
 ### Scheduling depth
 
@@ -802,6 +803,15 @@ facility's admin and as one of its consultants and open **Pilot report** in the 
    the appointment as the front desk, record approved with a reference; decline another and see the
    patient's email; filter the board by "Pre-auth pending".
 
+### F30 Patients rate the consultant
+
+1. **Database:** `php yii migrate` runs `m261219_090000_consultant_rating` (table `consultant_rating`;
+   `appointments.rating_requested_at`).
+2. **`.env`:** `APP_PUBLIC_URL` must be set: the rating link is built from it and sent by the queue worker,
+   which must be running (the link is queued with a 3-hour delay).
+3. **Check by hand:** record a test visit as attended, run the queue (or wait), open the link from the
+   email, rate it; see it in My ratings (no name) and in `/admin` → Ratings (with the patient).
+
 ### Admin area: pilots, plans and payments (F28)
 
 1. **Permissions:** `php yii rbac/init` adds `manageFacilityConsultants` (consultancy admins) and
@@ -958,7 +968,7 @@ pilot facility. Amounts and M-Pesa credentials come from `.env`.
 | F27 | A facility leaving: unused patient credits refunded, earned incentives paid, pending ones paid only if completed before the exit date. Needed by **day 91**. | P3 | |
 | F28 | **Mostly done**: the backend at `/admin` with platform-admin sign-in, refunds and weekly payouts, pilots and agreements, consultants' plans and payments; facility admins invite and add consultants at their facility (see Done). Still to come: invoices with F25 and the pilot report with F26. Moving the main site's admin pages (consultants, facilities, staff, RBAC, audit log) into `/admin` as one module is deferred; the two link to each other. | P1 | |
 | F29 | Consultant business card: side A the consultant's details, side B a QR code for their public profile. **Done** (see Done). | P2 | |
-| F30 | Patients rate the consultant after a visit: once an appointment's outcome is recorded as attended, the patient gets a link (email, and WhatsApp with consent) to rate that consultant 1 to 5 for that appointment. Approach to be agreed (which outcomes qualify, a comment, who sees ratings, whether they show on the public profile). | P2 | |
+| ~~F30~~ | ~~Patients rate the consultant after a visit: a link to rate them 1 to 5 for that appointment.~~ **Done** (see Done): attended visits only, an optional private comment, sent about 3 hours later, anonymous to the consultant, public from 5 ratings. | P2 | |
 
 #### Scheduling depth
 
@@ -1143,4 +1153,3 @@ Built as planned below, with these choices made on 12 Nov 2026:
 ## Next up
 
 1. **F12** Patients export and delete their data (completes the closure requests from F11).
-2. **F30** Patients rate the consultant 1 to 5 after a visit, from a link sent when the outcome is recorded.
