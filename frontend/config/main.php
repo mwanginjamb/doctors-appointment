@@ -133,6 +133,9 @@ return [
                 // F29: a consultant's public profile (the business card's QR code): /dr/<id>-<name>
                 'dr/<id:\d+>-<slug:[a-z0-9-]+>' => 'doctor/view',
                 'dr/<id:\d+>' => 'doctor/view',
+                // F14: bookings clashing with a closure, time off or holiday: /clash/<type>/<id>[/tell]
+                'clash/<type:closure|time_off|holiday>/<id:\d+>' => 'clash/view',
+                'POST clash/<type:closure|time_off|holiday>/<id:\d+>/<action:tell|move|cancel>' => 'clash/<action>',
                 // F29: the business card and its QR code
                 'business-card' => 'business-card/index',
                 'business-card/<cid:\d+>' => 'business-card/index',

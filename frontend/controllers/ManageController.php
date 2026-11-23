@@ -8,6 +8,7 @@ use frontend\components\ThrottlesByIp;
 use frontend\models\Appointments;
 use frontend\models\SlotFinder;
 use frontend\services\BookingService;
+use frontend\services\Clashes;
 use frontend\services\SelfServiceLink;
 use Yii;
 use yii\filters\VerbFilter;
@@ -42,12 +43,18 @@ class ManageController extends Controller
         }
 
         $changeable = SelfServiceLink::isChangeable($appointment);
+        // F14: told it clashes with a closure, time off or holiday: may move it even inside the cut-off
+        $clash = Clashes::pendingFor($appointment);
+        $movable = $changeable || $clash !== null;
+        $source = $clash ? Clashes::source($clash->source_type, $clash->source_id) : null;
 
         return $this->render('index', [
             'appointment' => $appointment,
             'sig' => $sig,
-            'changeable' => $changeable,
-            'slots' => $changeable ? $this->freeSlots($appointment) : [],
+            'changeable' => $movable,
+            'cancellable' => $changeable,
+            'clashReason' => $source ? Clashes::reasonForPatient($source, $appointment) : null,
+            'slots' => $movable ? $this->freeSlots($appointment) : [],
         ]);
     }
 
@@ -110,7 +117,7 @@ class ManageController extends Controller
             return $this->render('invalid');
         }
         $this->actAsPatient($appointment);
-        if (!SelfServiceLink::isChangeable($appointment)) {
+        if (!SelfServiceLink::isChangeable($appointment) && !Clashes::mustMove($appointment)) {
             Yii::$app->session->setFlash('error', $this->tooLateMessage());
             return $this->redirect(['index', 'id' => $id, 'sig' => $sig]);
         }

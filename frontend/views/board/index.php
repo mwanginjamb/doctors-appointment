@@ -26,6 +26,8 @@ $range = $search->from === $search->to
     ? $f->asDate(strtotime($search->from), 'php:l j M Y')
     : $f->asDate(strtotime($search->from), 'php:j M') . ' – ' . $f->asDate(strtotime($search->to), 'php:j M Y');
 
+// F14: bookings on this page whose patient was told they clash and that have not moved
+$needsNewTime = \frontend\services\Clashes::needingNewTime(array_map(function ($m) { return (int) $m->id; }, $dataProvider->getModels()));
 $statusBadges = [
     Appointments::STATUS_SCHEDULED => 'text-bg-primary',
     Appointments::STATUS_CONFIRMED => 'text-bg-success',
@@ -242,11 +244,13 @@ $today = date('Y-m-d');
                 'attribute' => 'status',
                 'label' => 'Status',
                 'format' => 'raw',
-                'value' => function (Appointments $model) use ($statusBadges) {
+                'value' => function (Appointments $model) use ($statusBadges, $needsNewTime) {
                     $status = $model->status ?: Appointments::STATUS_SCHEDULED;
                     // F13: how it was confirmed, on hover
                     $how = $model->getConfirmationLabel();
-                    return Html::tag('span', Html::encode(Appointments::getStatusList()[$status] ?? $status), array_filter(['class' => 'badge ' . ($statusBadges[$status] ?? 'text-bg-light'), 'title' => $how]));
+                    return Html::tag('span', Html::encode(Appointments::getStatusList()[$status] ?? $status), array_filter(['class' => 'badge ' . ($statusBadges[$status] ?? 'text-bg-light'), 'title' => $how]))
+                        // F14: the patient was told it clashes and has not moved yet
+                        . (isset($needsNewTime[(int) $model->id]) ? ' <span class="badge text-bg-warning needs-new-time" title="The patient was told this booking cannot go ahead">Needs a new time</span>' : '');
                 },
             ],
             [

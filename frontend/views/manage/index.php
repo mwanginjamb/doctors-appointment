@@ -13,7 +13,9 @@ use yii\bootstrap5\Html;
  * @var yii\web\View $this
  * @var Appointments $appointment
  * @var string $sig
- * @var bool $changeable
+ * @var bool $changeable the patient may move it (outside the cut-off, or F14: it clashes and they were told)
+ * @var bool $cancellable the patient may cancel it (outside the cut-off)
+ * @var string|null $clashReason F14: why it cannot go ahead
  * @var array $slots Y-m-d => 'H:i' start times
  */
 
@@ -55,6 +57,14 @@ $dates = array_keys($slots);
                     <?= Html::submitButton("Yes, I'm coming", ['class' => 'btn btn-success']) ?>
                 <?= Html::endForm() ?>
             </div>
+        </div>
+    <?php endif; ?>
+
+    <?php if (!empty($clashReason)): ?>
+        <!-- F14: it clashes with a closure, time off or holiday -->
+        <div class="alert alert-warning" id="clash-notice">
+            <strong><?= Yii::t('app', 'This appointment cannot go ahead.') ?></strong>
+            <?= Html::encode($clashReason) ?> <?= Yii::t('app', 'Please choose a new time below. Until you do, your booking stays as it is.') ?>
         </div>
     <?php endif; ?>
 
@@ -102,6 +112,7 @@ $dates = array_keys($slots);
             <?= Html::endForm() ?>
         <?php endif; ?>
 
+        <?php if ($cancellable ?? true): ?>
         <h2 class="h5 fw-bold">Cancel</h2>
         <?= Html::beginForm(['manage/cancel', 'id' => $appointment->id, 'sig' => $sig], 'post', ['id' => 'self-cancel-form']) ?>
             <label class="form-label" for="cancel-reason">Reason (optional, shared with the clinic)</label>
@@ -111,5 +122,6 @@ $dates = array_keys($slots);
                 'data' => ['confirm' => 'Cancel your appointment on ' . $when . '?'],
             ]) ?>
         <?= Html::endForm() ?>
+        <?php endif; ?>
     <?php endif; ?>
 </div>

@@ -98,7 +98,11 @@ class HolidayController extends Controller
             ->andWhere(['or', ['status' => null], ['status' => [Appointments::STATUS_SCHEDULED, Appointments::STATUS_CONFIRMED]]])
             ->count();
         if ($booked > 0) {
-            $session->addFlash('warning', Yii::t('app', '{n} appointment(s) are already booked on that date. They are kept; their consultants need to cancel or move them.', ['n' => $booked]));
+            $session->addFlash('warning', Yii::t('app', '{n} appointment(s) are already booked on that date. They are kept: {link}.', [
+                'n' => $booked,
+                // F14: the clash list, to move some and tell the patients
+                'link' => \yii\helpers\Html::a(Yii::t('app', 'see them and tell the patients'), \frontend\services\Clashes::url($model)),
+            ]));
         }
     }
 

@@ -61,6 +61,32 @@ class PilotController extends Controller
     }
 
     /**
+     * F26: the 90-day pilot report, one facility at a time (the first by name when none is
+     * chosen); as a page (with a print layout) or CSV.
+     */
+    public function actionReport($facility = null, $format = null)
+    {
+        $facilities = \frontend\services\PilotReport::facilities();
+        $chosen = null;
+        foreach ($facilities as $f) {
+            if ($facility === null || (int) $f->id === (int) $facility) {
+                $chosen = $f;
+                break;
+            }
+        }
+        if ($facility !== null && $chosen === null) {
+            throw new NotFoundHttpException('No pilot at that facility.');
+        }
+        $report = $chosen ? \frontend\services\PilotReport::forFacility($chosen) : null;
+        if ($format === 'csv' && $report !== null) {
+            return Yii::$app->response->sendContentAsFile(\frontend\services\PilotReport::csv($report),
+                \frontend\services\PilotReport::csvName($chosen), ['mimeType' => 'text/csv']);
+        }
+
+        return $this->render('report', ['facilities' => $facilities, 'report' => $report]);
+    }
+
+    /**
      * One facility: its agreements (latest first), standard terms and consultants; records a newly
      * signed agreement.
      */

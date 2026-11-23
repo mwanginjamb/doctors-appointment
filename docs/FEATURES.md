@@ -100,6 +100,9 @@ Doing **Next up** below should bring the app to about 9.5 functionally.
 | F25 Consultant invoices, part 2 | **Pay via M-Pesa from the invoice email:** the invoice email, the reminders and WhatsApp carry a **Pay via M-Pesa** button (`/invoice/<id>/<signature>/pay`, no sign-in). Opening it only shows the page, since email scanners open links too; one tap sends the M-Pesa prompt to the consultant's number on file (another Safaricom number can be given), and the page follows the payment. The invoice page links to it. The payment settles through `Mpesa::EVENT_SETTLED` (link type `consultant_invoice`), its receipt becoming the reference, and the consultant is thanked by email. **Front desk FYI:** with the invoice and each reminder, the front-desk users assigned to the consultant are emailed to remind them to open the invoice email and pay (no charges, no pay link). In `/admin` an admin **resends the invoice email** (and the front-desk FYI). **Reminders** by email and WhatsApp on the due date and a week later (`INVOICE_REMINDER_GAP_DAYS`), from the daily `php yii invoice/remind` (`doctors-appointment-invoice-reminders.timer`). **The pause:** an unpaid invoice with standard-terms charges (plan or cancellation) 14 days past due (`INVOICE_PAUSE_DAYS`) pauses patients' online booking with the consultant (`consultant.online_booking_paused_at`); a pilot statement is reminded, never paused. While paused, patients see the profile and calendar with no times and "Online booking with Dr X isn't available right now", with each facility's phone, address and map, never the reason; online booking, joining the waiting list and waiting-list offers of new times stop; staff bookings, booking links and patients moving a booking they have go on. The consultant is told by email and WhatsApp, and sees it on their invoices; paying, waiving down to nothing chargeable or voiding lifts it at once (the daily run double-checks). Admin home counts paused consultants; Invoices filters them; each invoice shows its reminders and when it pauses. | `feature/invoice-payments` |
 | F29 Consultant business card | **My business card** (consultants; **Business cards** for their assigned front desk) at `/business-card`: both sides at real size, 85 × 55 mm. Side A: the name with "Dr.", speciality and sub-specialities, KMPDC registration number, practice name, and up to three of their facilities with phone and address (the consultant ticks which; by default the first three). No personal phone or email. Side B: a QR code for the **public profile** at `/dr/<id>-<name>` (no sign-in: who they are, every facility with phone, address and map, and **Book an appointment**, which asks for sign-in or registration only then; an old name part redirects, and a deactivated consultant's profile says they are not taking appointments). **Print or save as PDF** (one side per 85 × 55 mm page), the QR code alone as SVG (print) or PNG (posters, messages), and **Share the profile link**. QR codes are made on the server by `chillerlan/php-qrcode`. Platform admins open each consultant's card in `/admin` → Pilots → Consultants (**Card**) and can choose its facilities. | `feature/business-card` |
 | F13 Front desk confirms appointments | **Confirm** on the board, the appointment page and the appointments list asks how the patient confirmed: by phone, in person, by WhatsApp or SMS, or other. It is stored on the appointment with who and when (`confirmed_via`, `confirmed_by`, `confirmed_at`), shown on the appointment ("Confirmed: By phone, by Mary Wanjiru, 3 Dec 2026 10:15") and on hover over the board's status; a patient confirming from their reminder link is recorded as "From their reminder link". Who may confirm: the consultant; their assigned front desk, at the front desk's facility (`confirmAtAssignedFacility`, under `confirmAssignedAppointment`); facility admins at theirs (`confirmFacilityAppointment`); consultancy admins. Only scheduled appointments still to come; the patient is sent the usual confirmation. | `feature/front-desk-confirm` |
+| F14 Clashes, part 1: telling patients | Bookings made before a **facility closure**, a consultant's **time off** or a **public holiday** are kept, and listed at `/clash/<closure|time_off|holiday>/<id>` (linked from the closures page, the time off card on Availability and the save messages): each with its patient and whether they were told. Staff move any they agree themselves, then **Tell N patients** (an optional message is added): each patient gets an email (and WhatsApp with consent) that the appointment cannot go ahead, why (the closure's reason or the holiday's name; for time off only that the doctor is not available), and their link to **choose a new time**, which then works **inside the 24-hour cut-off** too, a booking with a paid commitment fee included, whose fee moves with it (moving only; cancelling inside the cut-off still means calling the clinic). Told once (`appointment_clash`). The board marks them **Needs a new time** until moved. The day before, `php yii clash/remind` (`doctors-appointment-clash-reminders.timer`, 07:30) emails the consultant, their front desk at that facility and the facility's admins the patients who have not moved, once; nothing is cancelled. Who sees and tells: whoever handles the booking (the consultant, their front desk at its facility, the facility's admins, consultancy admins). | `feature/clash-notices` |
+| F14 Clashes, part 2: moving and cancelling in bulk | On the clash list, staff tick bookings (or all) and **move them to another day**: each takes the first free slot with its own consultant that day, in the original order, keeping its length and never landing on another, at the facility it was booked or another the consultant works at (a front desk: only theirs); any that do not fit go to the next free days (up to 7 on). A **preview** shows every new time first; saving moves exactly those, and a time taken in between leaves that one booking as it was and says so. Each patient gets the usual "moved" notice with their link, plus an optional message. Or **cancel** the ticked ones: cancelled by the clinic (facility for a closure or holiday, consultant for time off), so a paid fee becomes a credit (F23); each patient is told, with the optional message and a link to book again (the consultant's public profile, F29), which every clinic cancellation notice now carries. Moved and cancelled bookings show under Done on the list. | `feature/clash-bulk` |
+| F26 The 90-day pilot report | Each consultant's **month 1** (days 1–30, no fees: the no-show baseline) against **months 2 and 3**, counted from their own first booking and by each appointment's date, then added up per facility (`PilotReport`). Per month: bookings; attended and no-shows, with the **no-show rate** of appointments whose outcome was recorded (unrecorded ones counted apart); **late cancellations** (the patient asked, under 24 hours before), also per 100 bookings; **booked ahead** (online, link, staff) against walk-ins; commitment fees **collected, absorbed, forfeited, credited** and credits **refunded**; front-desk **incentives** earned. A month under way says "so far (day N)". An **ROI estimate**, shown with how it is worked out: visits kept = (month-1 no-show rate − months 2–3 rate) × months 2–3 visits with an outcome, × the average consultation fee on attended visits, plus fees forfeited by no-shows and late cancellations. Platform admins: `/admin` → Pilots → **Pilot report**, a facility at a time. Facility admins (their facility) and consultants (their own figures only) read it on the main site, **Pilot report** in the account menu. Each has a **CSV** download (a row per consultant and month, then the totals) and a print layout for "Save as PDF". | `feature/pilot-report` |
 
 ### Scheduling depth
 
@@ -757,6 +760,35 @@ baseline. Nothing is charged yet.
    Confirm → By phone, and see it confirmed, the patient's confirmation email queued, and "By phone, by …"
    on the appointment.
 
+### F14 Clashes, part 1: telling patients
+
+1. **Database:** `php yii migrate` runs `m261217_090000_appointment_clash` (table `appointment_clash`).
+2. **Timer** for the staff reminders the day before, at 07:30:
+   ```bash
+   sudo cp deploy/systemd/doctors-appointment-clash-reminders.* deploy/systemd/doctors-appointment.target /etc/systemd/system/
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now doctors-appointment-clash-reminders.timer
+   sudo systemctl restart doctors-appointment.target
+   ```
+3. **`.env`:** `APP_PUBLIC_URL` must be set: the patients' links and the appointment links in the staff
+   reminder are built from it (the reminder runs from the console).
+4. **Check by hand:** close a facility for a day with a test booking on it, follow "see them and tell the
+   patients", tell the patient, open their link from the email and see "This appointment cannot go ahead"
+   with the free times; `php yii clash/remind` the day before lists them.
+
+### F14 Clashes, part 2: moving and cancelling in bulk
+
+Nothing to migrate or configure. **Check by hand:** with two test bookings on a closed day, tick both on
+the clash list, preview a move to the next day, see both new times in order, move them and see the
+patients' "moved" emails; cancel another and see the cancellation email with "To book again".
+
+### F26 The 90-day pilot report
+
+Nothing to migrate or configure: the report reads what F20–F24 already record. **Check by hand:** in
+`/admin` → Pilots → Pilot report, choose a facility, compare a consultant's month-1 no-shows with the
+board for those days, download the CSV and open it in a spreadsheet, and print to PDF. Sign in as that
+facility's admin and as one of its consultants and open **Pilot report** in the account menu.
+
 ### Admin area: pilots, plans and payments (F28)
 
 1. **Permissions:** `php yii rbac/init` adds `manageFacilityConsultants` (consultancy admins) and
@@ -876,7 +908,7 @@ Priority: **P1** do next, **P2** soon, **P3** when there is time. Impact is the 
 | # | Item | Priority | Impact |
 |---|---|---|---|
 | F2 | WhatsApp booking confirmations for every booking, not only booking links. | P2 | |
-| F14 | Tell affected patients when a facility closes a day or a consultant adds time off, with a link to pick a new time, and let staff move the clashing bookings in bulk instead of one by one. (from G7) | P1 | +0.5 |
+| ~~F14~~ | ~~Tell affected patients when a facility closes a day or a consultant adds time off, with a link to pick a new time, and let staff move the clashing bookings in bulk instead of one by one. (from G7)~~ **Done** in two parts (see Done): the clash list, telling patients, their link inside the cut-off, staff reminders; bulk move with a preview and bulk cancel. | P1 | +0.5 |
 
 #### Front desk and the day of the visit
 
@@ -909,7 +941,7 @@ pilot facility. Amounts and M-Pesa credentials come from `.env`.
 | ~~F23~~ | ~~Fee after booking: moves with a reschedule more than 24 hours ahead; kept on a no-show or a later cancellation; a free rebooking credit when the clinic cancels, refunded to M-Pesa if the patient asks.~~ **Done** (see Done, Commercial pilot); the refund approval screen comes with the backend. | — | |
 | ~~F24~~ | ~~Front-desk incentive: Ksh 50 per completed Plan A booking, pending until then; cancelled on a no-show, a cancellation, or a cancel-and-rebook of the same patient within 24 hours (flagged); paid weekly, by hand with an M-Pesa reference until B2C is live.~~ **Done** (see Done, Commercial pilot); the payout screen comes with the backend. | — | |
 | F25 | Consultant invoices. **Done** in two parts (see Done): monthly invoices, statements during the pilot, payment by M-Pesa prompt, reminders, and the online booking pause. | P1 | |
-| F26 | The 90-day pilot report: each consultant's month 1 against months 2 and 3 (no-shows, late cancellations, advance bookings against walk-ins, fees collected, absorbed, credited and refunded, incentives), added up per facility. Needed by **day 90**. | P2 | |
+| ~~F26~~ | ~~The 90-day pilot report: each consultant's month 1 against months 2 and 3 (no-shows, late cancellations, advance bookings against walk-ins, fees collected, absorbed, credited and refunded, incentives), added up per facility. Needed by **day 90**.~~ **Done** (see Done), with an ROI estimate. | P2 | |
 | F27 | A facility leaving: unused patient credits refunded, earned incentives paid, pending ones paid only if completed before the exit date. Needed by **day 91**. | P3 | |
 | F28 | **Mostly done**: the backend at `/admin` with platform-admin sign-in, refunds and weekly payouts, pilots and agreements, consultants' plans and payments; facility admins invite and add consultants at their facility (see Done). Still to come: invoices with F25 and the pilot report with F26. Moving the main site's admin pages (consultants, facilities, staff, RBAC, audit log) into `/admin` as one module is deferred; the two link to each other. | P1 | |
 | F29 | Consultant business card: side A the consultant's details, side B a QR code for their public profile. **Done** (see Done). | P2 | |
@@ -1096,7 +1128,5 @@ Built as planned below, with these choices made on 12 Nov 2026:
 
 ## Next up
 
-1. **F14** Patients are told when a closure or time off clashes with their booking, and staff move the clashing bookings in bulk.
-2. **F26** The 90-day pilot report, needed by day 90.
-3. **F18** Insurer and member number at booking, and pre-authorisation.
-4. **F12** Patients export and delete their data (completes the closure requests from F11).
+1. **F18** Insurer and member number at booking, and pre-authorisation.
+2. **F12** Patients export and delete their data (completes the closure requests from F11).

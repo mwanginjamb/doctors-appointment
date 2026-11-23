@@ -179,6 +179,27 @@ class FeeLifecycleTest extends \Codeception\Test\Unit
         $this->assertStringContainsString('cannot be moved', $appointment->getFirstError('time'));
     }
 
+    public function testAToldPatientMovesAPaidBookingThatClashesEvenInItsLast24Hours()
+    {
+        $appointment = $this->paidBooking('10:00', $this->soonOpenDay());
+        $soon = time() + 20 * 3600;
+        Appointments::updateAll(['date' => date('Y-m-d', $soon), 'time' => date('H:i:s', $soon)], ['id' => $appointment->id]);
+        $appointment->refresh();
+        // F14: the facility closes that day, and the patient was told to choose a new time
+        $closure = new \frontend\models\FacilityClosure(['facility_id' => $appointment->facility_id, 'date' => $appointment->date, 'reason' => 'Burst pipe']);
+        $closure->save(false);
+        (new \frontend\models\AppointmentClash(['appointment_id' => $appointment->id, 'source_type' => \frontend\services\Clashes::TYPE_CLOSURE,
+            'source_id' => $closure->id, 'told_at' => time(), 'created_at' => time()]))->save(false);
+
+        Yii::$app->user->login($this->client);
+        $newDate = $this->laterMonday();
+        $this->assertTrue(Yii::createObject(BookingService::class)->reschedule($appointment, $newDate, '11:00:00'), json_encode($appointment->errors));
+
+        $fee = $this->fee($appointment);
+        $this->assertSame(CommitmentFee::STATE_PAID, $fee->state, 'still paid: it moved with the booking');
+        $this->assertSame($newDate, $fee->fee_date);
+    }
+
     public function testACreditPaysTheNextBookingWithoutAPrompt()
     {
         $cancelled = $this->paidBooking();

@@ -125,6 +125,12 @@ class Appointments extends \yii\db\ActiveRecord
      */
     public $changedByPatient = false;
 
+    /**
+     * F14: words from staff for the patient, added to the "moved" or "cancelled" notice when the
+     * clinic moves or cancels bookings in bulk. Not stored.
+     */
+    public $noticeNote = '';
+
     public $patient_age;
 
     /** @var string|null F22: the phone asked to pay the commitment fee; the patient's when empty */

@@ -1,0 +1,17 @@
+# Fires doctors-appointment-clash-reminders.service every morning.
+#
+#   systemctl list-timers doctors-appointment-clash-reminders.timer   # last / next run
+
+[Unit]
+Description=Remind staff of patients still to move away from a closure, time off or holiday, daily
+PartOf=doctors-appointment.target
+
+[Timer]
+OnCalendar=*-*-* 07:30:00
+RandomizedDelaySec=5min
+# A morning missed while the server was off runs at boot; each booking is reminded about once
+Persistent=true
+Unit=doctors-appointment-clash-reminders.service
+
+[Install]
+WantedBy=doctors-appointment.target
