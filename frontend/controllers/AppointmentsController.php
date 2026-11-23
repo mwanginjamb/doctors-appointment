@@ -38,6 +38,7 @@ class AppointmentsController extends Controller
                         'cancel' => ['POST'],
                         'outcome' => ['POST'],
                         'confirm' => ['POST'],
+                        'preauth' => ['POST'],
                     ],
                 ],
                 'access' => [
@@ -260,6 +261,27 @@ class AppointmentsController extends Controller
     public function actionMyCalendar()
     {
         return $this->render('my-calendar');
+    }
+
+    /**
+     * F18: records an insured booking's pre-authorisation: approved (with the insurer's reference),
+     * declined (the patient is told) or back to pending. Whoever records its outcome may.
+     */
+    public function actionPreauth($id)
+    {
+        $model = $this->findModel($id, true);
+        if (!\frontend\services\Insurance::canRecord($model)) {
+            throw new ForbiddenHttpException(Yii::t('app', 'You cannot record pre-authorisation for this appointment.'));
+        }
+        $status = (string) $this->request->post('preauth_status', '');
+        $problem = \frontend\services\Insurance::record($model, $status, (string) $this->request->post('preauth_reference', ''), (string) $this->request->post('preauth_note', ''));
+        Yii::$app->session->setFlash($problem === null ? 'success' : 'error', $problem ?? (
+            $status === \frontend\services\Insurance::PREAUTH_DECLINED
+                ? Yii::t('app', 'Pre-authorisation recorded as declined. The patient has been told.')
+                : Yii::t('app', 'Pre-authorisation recorded: {status}.', ['status' => mb_strtolower(\frontend\services\Insurance::preauthLabels()[$status])])
+        ));
+
+        return $this->redirect(Yii::$app->request->referrer ?: ['view', 'id' => $model->id]);
     }
 
     /**

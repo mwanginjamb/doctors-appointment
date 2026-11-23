@@ -4,10 +4,11 @@ use frontend\services\FeeRules;
 use yii\bootstrap5\Html;
 
 /**
- * F22: the commitment-fee questions on a booking form: cash or insurance, the phone that pays, and
- * the booking terms. Shown only where FeeRules::mayCharge() for the consultant; the booking itself
- * decides whether the fee applies (a same-day walk-in, or a second booking that day, pays nothing).
- * Posted as payment_mode, pay_phone and fee_terms; read with FeeRules::load().
+ * F22: the commitment-fee questions on a booking form: the phone that pays and the booking terms.
+ * Shown only where FeeRules::mayCharge() for the consultant; the booking itself decides whether
+ * the fee applies (a same-day walk-in, or a second booking that day, pays nothing). Cash or
+ * insurance is asked on every booking, by _payment_fields (F18), which comes first.
+ * Posted as pay_phone and fee_terms; read with FeeRules::load().
  *
  * @var yii\web\View $this
  * @var bool $forStaff staff book for the patient: the phone defaults to the patient's
@@ -26,16 +27,6 @@ $amount = number_format(FeeRules::amount());
             ? Yii::t('app', 'A booking ahead is confirmed once the patient pays Ksh {amount} by M-Pesa. The patient gets the prompt on their phone; the time is held for 10 minutes.', ['amount' => $amount])
             : Yii::t('app', 'Your booking is confirmed once you pay Ksh {amount} by M-Pesa. You get the prompt on your phone; the time is held for you for 10 minutes.', ['amount' => $amount]) ?>
     </p>
-
-    <div class="mb-2">
-        <span class="form-label d-block small fw-semibold"><?= $forStaff ? Yii::t('app', 'The patient pays for the visit by') : Yii::t('app', 'I pay for the visit by') ?></span>
-        <?php foreach (FeeRules::paymentModeLabels() as $value => $label): ?>
-            <div class="form-check form-check-inline">
-                <input class="form-check-input" type="radio" name="payment_mode" id="<?= $idPrefix ?>-mode-<?= $value ?>" value="<?= $value ?>" <?= $value === FeeRules::PAYMENT_CASH ? 'checked' : '' ?>>
-                <label class="form-check-label" for="<?= $idPrefix ?>-mode-<?= $value ?>"><?= Html::encode($label) ?></label>
-            </div>
-        <?php endforeach; ?>
-    </div>
 
     <div class="mb-2">
         <label class="form-label small fw-semibold" for="<?= $idPrefix ?>-phone"><?= Yii::t('app', 'M-Pesa number that pays') ?></label>

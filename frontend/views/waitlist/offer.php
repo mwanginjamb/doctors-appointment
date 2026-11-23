@@ -84,6 +84,12 @@ $this->title = 'Waiting list: ' . $doctor;
                 <?= Html::hiddenInput('date', '', ['id' => 'waitlist-date']) ?>
                 <?= Html::hiddenInput('time', '', ['id' => 'waitlist-time']) ?>
                 <p id="waitlist-choice" class="fw-semibold text-primary">Choose a time above.</p>
+                <?php if (!$earlier): ?>
+                    <?php [$lastInsurer, $lastMember] = \frontend\services\Insurance::lastFor($entry->patient_id); ?>
+                    <!-- F18: cash or insurance on every booking (a move keeps the booking's own) -->
+                    <?= $this->render('@frontend/views/fee/_payment_fields', ['idPrefix' => 'waitlist', 'consultant' => $entry->consultant,
+                        'insurerId' => $lastInsurer, 'memberNumber' => $lastMember]) ?>
+                <?php endif; ?>
                 <?php if (!$earlier && \frontend\services\FeeRules::mayCharge($entry->consultant)): ?>
                     <?= $this->render('@frontend/views/fee/_fee_fields', ['idPrefix' => 'waitlist-fee', 'phone' => $entry->patient->phone_number ?? null]) ?>
                 <?php endif; ?>

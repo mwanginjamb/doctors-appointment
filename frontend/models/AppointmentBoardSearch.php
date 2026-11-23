@@ -20,6 +20,8 @@ class AppointmentBoardSearch extends Model
     public $consultant;
     public $status;
     public $q;
+    /** @var string|null F18: pending, approved or declined pre-authorisation */
+    public $preauth;
     /** @var int|null facility filter (admins; front desk is held to $facilityId) */
     public $facility;
 
@@ -35,6 +37,7 @@ class AppointmentBoardSearch extends Model
             [['from', 'to'], 'date', 'format' => 'php:Y-m-d'],
             [['consultant', 'facility'], 'integer'],
             [['status'], 'in', 'range' => array_merge([self::STATUS_ACTIVE], array_keys(Appointments::getStatusList()))],
+            [['preauth'], 'in', 'range' => array_keys(\frontend\services\Insurance::preauthLabels())],
             [['q'], 'trim'],
             [['q'], 'string', 'max' => 100],
         ];
@@ -106,6 +109,10 @@ class AppointmentBoardSearch extends Model
             ->andFilterWhere(['a.consultant_id' => $this->consultant])
             ->andFilterWhere(['a.facility_id' => $this->facility]);
         $this->applyScope($query, 'a');
+
+        if ($this->preauth) {
+            $query->andWhere(['a.preauth_status' => $this->preauth]);
+        }
 
         if ($this->status === self::STATUS_ACTIVE) {
             $query->andWhere(['or', ['a.status' => null], ['a.status' => [Appointments::STATUS_SCHEDULED, Appointments::STATUS_CONFIRMED]]]);

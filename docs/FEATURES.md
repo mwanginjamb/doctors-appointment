@@ -103,6 +103,7 @@ Doing **Next up** below should bring the app to about 9.5 functionally.
 | F14 Clashes, part 1: telling patients | Bookings made before a **facility closure**, a consultant's **time off** or a **public holiday** are kept, and listed at `/clash/<closure|time_off|holiday>/<id>` (linked from the closures page, the time off card on Availability and the save messages): each with its patient and whether they were told. Staff move any they agree themselves, then **Tell N patients** (an optional message is added): each patient gets an email (and WhatsApp with consent) that the appointment cannot go ahead, why (the closure's reason or the holiday's name; for time off only that the doctor is not available), and their link to **choose a new time**, which then works **inside the 24-hour cut-off** too, a booking with a paid commitment fee included, whose fee moves with it (moving only; cancelling inside the cut-off still means calling the clinic). Told once (`appointment_clash`). The board marks them **Needs a new time** until moved. The day before, `php yii clash/remind` (`doctors-appointment-clash-reminders.timer`, 07:30) emails the consultant, their front desk at that facility and the facility's admins the patients who have not moved, once; nothing is cancelled. Who sees and tells: whoever handles the booking (the consultant, their front desk at its facility, the facility's admins, consultancy admins). | `feature/clash-notices` |
 | F14 Clashes, part 2: moving and cancelling in bulk | On the clash list, staff tick bookings (or all) and **move them to another day**: each takes the first free slot with its own consultant that day, in the original order, keeping its length and never landing on another, at the facility it was booked or another the consultant works at (a front desk: only theirs); any that do not fit go to the next free days (up to 7 on). A **preview** shows every new time first; saving moves exactly those, and a time taken in between leaves that one booking as it was and says so. Each patient gets the usual "moved" notice with their link, plus an optional message. Or **cancel** the ticked ones: cancelled by the clinic (facility for a closure or holiday, consultant for time off), so a paid fee becomes a credit (F23); each patient is told, with the optional message and a link to book again (the consultant's public profile, F29), which every clinic cancellation notice now carries. Moved and cancelled bookings show under Done on the list. | `feature/clash-bulk` |
 | F26 The 90-day pilot report | Each consultant's **month 1** (days 1–30, no fees: the no-show baseline) against **months 2 and 3**, counted from their own first booking and by each appointment's date, then added up per facility (`PilotReport`). Per month: bookings; attended and no-shows, with the **no-show rate** of appointments whose outcome was recorded (unrecorded ones counted apart); **late cancellations** (the patient asked, under 24 hours before), also per 100 bookings; **booked ahead** (online, link, staff) against walk-ins; commitment fees **collected, absorbed, forfeited, credited** and credits **refunded**; front-desk **incentives** earned. A month under way says "so far (day N)". An **ROI estimate**, shown with how it is worked out: visits kept = (month-1 no-show rate − months 2–3 rate) × months 2–3 visits with an outcome, × the average consultation fee on attended visits, plus fees forfeited by no-shows and late cancellations. Platform admins: `/admin` → Pilots → **Pilot report**, a facility at a time. Facility admins (their facility) and consultants (their own figures only) read it on the main site, **Pilot report** in the account menu. Each has a **CSV** download (a row per consultant and month, then the totals) and a print layout for "Save as PDF". | `feature/pilot-report` |
+| F18 Insurer details and pre-authorisation | **Cash or insurance is asked on every booking** (calendar, appointment form, booking link, waiting-list offer), whatever the commitment fee; the fee rules still use the answer only where a fee may apply. For insurance: the **insurer** (the admins' insurers list) and **member number**, both required, filled in from the patient's last insured booking (for staff, when they choose the patient). An insurer the consultant does not list is **warned about** on the form ("Dr X does not list AAR; you may need to pay yourself") and **flagged** on the booking, not refused. Each insured booking's **pre-authorisation** starts **pending**; on the appointment page the consultant, their front desk at its facility, the facility's admins and consultancy admins record it **approved** (with the insurer's reference) or **declined** (with a note), or back to pending, with who and when. A decline is sent to the patient (email, WhatsApp with consent) with their link to change or cancel. The board shows a pre-auth badge on insured bookings and filters by pre-auth status. | `feature/insurer-preauth` |
 
 ### Scheduling depth
 
@@ -789,6 +790,18 @@ Nothing to migrate or configure: the report reads what F20–F24 already record.
 board for those days, download the CSV and open it in a spreadsheet, and print to PDF. Sign in as that
 facility's admin and as one of its consultants and open **Pilot report** in the account menu.
 
+### F18 Insurer details and pre-authorisation
+
+1. **Database:** `php yii migrate` runs `m261218_090000_appointment_insurer_preauth` (appointments: `insurer_id`,
+   `member_number`, `insurer_listed`, `preauth_status`, `preauth_reference`, `preauth_note`, `preauth_by`,
+   `preauth_at`).
+2. **Insurers list:** check Administration → **Insurance Providers** holds the insurers patients use (SHA,
+   Jubilee, Britam, AAR, CIC…), and that each consultant's profile lists the covers they accept: an
+   insurer missing from a consultant's list is flagged on bookings.
+3. **Check by hand:** book as a patient choosing Insurance, see the insurer and member number asked; open
+   the appointment as the front desk, record approved with a reference; decline another and see the
+   patient's email; filter the board by "Pre-auth pending".
+
 ### Admin area: pilots, plans and payments (F28)
 
 1. **Permissions:** `php yii rbac/init` adds `manageFacilityConsultants` (consultancy admins) and
@@ -916,7 +929,7 @@ Priority: **P1** do next, **P2** soon, **P3** when there is time. Impact is the 
 |---|---|---|---|
 | ~~F13~~ | ~~Front desk can confirm appointments for their consultants, for example after a patient confirms by phone. Today only the consultant can. (from G2)~~ **Done** (see Done): staff record how the patient confirmed. | P1 | |
 | F15 | Check-in on the day: "arrived" and "in consultation" states and a waiting-room queue for the front desk. (from G1) | P2 | +0.5 |
-| F18 | Capture the patient's insurer and member number at booking, check them against the covers the consultant accepts, and let the front desk record pre-authorisation (pending, approved, declined). Cash or insurance itself is asked from day 31 under F22. Needed by **day 61** of the pilot ([business case](business-case.md)). (from G5) | P1 | |
+| ~~F18~~ | ~~Capture the patient's insurer and member number at booking, check them against the covers the consultant accepts, and let the front desk record pre-authorisation (pending, approved, declined).~~ **Done** (see Done): asked on every booking. | P1 | |
 | F19 | A structured intake form (reason, history, medication, allergies) in place of the free-text symptoms brief. (from G4) | P3 | |
 
 #### Facility admins
@@ -945,6 +958,7 @@ pilot facility. Amounts and M-Pesa credentials come from `.env`.
 | F27 | A facility leaving: unused patient credits refunded, earned incentives paid, pending ones paid only if completed before the exit date. Needed by **day 91**. | P3 | |
 | F28 | **Mostly done**: the backend at `/admin` with platform-admin sign-in, refunds and weekly payouts, pilots and agreements, consultants' plans and payments; facility admins invite and add consultants at their facility (see Done). Still to come: invoices with F25 and the pilot report with F26. Moving the main site's admin pages (consultants, facilities, staff, RBAC, audit log) into `/admin` as one module is deferred; the two link to each other. | P1 | |
 | F29 | Consultant business card: side A the consultant's details, side B a QR code for their public profile. **Done** (see Done). | P2 | |
+| F30 | Patients rate the consultant after a visit: once an appointment's outcome is recorded as attended, the patient gets a link (email, and WhatsApp with consent) to rate that consultant 1 to 5 for that appointment. Approach to be agreed (which outcomes qualify, a comment, who sees ratings, whether they show on the public profile). | P2 | |
 
 #### Scheduling depth
 
@@ -1128,5 +1142,5 @@ Built as planned below, with these choices made on 12 Nov 2026:
 
 ## Next up
 
-1. **F18** Insurer and member number at booking, and pre-authorisation.
-2. **F12** Patients export and delete their data (completes the closure requests from F11).
+1. **F12** Patients export and delete their data (completes the closure requests from F11).
+2. **F30** Patients rate the consultant 1 to 5 after a visit, from a link sent when the outcome is recorded.

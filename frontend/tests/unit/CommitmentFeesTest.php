@@ -185,7 +185,10 @@ class CommitmentFeesTest extends \Codeception\Test\Unit
     public function testAnInsuredPatientsAbsorbedFeeIsConfirmedAtOnce()
     {
         Consultant::updateAll(['insured_pay' => 0], ['id' => $this->consultant->id]);
-        [$booked, $appointment] = $this->bookPaying(['payment_mode' => 'insurance', 'fee_terms' => '']);
+        // F18: an insured booking names the insurer and member number
+        $insurer = new \frontend\models\Provider(['provider' => 'Jubilee']);
+        $insurer->save(false);
+        [$booked, $appointment] = $this->bookPaying(['payment_mode' => 'insurance', 'insurer_id' => $insurer->id, 'member_number' => 'JUB-1', 'fee_terms' => '']);
 
         $this->assertTrue($booked, json_encode($appointment->errors));
         $appointment->refresh();
