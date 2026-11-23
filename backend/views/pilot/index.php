@@ -24,6 +24,7 @@ $termsClass = [
     <div class="d-flex justify-content-between align-items-start">
         <h1 class="h3"><?= Html::encode($this->title) ?></h1>
         <?= Html::a('Consultants and plans', ['consultants'], ['class' => 'btn btn-sm btn-outline-secondary']) ?>
+        <?= Html::a('Pilot report', ['report'], ['class' => 'btn btn-sm btn-outline-primary', 'id' => 'pilot-report-link']) ?>
     </div>
     <p class="text-muted">
         Each facility's signed agreement and where it is with standard terms, on the clock of its earliest pilot.
