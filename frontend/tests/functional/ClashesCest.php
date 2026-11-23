@@ -155,6 +155,81 @@ class ClashesCest
         $I->dontSeeElement('#self-cancel-form');
     }
 
+    // ---- Part 2 --------------------------------------------------------------------------
+
+    private function tickAndPreview(FunctionalTester $I, $closure, array $appointments, $date)
+    {
+        $I->amLoggedInAs($this->frontDesk);
+        $I->amOnPage('/clash/closure/' . $closure->id);
+        foreach ($appointments as $a) {
+            $I->checkOption('#clash-pick-' . $a->id);
+        }
+        $I->fillField('#clash-date', $date);
+        $I->click('Preview the moves');
+    }
+
+    public function staffMoveTickedBookingsToAnotherDayAfterAPreview(FunctionalTester $I)
+    {
+        $second = $this->book('10:30', $this->otherClient);
+        $closure = $this->closure();
+        $tuesday = date('Y-m-d', strtotime($this->date . ' +1 day'));
+        $this->tickAndPreview($I, $closure, [$this->appointment, $second], $tuesday);
+
+        $I->see('Check the new times', 'h1');
+        $I->seeElement('#move-' . $this->appointment->id);
+        $I->seeElement('#move-' . $second->id);
+        $I->dontSee('next free day');
+        // Nothing has moved yet
+        $I->assertSame($this->date, Appointments::findOne($this->appointment->id)->date);
+
+        $I->fillField('#move-message', 'Sorry for the change.');
+        $I->click('Move 2 bookings');
+        $I->see('2 bookings were moved; each patient has been told the new time.');
+        $first = Appointments::findOne($this->appointment->id);
+        $other = Appointments::findOne($second->id);
+        $I->assertSame($tuesday, $first->date);
+        $I->assertSame($tuesday, $other->date);
+        $I->assertLessThan(strtotime($other->date . ' ' . $other->time), strtotime($first->date . ' ' . $first->time), 'kept in order');
+        $I->assertGreaterThanOrEqual(strtotime($first->date . ' ' . $first->time) + $first->getDurationMinutes() * 60,
+            strtotime($other->date . ' ' . $other->time), 'not on top of each other');
+        $I->assertSame(2, $this->queued('has moved'));
+        $I->assertSame(2, $this->queued('Sorry for the change.'));
+
+        // Off the list now, and shown as done
+        $I->amOnPage('/clash/closure/' . $closure->id);
+        $I->seeElement('#clash-none');
+        $I->see('now ' . date('D j M', strtotime($tuesday)), '#clash-done');
+    }
+
+    public function aDayWithoutHoursSpillsToTheNextFreeDay(FunctionalTester $I)
+    {
+        $closure = $this->closure();
+        $sunday = date('Y-m-d', strtotime($this->date . ' -1 day'));
+        if ($sunday < date('Y-m-d')) {
+            $sunday = date('Y-m-d', strtotime($this->date . ' +6 days'));
+        }
+        $this->tickAndPreview($I, $closure, [$this->appointment], $sunday);
+        $I->see('next free day', '#move-' . $this->appointment->id);
+    }
+
+    public function staffCancelTickedBookingsAndPatientsCanBookAgain(FunctionalTester $I)
+    {
+        $closure = $this->closure();
+        $I->amLoggedInAs($this->frontDesk);
+        $I->amOnPage('/clash/closure/' . $closure->id);
+        $I->checkOption('#clash-pick-' . $this->appointment->id);
+        $I->fillField('#clash-cancel-message', 'Please call us to rebook.');
+        $I->click('#clash-cancel');
+        $I->see('1 booking was cancelled; each patient has been told, with a link to book again.');
+
+        $cancelled = Appointments::findOne($this->appointment->id);
+        $I->assertSame(Appointments::STATUS_CANCELLED, $cancelled->status);
+        $I->assertSame(Appointments::PARTY_FACILITY, $cancelled->cancelled_party, 'the clinic\'s doing');
+        $I->assertSame(1, $this->queued('Please call us to rebook.'));
+        $I->assertSame(1, $this->queued('To book again: '));
+        $I->assertSame(1, $this->queued('/dr/' . $this->consultant->id . '-test'));
+    }
+
     public function staffAreRemindedTheDayBeforeOnce(FunctionalTester $I)
     {
         $tomorrow = date('Y-m-d', strtotime('+1 day'));

@@ -395,6 +395,181 @@ class Clashes
         return array_values($users);
     }
 
+    // ---- Part 2: moving and cancelling in bulk ----------------------------------------------
+
+    /** How many days after the chosen one a move may spill over to. */
+    const SPILL_DAYS = 7;
+
+    /**
+     * The open bookings of this clash that the signed-in user handles, among $ids, in their order.
+     *
+     * @param int[] $ids
+     * @return Appointments[]
+     */
+    public static function pick($source, array $ids)
+    {
+        $ids = array_map('intval', $ids);
+        $out = [];
+        foreach (self::appointments($source) as $appointment) {
+            if (in_array((int) $appointment->id, $ids, true) && self::canHandle($appointment)) {
+                $out[] = $appointment;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Facilities bookings may be moved to: those the consultants of $appointments work at, limited
+     * to a front desk's own facility.
+     *
+     * @param Appointments[] $appointments
+     * @return array id => name
+     */
+    public static function facilityChoices(array $appointments)
+    {
+        $own = FrontDesk::facilityId();
+        $choices = [];
+        foreach ($appointments as $appointment) {
+            foreach ($appointment->consultant->engagements ?? [] as $engagement) {
+                $facility = $engagement->facility;
+                if ($facility !== null && $facility->isActive() && ($own === null || (int) $own === (int) $facility->id)) {
+                    $choices[(int) $facility->id] = $facility->name;
+                }
+            }
+        }
+        asort($choices);
+
+        return $choices;
+    }
+
+    /**
+     * Plans moving $appointments (in order) to $date or, when that day is full, the following days:
+     * each takes the first free slot with its own consultant, keeping its length, without two
+     * landing on each other. At $facilityId when given (if the consultant works there), else
+     * where it was booked.
+     *
+     * @param Appointments[] $appointments in the order to place them
+     * @return array[] each ['appointment', 'date' => Y-m-d|null, 'time' => H:i|null, 'facilityId' => int|null, 'problem' => string|null]
+     */
+    public static function planMove(array $appointments, $date, $facilityId = null)
+    {
+        $plan = [];
+        $taken = []; // consultant user id => list of [start, end] timestamps already planned
+        $to = date('Y-m-d', strtotime($date . ' +' . self::SPILL_DAYS . ' days'));
+        foreach ($appointments as $appointment) {
+            $consultant = $appointment->consultant;
+            $target = $facilityId ? (int) $facilityId : (int) $appointment->facility_id;
+            $row = ['appointment' => $appointment, 'date' => null, 'time' => null, 'facilityId' => $target, 'problem' => null];
+            if ($consultant === null || ($facilityId && $consultant->getEngagement($target) === null)) {
+                $row['problem'] = Yii::t('app', '{doctor} does not work at that facility.', ['doctor' => $consultant->names ?? 'The consultant']);
+                $plan[] = $row;
+                continue;
+            }
+            $slots = (new \frontend\models\SlotFinder([
+                'consultant' => $consultant,
+                'from' => $date,
+                'to' => $to,
+                'excludeAppointmentId' => $appointment->id,
+                'facilityId' => $target ?: null,
+                'notBefore' => time(),
+            ]))->find();
+            $length = $appointment->getDurationMinutes() * 60;
+            $mine = &$taken[(int) $appointment->consultant_id];
+            $mine = $mine ?? [];
+            foreach ($slots as $day => $times) {
+                foreach ($times as $time) {
+                    $start = strtotime($day . ' ' . $time);
+                    $clear = true;
+                    foreach ($mine as [$s, $e]) {
+                        if ($start < $e && $start + $length > $s) {
+                            $clear = false;
+                            break;
+                        }
+                    }
+                    if ($clear) {
+                        $row['date'] = $day;
+                        $row['time'] = $time;
+                        $mine[] = [$start, $start + $length];
+                        break 2;
+                    }
+                }
+            }
+            unset($mine);
+            if ($row['date'] === null) {
+                $row['problem'] = Yii::t('app', 'No free time in the {n} days from that date.', ['n' => self::SPILL_DAYS + 1]);
+            }
+            $plan[] = $row;
+        }
+
+        return $plan;
+    }
+
+    /**
+     * Moves each booking to its planned time. The patient is told as usual (moved by the clinic,
+     * with their link); $note, if any, is added to that message.
+     *
+     * @param array $times appointment id => [Y-m-d, H:i]
+     * @return array ['moved' => Appointments[], 'failed' => [id => reason]]
+     */
+    public static function move($source, array $times, $note = '')
+    {
+        $note = trim(mb_substr((string) $note, 0, 500));
+        $moved = [];
+        $failed = [];
+        foreach (self::pick($source, array_keys($times)) as $appointment) {
+            [$date, $time] = $times[$appointment->id];
+            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $date) || !preg_match('/^\d{2}:\d{2}$/', (string) $time)) {
+                $failed[(int) $appointment->id] = Yii::t('app', 'No time was planned.');
+                continue;
+            }
+            $appointment->noticeNote = $note;
+            if (Yii::createObject(BookingService::class)->reschedule($appointment, $date, $time . ':00')) {
+                self::remember($source, $appointment);
+                $moved[] = $appointment;
+            } else {
+                $errors = $appointment->getFirstErrors();
+                $failed[(int) $appointment->id] = $errors ? reset($errors) : Yii::t('app', 'It could not be moved.');
+                $appointment->refresh();
+            }
+        }
+
+        return ['moved' => $moved, 'failed' => $failed];
+    }
+
+    /**
+     * Cancels the bookings as the clinic's doing: a closure or holiday on the facility's side, time
+     * off on the consultant's. A paid fee becomes a credit (F23); the patient is told as usual, with
+     * $note and a link to book again.
+     *
+     * @param Appointments[] $appointments
+     * @return int cancelled
+     */
+    public static function cancel($source, array $appointments, $note = '')
+    {
+        $note = trim(mb_substr((string) $note, 0, 500));
+        $reason = $source instanceof ConsultantTimeOff ? Appointments::REASON_CLINIC : Appointments::REASON_FACILITY_CLOSED;
+        $n = 0;
+        foreach ($appointments as $appointment) {
+            $appointment->noticeNote = $note;
+            if ($appointment->cancel(mb_substr(self::describe($source) . ($note !== '' ? ': ' . $note : ''), 0, 500), $reason)) {
+                self::remember($source, $appointment);
+                $n++;
+            }
+        }
+
+        return $n;
+    }
+
+    /** Keeps a moved or cancelled booking on the clash, so its list shows it under Done. */
+    private static function remember($source, Appointments $appointment)
+    {
+        $key = ['appointment_id' => $appointment->id, 'source_type' => self::typeOf($source), 'source_id' => $source->id];
+        if (!AppointmentClash::find()->where($key)->exists()) {
+            (new AppointmentClash($key + ['created_at' => time()]))->save(false);
+        }
+    }
+
     /** The appointment's page for staff, as an absolute address (also from the console). */
     private static function appointmentUrl(Appointments $appointment)
     {

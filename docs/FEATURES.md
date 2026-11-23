@@ -101,6 +101,7 @@ Doing **Next up** below should bring the app to about 9.5 functionally.
 | F29 Consultant business card | **My business card** (consultants; **Business cards** for their assigned front desk) at `/business-card`: both sides at real size, 85 × 55 mm. Side A: the name with "Dr.", speciality and sub-specialities, KMPDC registration number, practice name, and up to three of their facilities with phone and address (the consultant ticks which; by default the first three). No personal phone or email. Side B: a QR code for the **public profile** at `/dr/<id>-<name>` (no sign-in: who they are, every facility with phone, address and map, and **Book an appointment**, which asks for sign-in or registration only then; an old name part redirects, and a deactivated consultant's profile says they are not taking appointments). **Print or save as PDF** (one side per 85 × 55 mm page), the QR code alone as SVG (print) or PNG (posters, messages), and **Share the profile link**. QR codes are made on the server by `chillerlan/php-qrcode`. Platform admins open each consultant's card in `/admin` → Pilots → Consultants (**Card**) and can choose its facilities. | `feature/business-card` |
 | F13 Front desk confirms appointments | **Confirm** on the board, the appointment page and the appointments list asks how the patient confirmed: by phone, in person, by WhatsApp or SMS, or other. It is stored on the appointment with who and when (`confirmed_via`, `confirmed_by`, `confirmed_at`), shown on the appointment ("Confirmed: By phone, by Mary Wanjiru, 3 Dec 2026 10:15") and on hover over the board's status; a patient confirming from their reminder link is recorded as "From their reminder link". Who may confirm: the consultant; their assigned front desk, at the front desk's facility (`confirmAtAssignedFacility`, under `confirmAssignedAppointment`); facility admins at theirs (`confirmFacilityAppointment`); consultancy admins. Only scheduled appointments still to come; the patient is sent the usual confirmation. | `feature/front-desk-confirm` |
 | F14 Clashes, part 1: telling patients | Bookings made before a **facility closure**, a consultant's **time off** or a **public holiday** are kept, and listed at `/clash/<closure|time_off|holiday>/<id>` (linked from the closures page, the time off card on Availability and the save messages): each with its patient and whether they were told. Staff move any they agree themselves, then **Tell N patients** (an optional message is added): each patient gets an email (and WhatsApp with consent) that the appointment cannot go ahead, why (the closure's reason or the holiday's name; for time off only that the doctor is not available), and their link to **choose a new time**, which then works **inside the 24-hour cut-off** too (moving only; cancelling inside the cut-off still means calling the clinic). Told once (`appointment_clash`). The board marks them **Needs a new time** until moved. The day before, `php yii clash/remind` (`doctors-appointment-clash-reminders.timer`, 07:30) emails the consultant, their front desk at that facility and the facility's admins the patients who have not moved, once; nothing is cancelled. Who sees and tells: whoever handles the booking (the consultant, their front desk at its facility, the facility's admins, consultancy admins). | `feature/clash-notices` |
+| F14 Clashes, part 2: moving and cancelling in bulk | On the clash list, staff tick bookings (or all) and **move them to another day**: each takes the first free slot with its own consultant that day, in the original order, keeping its length and never landing on another, at the facility it was booked or another the consultant works at (a front desk: only theirs); any that do not fit go to the next free days (up to 7 on). A **preview** shows every new time first; saving moves exactly those, and a time taken in between leaves that one booking as it was and says so. Each patient gets the usual "moved" notice with their link, plus an optional message. Or **cancel** the ticked ones: cancelled by the clinic (facility for a closure or holiday, consultant for time off), so a paid fee becomes a credit (F23); each patient is told, with the optional message and a link to book again (the consultant's public profile, F29), which every clinic cancellation notice now carries. Moved and cancelled bookings show under Done on the list. | `feature/clash-bulk` |
 
 ### Scheduling depth
 
@@ -774,6 +775,12 @@ baseline. Nothing is charged yet.
    patients", tell the patient, open their link from the email and see "This appointment cannot go ahead"
    with the free times; `php yii clash/remind` the day before lists them.
 
+### F14 Clashes, part 2: moving and cancelling in bulk
+
+Nothing to migrate or configure. **Check by hand:** with two test bookings on a closed day, tick both on
+the clash list, preview a move to the next day, see both new times in order, move them and see the
+patients' "moved" emails; cancel another and see the cancellation email with "To book again".
+
 ### Admin area: pilots, plans and payments (F28)
 
 1. **Permissions:** `php yii rbac/init` adds `manageFacilityConsultants` (consultancy admins) and
@@ -893,7 +900,7 @@ Priority: **P1** do next, **P2** soon, **P3** when there is time. Impact is the 
 | # | Item | Priority | Impact |
 |---|---|---|---|
 | F2 | WhatsApp booking confirmations for every booking, not only booking links. | P2 | |
-| F14 | Tell affected patients when a facility closes a day or a consultant adds time off, with a link to pick a new time, and let staff move the clashing bookings in bulk instead of one by one. (from G7) **Part 1 done** (see Done): the clash list, telling patients, their link inside the cut-off, staff reminders. **Part 2:** bulk move to a day (first free slots in order, with a preview) and bulk cancel. | P1 | +0.5 |
+| ~~F14~~ | ~~Tell affected patients when a facility closes a day or a consultant adds time off, with a link to pick a new time, and let staff move the clashing bookings in bulk instead of one by one. (from G7)~~ **Done** in two parts (see Done): the clash list, telling patients, their link inside the cut-off, staff reminders; bulk move with a preview and bulk cancel. | P1 | +0.5 |
 
 #### Front desk and the day of the visit
 
@@ -1113,7 +1120,6 @@ Built as planned below, with these choices made on 12 Nov 2026:
 
 ## Next up
 
-1. **F14 part 2** Move clashing bookings in bulk to another day (first free slots, in order, with a preview), and cancel them in bulk.
-2. **F26** The 90-day pilot report, needed by day 90.
-3. **F18** Insurer and member number at booking, and pre-authorisation.
-4. **F12** Patients export and delete their data (completes the closure requests from F11).
+1. **F26** The 90-day pilot report, needed by day 90.
+2. **F18** Insurer and member number at booking, and pre-authorisation.
+3. **F12** Patients export and delete their data (completes the closure requests from F11).
