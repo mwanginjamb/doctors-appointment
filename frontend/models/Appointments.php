@@ -52,6 +52,14 @@ use yii\behaviors\TimestampBehavior;
  * @property string|null $confirmed_via F13: how the patient confirmed: phone, in_person, message, other (staff), link (the patient)
  * @property int|null $confirmed_by F13: user.id of whoever confirmed it
  * @property int|null $confirmed_at F13
+ * @property int|null $insurer_id F18: provider.id, for an insured booking
+ * @property string|null $member_number F18
+ * @property int|null $insurer_listed F18: 1 when the consultant lists the insurer, 0 when not
+ * @property string|null $preauth_status F18: pending, approved or declined; null for cash
+ * @property string|null $preauth_reference F18: the insurer's approval reference
+ * @property string|null $preauth_note F18
+ * @property int|null $preauth_by F18: user.id of whoever recorded it
+ * @property int|null $preauth_at F18
  */
 class Appointments extends \yii\db\ActiveRecord
 {
@@ -139,6 +147,9 @@ class Appointments extends \yii\db\ActiveRecord
     /** @var bool F22: the patient accepted the booking terms (asked only when a fee applies) */
     public $feeTermsAccepted = false;
 
+    /** F18: the booking form asked cash or insurance, so an insured booking needs insurer and member number */
+    public $insuranceAsked = false;
+
     /** @var array|null F22: [FeeRules decision, reason], settled when a new booking is validated */
     public $feeDecision;
 
@@ -173,6 +184,12 @@ class Appointments extends \yii\db\ActiveRecord
             [['status'], 'string', 'max' => 20],
             [['booking_channel'], 'in', 'range' => array_keys(self::channelLabels())],
             [['payment_mode'], 'in', 'range' => [\frontend\services\FeeRules::PAYMENT_CASH, \frontend\services\FeeRules::PAYMENT_INSURANCE]],
+            // F18: an insured booking names the insurer and the member number
+            [['insurer_id', 'member_number'], 'required', 'when' => function ($model) {
+                return $model->insuranceAsked && $model->payment_mode === \frontend\services\FeeRules::PAYMENT_INSURANCE;
+            }, 'message' => Yii::t('app', 'For insurance, give the insurer and the member number.')],
+            [['insurer_id'], 'exist', 'targetClass' => Provider::class, 'targetAttribute' => 'id', 'skipOnEmpty' => true],
+            [['member_number'], 'string', 'max' => 40],
             [['cancellation_note'], 'string', 'max' => 500],
             [['duration_minutes'], 'integer', 'min' => 5, 'max' => 240],
             [['facility_id'], 'integer'],
@@ -695,6 +712,10 @@ class Appointments extends \yii\db\ActiveRecord
         }
         if ($insert && !$this->booking_channel) {
             $this->booking_channel = Yii::createObject(BookingService::class)->channelOf($this);
+        }
+        // F18: an insured booking's pre-authorisation starts pending
+        if ($insert) {
+            \frontend\services\Insurance::onInsert($this);
         }
         // F22: a booking the patient pays for holds its slot until the payment arrives
         if ($insert && ($this->feeDecision[0] ?? null) === \frontend\services\FeeRules::CHARGE) {

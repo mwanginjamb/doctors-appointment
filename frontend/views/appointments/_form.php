@@ -54,6 +54,12 @@ use yii\bootstrap5\ActiveForm;
 
     <?= $form->field($model, 'consultant_id')->textInput(['readonly' => true, 'disabled' => true]) ?>
 
+    <?php if ($model->isNewRecord): ?>
+        <?php $mine = Yii::$app->user->identity->isPatientAccount(); [$lastInsurer, $lastMember] = $mine ? \frontend\services\Insurance::lastFor(Yii::$app->user->id) : [null, null]; ?>
+        <!-- F18: cash or insurance on every booking -->
+        <?= $this->render('@frontend/views/fee/_payment_fields', ['idPrefix' => 'form', 'forStaff' => !$mine,
+            'consultant' => $model->consultant, 'insurerId' => $lastInsurer, 'memberNumber' => $lastMember]) ?>
+    <?php endif; ?>
     <?php if ($model->isNewRecord && \frontend\services\FeeRules::enabled()): ?>
         <!-- F22: asked whenever fees are on; the booking decides whether the fee applies -->
         <?= $this->render('@frontend/views/fee/_fee_fields', ['idPrefix' => 'form-fee',

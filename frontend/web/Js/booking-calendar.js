@@ -252,6 +252,11 @@
 
     function choosePatient(patient) {
         $('#appointments-patient_id').val(patient.id);
+        // F18: the patient's last insurer and member number
+        var payFields = document.getElementById('appointment-pay-fields');
+        if (payFields && patient.insurerId) {
+            payFields.dispatchEvent(new CustomEvent('insurer:prefill', {detail: {insurerId: patient.insurerId, memberNumber: patient.memberNumber}}));
+        }
         $('#patient-lookup-results').empty();
         $('#patient-selected').text('Booking for: ' + patient.name + noShowNote(patient));
         // F11: no consent on record -> staff ask and record it with the booking
@@ -357,9 +362,16 @@
             // F4: staff can also put the patient on the waiting list for an earlier time
             waitlist: $('#appointment-waitlist').is(':checked')
         };
+        // F18: cash or insurance, and for insurance the insurer and member number (every booking)
+        if ($('#appointment-pay-fields').length) {
+            appointment.payment_mode = $('#appointment-pay-fields input[name=payment_mode]:checked').val();
+            if (appointment.payment_mode === 'insurance') {
+                appointment.insurer_id = $('#appointment-insurer').val();
+                appointment.member_number = $('#appointment-member').val();
+            }
+        }
         // F22: the commitment-fee questions, where the consultant may charge it
         if ($('#appointment-fee-fields').length) {
-            appointment.payment_mode = $('#appointment-fee-fields input[name=payment_mode]:checked').val();
             appointment.pay_phone = $('#appointment-fee-phone').val();
             appointment.fee_terms = $('#appointment-fee-terms').is(':checked');
         }
