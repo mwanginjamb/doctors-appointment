@@ -25,7 +25,8 @@ use Yii;
  * - The patient cancels less than 24 hours ahead, or does not come: the fee is forfeited.
  * - The booking is moved: the fee moves with it. A patient cannot move a paid booking themselves
  *   in its last 24 hours (BookingService::slotProblem()): they cancel, forfeiting the fee, and book
- *   again. Staff moves always carry the fee.
+ *   again. Staff moves always carry the fee, and so does a patient's move when the clinic told
+ *   them the booking clashes with a closure, time off or holiday (F14).
  *
  * A credit pays the fee of the patient's next charged booking, with any consultant, within 90
  * days. A refundable one can be asked back; a platform admin approves it and it is sent by M-Pesa
@@ -112,6 +113,11 @@ class FeeLifecycle
     {
         $oldStart = strtotime($appointment->getOldAttribute('date') . ' ' . $appointment->getOldAttribute('time'));
         if ($oldStart - self::now() > self::NOTICE_HOURS * 3600 || self::activeFee($appointment) === null) {
+            return null;
+        }
+        // F14: told it cannot go ahead (a closure, time off or holiday): the clinic asked them to
+        // move, so they may, and the fee moves with it as when staff move it
+        if (Clashes::mustMove($appointment)) {
             return null;
         }
 
