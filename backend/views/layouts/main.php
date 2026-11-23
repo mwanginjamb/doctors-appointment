@@ -42,6 +42,7 @@ AppAsset::register($this);
         ['label' => 'Invoices', 'url' => ['/invoice/index'], 'active' => Yii::$app->controller->id === 'invoice'],
         ['label' => 'Refunds', 'url' => ['/refund/index']],
         ['label' => 'Weekly payouts', 'url' => ['/payout/index'], 'active' => Yii::$app->controller->id === 'payout'],
+        ['label' => 'Ratings', 'url' => ['/rating/index'], 'active' => Yii::$app->controller->id === 'rating'],
         // Consultants, facilities, staff, RBAC and the audit log stay on the main site
         ['label' => 'Main site admin ↗', 'url' => \common\helpers\AdminLinks::mainSite('site/settings')],
     ];

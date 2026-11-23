@@ -130,6 +130,8 @@ return [
                 // F25: a consultant's monthly invoice: /invoice/<id>/<signature>
                 'invoice/<id:\d+>/<sig:[a-f0-9]{32}>' => 'invoice/view',
                 'invoice/<id:\d+>/<sig:[a-f0-9]{32}>/<action:pay|status>' => 'invoice/<action>',
+                // F30: the patient rates the consultant for a visit: /rate/<appointment id>/<signature>
+                'rate/<id:\d+>/<sig:[a-f0-9]{32}>' => 'rate/index',
                 // F29: a consultant's public profile (the business card's QR code): /dr/<id>-<name>
                 'dr/<id:\d+>-<slug:[a-z0-9-]+>' => 'doctor/view',
                 'dr/<id:\d+>' => 'doctor/view',
