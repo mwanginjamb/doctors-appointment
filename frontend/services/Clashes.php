@@ -388,7 +388,7 @@ class Clashes
                 }
             }
         }
-        foreach (User::find()->where(['role' => User::ACCOUNT_FACILITY_ADMIN, 'facility_id' => $facilityIds ?: [0]])->all() as $admin) {
+        foreach (FacilityAdmins::query($facilityIds)->all() as $admin) {
             $add($admin);
         }
 

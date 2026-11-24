@@ -14,6 +14,8 @@ return [
     'controllerNamespace' => 'frontend\controllers',
     // F11: signed-in patients must agree to the current privacy notice before using the app
     'as consentGate' => ['class' => 'frontend\components\ConsentGate'],
+    // A consultant who runs a facility and is managing it acts as its facility admin
+    'as facilityMode' => ['class' => 'frontend\components\FacilityModeGate'],
     'components' => [
         // ?v=<file time> on our scripts and styles, so browsers fetch them again after a deploy
         'assetManager' => [

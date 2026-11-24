@@ -43,6 +43,8 @@ AppAsset::register($this);
         ['label' => 'Refunds', 'url' => ['/refund/index']],
         ['label' => 'Weekly payouts', 'url' => ['/payout/index'], 'active' => Yii::$app->controller->id === 'payout'],
         ['label' => 'Ratings', 'url' => ['/rating/index'], 'active' => Yii::$app->controller->id === 'rating'],
+        // Consultants who run a facility: claims to approve, revoking
+        ['label' => 'Facility admins' . (($n = (int) \frontend\models\FacilityAdminClaim::find()->where(['status' => 'pending'])->andWhere(['not', ['facility_id' => null]])->count()) ? " ($n)" : ''), 'url' => ['/facility-admin/index'], 'active' => Yii::$app->controller->id === 'facility-admin'],
         // Consultants, facilities, staff, RBAC and the audit log stay on the main site
         ['label' => 'Main site admin ↗', 'url' => \common\helpers\AdminLinks::mainSite('site/settings')],
     ];

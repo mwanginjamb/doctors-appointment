@@ -12,6 +12,12 @@ namespace common\models;
 trait AccountTypeTrait
 {
     /**
+     * @var bool a consultant who runs a facility is managing it (frontend\services\FacilityAdmins):
+     * their account then behaves as a facility admin's, not a consultant's. Set per request.
+     */
+    public $facilityMode = false;
+
+    /**
      * Keeps user.phone_key (the number in one form, for finding accounts by number) in step with
      * phone_number. A changed number is no longer proven, so phone_verified_at is cleared.
      */
@@ -37,7 +43,7 @@ trait AccountTypeTrait
 
     public function isConsultantAccount()
     {
-        return $this->role === User::ACCOUNT_CONSULTANT;
+        return $this->role === User::ACCOUNT_CONSULTANT && !$this->facilityMode;
     }
 
     public function isFrontDeskAccount()
@@ -46,8 +52,9 @@ trait AccountTypeTrait
     }
 
     /** Runs one facility (user.facility_id). */
+    /** A facility admin account, or a consultant managing the facility they run. */
     public function isFacilityAdminAccount()
     {
-        return $this->role === User::ACCOUNT_FACILITY_ADMIN;
+        return $this->role === User::ACCOUNT_FACILITY_ADMIN || ($this->facilityMode && $this->role === User::ACCOUNT_CONSULTANT);
     }
 }

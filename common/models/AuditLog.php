@@ -137,6 +137,7 @@ class AuditLog extends ActiveRecord
             'frontdesk_incentive' => 'Front-desk incentive',
             'incentive_payout' => 'Front-desk payout',
             'retention' => 'Retention rules',
+            'facility_admin_claim' => 'Claim to run a facility',
         ];
     }
 

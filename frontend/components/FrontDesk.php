@@ -189,6 +189,6 @@ class FrontDesk
     public static function reset()
     {
         AssignedConsultantRule::reset();
-        AssignedFacilityRule::reset();
+        \frontend\services\FacilityAdmins::reset();
     }
 }

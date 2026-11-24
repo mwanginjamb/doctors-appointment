@@ -18,6 +18,8 @@ use yii\bootstrap5\Html;
  * @var frontend\models\FacilityRequest[] $facilityRequests the consultant's waiting and recently answered requests
  * @var frontend\models\FacilityInvitation[] $invitations facilities inviting the consultant, waiting for an answer
  * @var int|null $cid consultant.id when an admin manages someone else's availability
+ * @var int|null $runsFacilityId the facility the consultant runs as its facility admin
+ * @var frontend\models\FacilityAdminClaim|null $adminClaim their claim to run a facility, waiting for an answer
  */
 
 if ($cid) {
@@ -127,6 +129,25 @@ $rangeRow = function ($day, $i, $start = '', $end = '', $facility = null, $weeks
                             <?php if ($facility->address): ?>
                                 <div class="small text-muted"><?= Html::encode(preg_replace('/\s*\R\s*/', ', ', $facility->address)) ?></div>
                             <?php endif; ?>
+                            <!-- Running the facility: its facility admin as well -->
+                            <div class="small mt-1 facility-admin-claim">
+                                <?php if ($runsFacilityId === (int) $facility->id): ?>
+                                    <span class="badge text-bg-success"><?= Yii::t('app', 'You run this facility') ?></span>
+                                    <?php if (!$cid): ?>
+                                        <span class="text-muted"><?= Yii::t('app', 'Manage it from your account menu.') ?></span>
+                                    <?php endif; ?>
+                                <?php elseif ($adminClaim && (int) $adminClaim->facility_id === (int) $facility->id): ?>
+                                    <span class="badge text-bg-warning"><?= Yii::t('app', 'Waiting: you run this facility') ?></span>
+                                    <span class="text-muted"><?= Yii::t('app', 'sent {date}', ['date' => date('j M', $adminClaim->created_at)]) ?></span>
+                                <?php elseif (!$cid && $runsFacilityId === null && !$adminClaim && $facility->isActive()): ?>
+                                    <?= Html::beginForm(['availability/claim-facility', 'id' => $engagement->id], 'post', ['class' => 'd-inline claim-facility-form']) ?>
+                                        <?= Html::submitButton(Yii::t('app', 'I run this facility'), [
+                                            'class' => 'btn btn-link btn-sm p-0',
+                                            'data' => ['confirm' => Yii::t('app', 'Ask to be the facility admin of {facility}? You would manage its front desk, closed days, contact details and see every consultant\'s bookings there. The administrator checks with the facility first.', ['facility' => $facility->name])],
+                                        ]) ?>
+                                    <?= Html::endForm() ?>
+                                <?php endif; ?>
+                            </div>
                         </div>
                         <?php if ($several): ?>
                             <?= Html::a(Yii::t('app', 'Remove'), ['availability/remove-facility', 'id' => $engagement->id, 'cid' => $cid], [
@@ -214,6 +235,9 @@ $rangeRow = function ($day, $i, $start = '', $end = '', $facility = null, $weeks
                         <div class="col-md-8"><?= $rf->field($facilityRequest, 'map_url')->input('url', ['maxlength' => 500, 'placeholder' => 'https://maps.app.goo.gl/…']) ?></div>
                     </div>
                     <?= $rf->field($facilityRequest, 'note')->textInput(['maxlength' => 500]) ?>
+                    <?php if (!$cid && $runsFacilityId === null && !$adminClaim): ?>
+                        <?= $rf->field($facilityRequest, 'runs_facility')->checkbox() ?>
+                    <?php endif; ?>
                     <?= Html::submitButton(Yii::t('app', 'Send request'), ['class' => 'btn btn-sm btn-outline-primary']) ?>
                     <?php ActiveForm::end(); ?>
                 </div>
@@ -225,7 +249,7 @@ $rangeRow = function ($day, $i, $start = '', $end = '', $facility = null, $weeks
                     <ul class="list-unstyled small mb-0">
                         <?php foreach ($facilityRequests as $request): ?>
                             <li class="mb-1 facility-request-<?= Html::encode($request->status) ?>">
-                                <?= Html::encode($request->name) ?> —
+                                <?= Html::encode($request->name) ?><?= $request->runs_facility ? ' <span class="text-muted">(' . Yii::t('app', 'you run it') . ')</span>' : '' ?> —
                                 <?php if ($request->isPending()): ?>
                                     <span class="badge text-bg-warning"><?= Yii::t('app', 'Waiting') ?></span>
                                     <span class="text-muted"><?= Yii::t('app', 'sent {date}', ['date' => date('j M', $request->created_at)]) ?></span>
