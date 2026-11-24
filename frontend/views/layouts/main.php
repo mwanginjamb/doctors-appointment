@@ -188,6 +188,12 @@ $username = Yii::$app->user->identity->username ?? 'User';
                             ['/consent/settings'],
                             ['class' => 'dropdown-item']
                         )) : '') .
+                        // F12: see, download or ask to delete their data (also when consent recording is off)
+                        (Yii::$app->user->identity->isPatientAccount() ? Html::tag('li', Html::a(
+                            Html::tag('i', '', ['class' => 'bi bi-file-earmark-person me-2']) . 'My data',
+                            ['/my-data/index'],
+                            ['class' => 'dropdown-item', 'id' => 'menu-my-data']
+                        )) : '') .
                         (\frontend\components\AdminAccessControl::isAdmin() ? Html::tag('li', Html::a(
                             Html::tag('i', '', ['class' => 'bi bi-gear me-2']) . 'Settings',
                             ['/site/settings'],

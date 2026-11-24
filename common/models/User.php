@@ -26,6 +26,7 @@ use yii\web\IdentityInterface;
  * @property integer $updated_at
  * @property string $password write-only password
  * @property string $full_name
+ * @property int|null $anonymised_at F12: when the personal data was removed
  */
 class User extends ActiveRecord implements IdentityInterface
 {

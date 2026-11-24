@@ -1,0 +1,32 @@
+# One run of the patient data retention rules (F12) with php yii retention/run: anonymises patient
+# accounts with no sign-in and no appointment for RETENTION_INACTIVE_YEARS (3), clears symptom notes
+# RETENTION_SYMPTOM_MONTHS (12) after the visit and removes email sign-ups never verified within
+# RETENTION_UNVERIFIED_DAYS (30). Started daily by doctors-appointment-retention.timer.
+#
+# Run it by hand:   sudo systemctl start doctors-appointment-retention
+# See what it would change:  sudo -u www-data php yii retention/run --dry-run
+# Logs:             journalctl -u doctors-appointment-retention
+#
+# Same path / PHP / user assumptions as doctors-appointment-queue.service.
+
+[Unit]
+Description=Doctor appointments patient data retention (one run)
+After=network-online.target mysql.service mariadb.service
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/html/doctors-appointment
+ExecStart=/usr/bin/php /var/www/html/doctors-appointment/yii retention/run --color=0
+
+TimeoutStartSec=30min
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=doctors-retention
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
