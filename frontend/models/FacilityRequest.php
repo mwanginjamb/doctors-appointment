@@ -22,6 +22,7 @@ use yii\helpers\Url;
  * @property string|null $phone
  * @property string|null $map_url
  * @property string|null $note from the consultant to the admin
+ * @property int $runs_facility the consultant runs it: they become its facility admin when it is listed
  * @property string $status
  * @property int|null $facility_id the facility created for it
  * @property string|null $decision_note why it was declined; sent to the consultant
@@ -70,6 +71,8 @@ class FacilityRequest extends ActiveRecord
             [['phone'], 'match', 'pattern' => '/^\+?[0-9][0-9 ]{6,18}$/', 'message' => Yii::t('app', 'Enter a phone number such as 0712 345 678.')],
             [['map_url'], 'url', 'defaultScheme' => 'https'],
             [['map_url'], 'string', 'max' => 500],
+            [['runs_facility'], 'boolean'],
+            [['runs_facility'], 'default', 'value' => 0],
             [['name'], 'validateNotListed', 'skipOnError' => true],
             [['name'], 'validateNotPending', 'skipOnError' => true],
         ];
@@ -81,7 +84,7 @@ class FacilityRequest extends ActiveRecord
     public function scenarios()
     {
         // Who asked and what became of it are set here, never from the form
-        return [self::SCENARIO_DEFAULT => ['name', 'address', 'phone', 'map_url', 'note']];
+        return [self::SCENARIO_DEFAULT => ['name', 'address', 'phone', 'map_url', 'note', 'runs_facility']];
     }
 
     public function attributeLabels()
@@ -92,6 +95,7 @@ class FacilityRequest extends ActiveRecord
             'phone' => Yii::t('app', 'Phone'),
             'map_url' => Yii::t('app', 'Map link'),
             'note' => Yii::t('app', 'Note to the administrator'),
+            'runs_facility' => Yii::t('app', 'I run this facility (I become its facility admin when it is added)'),
             'decision_note' => Yii::t('app', 'Reason'),
         ];
     }
@@ -231,6 +235,8 @@ class FacilityRequest extends ActiveRecord
         }
 
         $this->notify();
+        // The consultant said they run it: they are its facility admin as well
+        \frontend\services\FacilityAdmins::onRequestApproved($this);
 
         return true;
     }
@@ -254,6 +260,7 @@ class FacilityRequest extends ActiveRecord
 
         $this->close(self::STATUS_DECLINED, $reason === '' ? null : $reason);
         $this->notify();
+        \frontend\services\FacilityAdmins::onRequestDeclined($this);
 
         return true;
     }

@@ -7,6 +7,7 @@ use frontend\models\AppointmentBoardSearch;
 use frontend\models\ClinicStats;
 use frontend\models\Consultant;
 use frontend\models\Facility;
+use Yii;
 use yii\filters\AccessControl;
 use yii\web\Controller;
 
@@ -34,6 +35,24 @@ class BoardController extends Controller
                 ],
             ],
         ];
+    }
+
+    /**
+     * The board is the facility's: a consultant who runs one is switched to managing it.
+     *
+     * @param \yii\base\Action $action
+     */
+    public function beforeAction($action)
+    {
+        if (!parent::beforeAction($action)) {
+            return false;
+        }
+        $identity = Yii::$app->user->identity;
+        if (\frontend\services\FacilityAdmins::isConsultantAdmin($identity) && !\frontend\services\FacilityAdmins::managing()) {
+            \frontend\services\FacilityAdmins::setManaging(true);
+        }
+
+        return true;
     }
 
     public function actionIndex()

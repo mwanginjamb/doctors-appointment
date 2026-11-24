@@ -94,7 +94,9 @@ $username = Yii::$app->user->identity->username ?? 'User';
                     // Admins reach the board from Administration
                     'label' => \frontend\components\FrontDesk::isFacilityAdmin() ? 'My Facility' : 'Front Desk',
                     'url' => ['/board/index'],
-                    'visible' => \frontend\components\FrontDesk::isStaff() && !\frontend\components\AdminAccessControl::isAdmin(),
+                    // A consultant who runs a facility reaches its board by switching to managing it (account menu)
+                    'visible' => \frontend\components\FrontDesk::isStaff() && !\frontend\components\AdminAccessControl::isAdmin()
+                        && !(\frontend\services\FacilityAdmins::isConsultantAdmin(Yii::$app->user->identity) && !\frontend\services\FacilityAdmins::managing()),
                 ],
                 [
                     'label' => 'Booking links',
@@ -188,6 +190,17 @@ $username = Yii::$app->user->identity->username ?? 'User';
                             ['/consent/settings'],
                             ['class' => 'dropdown-item']
                         )) : '') .
+                        // A consultant who runs a facility: switch to managing it, or back
+                        (\frontend\services\FacilityAdmins::isConsultantAdmin(Yii::$app->user->identity) ? Html::tag('li',
+                            Html::beginForm([\frontend\services\FacilityAdmins::managing() ? '/facility-mode/practice' : '/facility-mode/manage'], 'post', ['class' => 'm-0']) .
+                            Html::submitButton(
+                                Html::tag('i', '', ['class' => 'bi bi-arrow-left-right me-2']) . (\frontend\services\FacilityAdmins::managing()
+                                    ? 'Back to my practice'
+                                    : Html::encode('Manage ' . (\frontend\models\Facility::findOne(\frontend\services\FacilityAdmins::runsFacilityId(Yii::$app->user->identity))->name ?? 'my facility'))),
+                                ['class' => 'dropdown-item', 'id' => 'menu-facility-mode']
+                            ) .
+                            Html::endForm()
+                        ) : '') .
                         // F12: see, download or ask to delete their data (also when consent recording is off)
                         (Yii::$app->user->identity->isPatientAccount() ? Html::tag('li', Html::a(
                             Html::tag('i', '', ['class' => 'bi bi-file-earmark-person me-2']) . 'My data',
@@ -244,6 +257,7 @@ $username = Yii::$app->user->identity->username ?? 'User';
                 'options' => ['class' => 'my-3']
             ]) ?>
             <?= $this->render('_standard_terms_banner') ?>
+            <?= $this->render('_facility_mode') ?>
             <?= $content ?>
         </div>
     </main>

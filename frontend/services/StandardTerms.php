@@ -139,11 +139,11 @@ class StandardTerms
     /** The facility admins and front desk of the facility, active and with an email. */
     public static function recipients($facilityId)
     {
-        return User::find()->where([
-            'facility_id' => (int) $facilityId,
-            'role' => [User::ACCOUNT_FACILITY_ADMIN, User::ACCOUNT_FRONT_DESK],
-            'status' => User::STATUS_ACTIVE,
-        ])->andWhere(['not', ['email' => null]])->andWhere(['<>', 'email', ''])->all();
+        $adminIds = FacilityAdmins::query($facilityId)->select('id')->column();
+
+        return User::find()->where(['facility_id' => (int) $facilityId, 'status' => User::STATUS_ACTIVE])
+            ->andWhere(['or', ['role' => User::ACCOUNT_FRONT_DESK], ['id' => $adminIds ?: [0]]])
+            ->andWhere(['not', ['email' => null]])->andWhere(['<>', 'email', ''])->all();
     }
 
     /**

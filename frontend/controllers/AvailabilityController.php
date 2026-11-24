@@ -53,6 +53,7 @@ class AvailabilityController extends Controller
                     'update-facility' => ['POST'],
                     'remove-facility' => ['POST'],
                     'request-facility' => ['POST'],
+                    'claim-facility' => ['POST'],
                     'travel-buffer' => ['POST'],
                     'decline-invitation' => ['POST'],
                     'add-external' => ['POST'],
@@ -336,7 +337,11 @@ class AvailabilityController extends Controller
         $request = new FacilityRequest();
         $request->load($this->request->post());
         $request->consultant_id = $this->consultant->id;
+        if ($this->managedCid) {
+            $request->runs_facility = 0; // only the consultant says they run it
+        }
         if ($request->save()) {
+            \frontend\services\FacilityAdmins::claimForRequest($request);
             Yii::$app->session->setFlash('success', Yii::t('app', 'Request for {name} sent. You will be told by email and WhatsApp when the administrator answers.', [
                 'name' => \yii\helpers\Html::encode($request->name),
             ]));
@@ -344,6 +349,28 @@ class AvailabilityController extends Controller
         }
 
         return $this->renderIndex(new WeeklyScheduleForm($this->consultant), new TimeOffForm(), null, $request);
+    }
+
+    /**
+     * The consultant says they run this facility (one they work at): a platform admin approves it,
+     * then they are its facility admin as well.
+     */
+    public function actionClaimFacility($id)
+    {
+        if ($this->managedCid) {
+            throw new \yii\web\ForbiddenHttpException(Yii::t('app', 'Only the consultant can say they run a facility.'));
+        }
+        $engagement = $this->findEngagement($id);
+        $result = \frontend\services\FacilityAdmins::claim(Yii::$app->user->identity, $engagement->facility);
+        if (is_string($result)) {
+            Yii::$app->session->setFlash('error', Yii::t('app', $result));
+        } else {
+            Yii::$app->session->setFlash('success', Yii::t('app', 'Sent. The administrator checks with {facility} and you are told by email and WhatsApp; once approved, you manage it from your account menu.', [
+                'facility' => \yii\helpers\Html::encode($engagement->facility->name),
+            ]));
+        }
+
+        return $this->redirect($this->route('index', ['#' => 'facilities']));
     }
 
     private function findEngagement($id)
@@ -396,6 +423,9 @@ class AvailabilityController extends Controller
             'timeOff' => $timeOff,
             'newEngagement' => $newEngagement ?? new ConsultantFacility(['session_minutes' => $this->consultant->getSessionMinutes()]),
             'facilityRequest' => $facilityRequest ?? new FacilityRequest(),
+            // The facility the consultant runs as its admin, and a claim waiting for an answer
+            'runsFacilityId' => \frontend\services\FacilityAdmins::runsFacilityId(\common\models\User::findOne($this->consultant->user_id)),
+            'adminClaim' => \frontend\services\FacilityAdmins::pendingClaim($this->consultant->user_id),
             // Waiting, and answered in the last 30 days
             'facilityRequests' => FacilityRequest::find()
                 ->where(['consultant_id' => $this->consultant->id])

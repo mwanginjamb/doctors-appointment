@@ -410,7 +410,7 @@ class Invoices
         }
         foreach ($byFacility as $facilityId => $lines) {
             $facility = Facility::findOne($facilityId);
-            $admins = User::find()->where(['role' => User::ACCOUNT_FACILITY_ADMIN, 'facility_id' => $facilityId, 'status' => User::STATUS_ACTIVE])->all();
+            $admins = FacilityAdmins::query($facilityId)->andWhere(['status' => User::STATUS_ACTIVE])->all();
             if ($facility === null || !$admins) {
                 continue;
             }
