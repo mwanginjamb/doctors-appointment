@@ -35,10 +35,10 @@ class Insurance
         ];
     }
 
-    /** @return array provider id => name, by name */
+    /** @return array provider id => name, by name; without "None" (no cover), which an insured booking cannot have */
     public static function insurers()
     {
-        return Provider::find()->select('provider')->where(['not', ['provider' => null]])->andWhere(['<>', 'provider', ''])
+        return Provider::find()->select('provider')->where(['not', ['provider' => null]])->andWhere(['not in', 'provider', ['', 'None']])
             ->orderBy(['provider' => SORT_ASC])->indexBy('id')->column();
     }
 
