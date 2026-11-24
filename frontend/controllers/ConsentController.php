@@ -4,7 +4,6 @@ namespace frontend\controllers;
 
 use common\models\AccountClosureRequest;
 use common\models\Consent;
-use frontend\models\Appointments;
 use frontend\models\ConsentForm;
 use Yii;
 use yii\filters\AccessControl;
@@ -110,16 +109,7 @@ class ConsentController extends Controller
         Consent::record($userId, Consent::PURPOSE_DATA, false, Consent::METHOD_ONLINE);
         AccountClosureRequest::open($userId, $reason);
 
-        $upcoming = Appointments::find()
-            ->where(['patient_id' => $userId])
-            ->andWhere(['or', ['status' => null], ['status' => [Appointments::STATUS_SCHEDULED, Appointments::STATUS_CONFIRMED]]])
-            ->andWhere(['>=', 'date', date('Y-m-d')])
-            ->all();
-        foreach ($upcoming as $appointment) {
-            if ($appointment->canBeCancelled()) {
-                $appointment->cancel('Cancelled because the patient withdrew consent and asked for their account to be closed.');
-            }
-        }
+        \frontend\services\PatientData::cancelUpcoming($userId, 'Cancelled because the patient withdrew consent and asked for their account to be closed.');
 
         Yii::$app->session->setFlash('success', Yii::t('app', 'Your consent is withdrawn and the clinic has been asked to close your account. Upcoming appointments were cancelled.'));
         return $this->redirect(['index']);

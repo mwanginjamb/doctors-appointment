@@ -17,6 +17,7 @@ waiting-list sweep every 15 minutes and a daily clean-up of the audit log:
 | `doctors-appointment-invoices.timer` → `doctors-appointment-invoices.service` | The 1st of each month at 07:00, runs `php yii invoice/issue`: last month's invoice for each consultant with something to bill, sent to them, with each facility admin told of the lines from their facility. Does nothing while `INVOICES_ENABLED=0`. |
 | `doctors-appointment-invoice-reminders.timer` → `doctors-appointment-invoice-reminders.service` | Daily at 08:00, runs `php yii invoice/remind`: reminds consultants of an invoice due today or a week overdue, pauses patients' online booking with a consultant whose invoice with standard-terms charges is 14 days overdue, and lifts pauses no longer owed. Does nothing while `INVOICES_ENABLED=0`. |
 | `doctors-appointment-clash-reminders.timer` → `doctors-appointment-clash-reminders.service` | Daily at 07:30, runs `php yii clash/remind` (F14): for bookings tomorrow whose patient was told they clash with a closure, time off or holiday and has not chosen a new time, emails the consultant, their front desk and the facility's admins, once. Nothing is cancelled. |
+| `doctors-appointment-retention.timer` → `doctors-appointment-retention.service` | Daily at 03:45, runs `php yii retention/run` (F12): anonymises patient accounts with no sign-in and no appointment for `RETENTION_INACTIVE_YEARS` (3), clears symptom notes `RETENTION_SYMPTOM_MONTHS` (12) after the visit, and removes email sign-ups not verified within `RETENTION_UNVERIFIED_DAYS` (30). |
 | `doctors-appointment.target` | Groups them so they start, stop and restart together. |
 
 ## How the pieces fit
@@ -116,6 +117,15 @@ default) in batches, and logs the removal itself.
 - `RandomizedDelaySec=10min`: avoids starting exactly with other nightly jobs.
 - Check what would go first: `sudo -u www-data php yii audit/purge --dry-run`.
 
+### doctors-appointment-retention.service / .timer
+
+Once a day, `php yii retention/run` applies the patient data retention rules (F12) and logs each change.
+An inactive patient the clinic still owes money (a refundable credit or a refund on its way) is skipped
+and listed in the output.
+
+- `Persistent=true`: if the server was off at 03:45, it runs once when the server is back.
+- Check what would change first: `sudo -u www-data php yii retention/run --dry-run`.
+
 ### doctors-appointment-health.service / .timer
 
 Every 5 minutes, `php yii health/check` checks the database, the queue worker (oldest waiting job), the
@@ -159,7 +169,7 @@ The units assume the app lives at `/var/www/html/doctors-appointment`, PHP CLI i
 sudo cp deploy/systemd/doctors-appointment* /etc/systemd/system/
 sudo systemd-analyze verify /etc/systemd/system/doctors-appointment*.{service,timer,target}
 sudo systemctl daemon-reload
-sudo systemctl enable doctors-appointment-queue.service doctors-appointment-scheduler.timer doctors-appointment-audit-purge.timer doctors-appointment-health.timer doctors-appointment-waitlist.timer doctors-appointment-mpesa.timer doctors-appointment-pilot.timer doctors-appointment-fees.timer doctors-appointment-incentives.timer doctors-appointment-invoices.timer doctors-appointment-invoice-reminders.timer doctors-appointment-clash-reminders.timer
+sudo systemctl enable doctors-appointment-queue.service doctors-appointment-scheduler.timer doctors-appointment-audit-purge.timer doctors-appointment-health.timer doctors-appointment-waitlist.timer doctors-appointment-mpesa.timer doctors-appointment-pilot.timer doctors-appointment-fees.timer doctors-appointment-incentives.timer doctors-appointment-invoices.timer doctors-appointment-invoice-reminders.timer doctors-appointment-clash-reminders.timer doctors-appointment-retention.timer
 sudo systemctl enable --now doctors-appointment.target
 ```
 
@@ -173,7 +183,7 @@ sudo systemctl restart doctors-appointment.target        # after every deploy (l
 sudo systemctl stop doctors-appointment.target           # pause all notifications
 
 systemctl status doctors-appointment.target doctors-appointment-queue
-systemctl list-timers doctors-appointment-scheduler.timer doctors-appointment-audit-purge.timer doctors-appointment-health.timer doctors-appointment-waitlist.timer doctors-appointment-mpesa.timer doctors-appointment-pilot.timer doctors-appointment-fees.timer doctors-appointment-incentives.timer doctors-appointment-invoices.timer doctors-appointment-invoice-reminders.timer doctors-appointment-clash-reminders.timer
+systemctl list-timers doctors-appointment-scheduler.timer doctors-appointment-audit-purge.timer doctors-appointment-health.timer doctors-appointment-waitlist.timer doctors-appointment-mpesa.timer doctors-appointment-pilot.timer doctors-appointment-fees.timer doctors-appointment-incentives.timer doctors-appointment-invoices.timer doctors-appointment-invoice-reminders.timer doctors-appointment-clash-reminders.timer doctors-appointment-retention.timer
 journalctl -u doctors-appointment-queue -f               # worker output
 journalctl -u doctors-appointment-scheduler --since -1h  # scheduler runs
 journalctl -u doctors-appointment-health --since -1h     # health checks

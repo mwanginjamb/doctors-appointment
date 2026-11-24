@@ -83,6 +83,7 @@ Doing **Next up** below should bring the app to about 9.5 functionally.
 | T2 Monitoring and alerts | Errors from the website, console and queue worker go to a self-hosted GlitchTip (Sentry-compatible), with personal data scrubbed (no request data, frame arguments, contacts or link tokens). `php yii health/check` runs every 5 minutes (`doctors-appointment-health.timer`) and emails `ALERT_EMAILS` when the queue worker stalls, the reminder scheduler stops, messages keep failing, WhatsApp logs out or the database is down: once, a reminder every 6 hours, and when resolved. Each run pings a heartbeat URL (healthchecks.io), and `/health` answers `ok` for an uptime monitor. Admins see **System health** on the dashboard. | `feature/monitoring` |
 | T4 CI and deploys | Gitea Actions (`.gitea/workflows/ci.yml`) runs every Codeception suite on each push and pull request: MySQL 8 and PHP 8.3 as on the server, a test database built from scratch (migrations, RBAC, `rbac/init`). A pushed `vX.Y.Z` tag that passes is deployed by the **deploy** job over SSH with a key that can only run `deploy/deploy.sh`: it checks the tag is on `main`, backs up the database, then runs composer, migrations and `rbac/init`, restarts the services and checks `/health`. A full run takes about 25 minutes. | `feature/ci` |
 | T11 M-Pesa (Daraja) | `Yii::$app->mpesa` sends STK pushes, queries their outcome and makes B2C payments, every setting from `.env` (`MPESA_*`), so going live only changes `.env`. Each request is a row in `mpesa_transaction`. Safaricom answers at `POST /mpesa/{stk,b2c-result,b2c-timeout}/<token>`: a wrong token is a 404, a payment is settled once, an STK success counts only when a status query confirms it, and a callback that arrives after a query still records the receipt. `mpesa/reconcile` (every 5 minutes) settles payments whose callback never came. `Mpesa::EVENT_SETTLED` is for the commitment-fee features. | `feature/mpesa` |
+| F12 Patients' data: download, deletion and retention | Patients open **My data** (account menu, and from Privacy & messages; it works on the consent page too and with `CONSENT_ENABLED=false`) to **see everything held about them** as a page to read, print or save as PDF (account, appointments with symptoms and insurer details, reminders sent, commitment fees, credits, M-Pesa payments and refunds, waiting list, ratings given, consents, sign-ins, requests) or **download it as JSON**. **Ask the clinic to delete my data** (confirmed with a tick) withdraws consent, cancels upcoming appointments and opens a closure request marked **Delete data**. Admins on **Closure Requests** see or download the patient's data and **Delete data and close**: the account becomes "Deleted patient #id" and cannot sign in; name, email, phone, date of birth, gender, sign-in links, symptoms, member numbers, pre-authorisation notes, rating comments, the waiting list and reminder settings are removed, M-Pesa numbers masked and raw callbacks dropped; visits keep their date, doctor, facility, status and fee, payments their amounts and receipts, ratings their stars. Refused while the clinic owes the patient money (an unused refundable credit or a refund waiting). Every view, download and deletion is in the audit log, which keeps its own 7-year purge. **Retention** (`php yii retention/run`, daily timer): patient accounts with no sign-in and no appointment for 3 years are anonymised the same way (skipped while money is owed), symptom notes are cleared 12 months after the visit, and email sign-ups never verified are removed after 30 days (`RETENTION_*` in `.env`). | `feature/patient-data` |
 
 ### Commercial pilot
 
@@ -812,6 +813,23 @@ facility's admin and as one of its consultants and open **Pilot report** in the 
 3. **Check by hand:** record a test visit as attended, run the queue (or wait), open the link from the
    email, rate it; see it in My ratings (no name) and in `/admin` → Ratings (with the patient).
 
+### F12 Patients' data: download, deletion and retention
+
+1. **Database:** `php yii migrate` runs `m261220_090000_patient_data`
+   (`account_closure_request.delete_data` and `data_deleted_at`, `user.anonymised_at`).
+2. **`.env` (optional):** the retention periods default to `RETENTION_INACTIVE_YEARS=3`,
+   `RETENTION_SYMPTOM_MONTHS=12` and `RETENTION_UNVERIFIED_DAYS=30`.
+3. **Check what the rules would change before the timer runs them:**
+   `sudo -u www-data php yii retention/run --dry-run`. The first real run may anonymise many old
+   accounts and clear old symptom notes; this cannot be undone, so back up the database first if the
+   dry run lists more than you expect.
+4. **Timer:** copy `deploy/systemd/doctors-appointment-retention.service` and `.timer` to
+   `/etc/systemd/system/`, then `sudo systemctl daemon-reload` and
+   `sudo systemctl enable --now doctors-appointment-retention.timer` (daily at 03:45).
+5. **Check by hand:** as a test patient open **My data**, see and download it, ask for deletion; as an
+   admin open **Closure Requests**, see the **Delete data** request, view the data and delete it; the
+   patient's appointments show "Deleted patient #id".
+
 ### Admin area: pilots, plans and payments (F28)
 
 1. **Permissions:** `php yii rbac/init` adds `manageFacilityConsultants` (consultancy admins) and
@@ -1110,7 +1128,7 @@ Built as planned below, with these choices made on 12 Nov 2026:
 | # | Item | Priority | Impact |
 |---|---|---|---|
 | ~~F11~~ | ~~Explicit consent at sign-up and walk-in registration.~~ **Done.** | — | +0.5 (with T7) |
-| F12 | Patients can export and delete their data; retention rules for old records. | P2 | |
+| ~~F12~~ | ~~Patients can export and delete their data; retention rules for old records.~~ **Done.** | — | +0.5 |
 
 ### Technical
 
@@ -1152,4 +1170,5 @@ Built as planned below, with these choices made on 12 Nov 2026:
 
 ## Next up
 
-1. **F12** Patients export and delete their data (completes the closure requests from F11).
+Nothing queued. Candidates from **Open**: F15 check-in on the day, F16 capacity use, F2 WhatsApp
+booking confirmations, T5 static analysis, T3 the official WhatsApp Business API.

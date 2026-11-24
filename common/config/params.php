@@ -44,6 +44,12 @@ return [
     // Audit log entries older than this are removed by `php yii audit/purge` (daily timer).
     // 7 years, a common period for health records.
     'audit.retentionYears' => (int) env('AUDIT_RETENTION_YEARS', 7),
+    // F12 retention rules, applied daily by `php yii retention/run`: a patient account with no
+    // sign-in and no appointment for this long is anonymised; symptom notes are cleared this long
+    // after the visit; email sign-ups never verified are removed after this many days.
+    'retention.inactiveYears' => (int) env('RETENTION_INACTIVE_YEARS', 3),
+    'retention.symptomMonths' => (int) env('RETENTION_SYMPTOM_MONTHS', 12),
+    'retention.unverifiedDays' => (int) env('RETENTION_UNVERIFIED_DAYS', 30),
     // Privacy notice (F11, Kenya Data Protection Act). Change privacy.version whenever the notice
     // text changes: signed-in patients are then asked to accept it again. The controller's details
     // come from .env so each deployment states its own; missing ones show as "to be provided".
