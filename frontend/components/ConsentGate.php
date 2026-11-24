@@ -22,6 +22,7 @@ class ConsentGate extends Behavior
     /** Routes a patient without consent can still open: route prefixes (controller/) or exact routes. */
     public $allow = [
         'consent/',
+        'my-data/', // F12: download the data or ask for it to be deleted
         'site/privacy',
         'site/logout',
         'site/error',

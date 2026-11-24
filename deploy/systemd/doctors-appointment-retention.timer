@@ -1,0 +1,17 @@
+# Fires doctors-appointment-retention.service once a day, at a quiet hour.
+#
+#   systemctl list-timers doctors-appointment-retention.timer   # last / next run
+
+[Unit]
+Description=Apply patient data retention rules daily
+PartOf=doctors-appointment.target
+
+[Timer]
+OnCalendar=*-*-* 03:45:00
+RandomizedDelaySec=10min
+# If the server was off at 03:45, run once when it is back
+Persistent=true
+Unit=doctors-appointment-retention.service
+
+[Install]
+WantedBy=doctors-appointment.target

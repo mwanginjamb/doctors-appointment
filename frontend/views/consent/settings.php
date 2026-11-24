@@ -18,7 +18,7 @@ $this->params['breadcrumbs'][] = $this->title;
 ?>
 <div class="consent-settings container my-4" style="max-width: 44rem">
     <h1 class="h3 fw-bold"><?= Html::encode($this->title) ?></h1>
-    <p><?= Html::a('Read the privacy notice', ['/site/privacy']) ?></p>
+    <p><?= Html::a('Read the privacy notice', ['/site/privacy']) ?> · <?= Html::a('See, download or delete your data', ['/my-data/index'], ['id' => 'link-my-data']) ?></p>
 
     <div class="card shadow-sm mb-4">
         <div class="card-body">

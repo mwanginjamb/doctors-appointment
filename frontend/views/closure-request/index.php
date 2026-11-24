@@ -15,9 +15,12 @@ $filters = [AccountClosureRequest::STATUS_OPEN => 'Open', AccountClosureRequest:
 <div class="closure-request-index">
     <h1><?= Html::encode($this->title) ?></h1>
     <p class="text-muted">
-        Patients who withdrew their consent to the clinic using their information. Their upcoming
-        appointments were cancelled when they withdrew. Contact them if needed, then deactivate the account.
-        A patient who gives consent again withdraws their request.
+        Patients who withdrew their consent to the clinic using their information, or asked for their
+        data to be deleted. Their upcoming appointments were cancelled when they asked. Contact them if
+        needed, then deactivate the account or delete their data: name, contacts, date of birth,
+        symptoms and insurance details are removed; visit dates and payments stay, without the name.
+        Download their data first if they asked for a copy. A patient who gives consent again withdraws
+        their request.
     </p>
 
     <ul class="nav nav-pills mb-3">
@@ -54,9 +57,13 @@ $filters = [AccountClosureRequest::STATUS_OPEN => 'Open', AccountClosureRequest:
                         },
                     ],
                     [
-                        'label' => 'Reason',
+                        'label' => 'Asked for',
+                        'format' => 'raw',
                         'value' => function (AccountClosureRequest $r) {
-                            return $r->reason ?? '';
+                            return ($r->delete_data
+                                ? Html::tag('span', 'Delete data', ['class' => 'badge bg-danger-subtle text-danger-emphasis'])
+                                : Html::tag('span', 'Close account', ['class' => 'badge bg-secondary-subtle text-secondary-emphasis']))
+                                . ($r->reason ? Html::tag('div', Html::encode($r->reason), ['class' => 'small mt-1']) : '');
                         },
                     ],
                     [
@@ -79,10 +86,21 @@ $filters = [AccountClosureRequest::STATUS_OPEN => 'Open', AccountClosureRequest:
                         'format' => 'raw',
                         'contentOptions' => ['style' => 'min-width: 18rem'],
                         'value' => function (AccountClosureRequest $r) {
+                            $data = $r->user && !$r->user->anonymised_at
+                                ? Html::a('See data', ['data', 'id' => $r->id], ['class' => 'btn btn-sm btn-outline-secondary me-1 mb-2'])
+                                    . Html::a('Download (JSON)', ['data', 'id' => $r->id, 'format' => 'json'], ['class' => 'btn btn-sm btn-outline-secondary mb-2'])
+                                : '';
                             if ($r->status !== AccountClosureRequest::STATUS_OPEN) {
-                                return '';
+                                return $data;
                             }
-                            return Html::beginForm(['close', 'id' => $r->id], 'post', ['class' => 'closure-close-form'])
+                            return Html::tag('div', $data)
+                                . Html::beginForm(['delete-data', 'id' => $r->id], 'post', ['class' => 'closure-delete-form mb-2'])
+                                . Html::submitButton('Delete data and close', [
+                                    'class' => 'btn btn-sm ' . ($r->delete_data ? 'btn-danger' : 'btn-outline-danger'),
+                                    'data' => ['confirm' => 'Delete the personal data of this patient? Their name, contacts, date of birth, symptoms and insurance details are removed and the account is closed. This cannot be undone.'],
+                                ])
+                                . Html::endForm()
+                                . Html::beginForm(['close', 'id' => $r->id], 'post', ['class' => 'closure-close-form'])
                                 . Html::textInput('note', '', ['class' => 'form-control form-control-sm mb-2', 'placeholder' => 'Note (optional)', 'maxlength' => 400])
                                 . Html::hiddenInput('deactivate', '1')
                                 . Html::submitButton('Deactivate account and close', [

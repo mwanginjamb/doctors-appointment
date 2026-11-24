@@ -8,17 +8,19 @@ use yii\db\ActiveRecord;
 
 /**
  * A patient withdrew consent to data processing and asked for their account to be closed (F11).
- * Admins handle it: deactivate the account (and, with F12, export or delete the data) and close the
+ * Admins handle it: deactivate the account (and, F12, download or delete the data) and close the
  * request. A patient who gives consent again withdraws their request.
  *
  * @property int $id
  * @property int $user_id
  * @property string|null $reason
+ * @property int $delete_data F12: 1 when the patient asked for their data to be deleted
  * @property string $status
  * @property int $created_at
  * @property int|null $handled_by
  * @property int|null $handled_at
  * @property string|null $handled_note
+ * @property int|null $data_deleted_at F12: when an admin deleted the data
  *
  * @property User $user
  * @property User|null $handler

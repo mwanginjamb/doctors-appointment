@@ -48,6 +48,9 @@ class AuditLog extends ActiveRecord
     const ACTION_CONSENT_WITHDRAWN = 'consent_withdrawn';
     /** F21: staff opened an appointment showing the patient's phone and email in full */
     const ACTION_CONTACT_VIEWED = 'contact_viewed';
+    /** F12: a patient's data was downloaded / their personal data removed */
+    const ACTION_DATA_EXPORTED = 'data_exported';
+    const ACTION_DATA_DELETED = 'data_deleted';
 
     /** Written in place of a value that must not be kept (password hashes, health details). */
     const MASKED = '[changed]';
@@ -106,6 +109,8 @@ class AuditLog extends ActiveRecord
             self::ACTION_CONSENT_GRANTED => 'Consent given',
             self::ACTION_CONSENT_WITHDRAWN => 'Consent withdrawn',
             self::ACTION_CONTACT_VIEWED => "Patient's contact viewed",
+            self::ACTION_DATA_EXPORTED => "Patient's data downloaded",
+            self::ACTION_DATA_DELETED => "Patient's data deleted",
         ];
     }
 
@@ -131,6 +136,7 @@ class AuditLog extends ActiveRecord
             'patient_credit' => 'Rebooking credit',
             'frontdesk_incentive' => 'Front-desk incentive',
             'incentive_payout' => 'Front-desk payout',
+            'retention' => 'Retention rules',
         ];
     }
 
